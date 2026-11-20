@@ -465,7 +465,7 @@
 //     open3dMapBtn: 'Open 3D map',
 //     closeFullscreenBtn: 'Exit Fullscreen',
 //     whatsNearbyTitle: "What's nearby",
-//     whatsNearbySub: 'Nearest first · walking time · Aqar Exit Maps',
+//     whatsNearbySub: 'Nearest first · walking time · DualDealz Maps',
 //     loadingNearbyText: 'Loading real nearby places...',
 //     noPlacesInCategory: 'No places listed nearby in this category',
 //     allCat: 'All',

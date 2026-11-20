@@ -58,7 +58,7 @@ export default async function SettingsPage({
 
   let savedSettings = {
     siteName:
-      runtimeSettings?.siteName || dict.admin?.shell?.brand || "Aqar Exit",
+      runtimeSettings?.siteName || dict.admin?.shell?.brand || "DualDealz",
     whatsappNumber:
       runtimeSettings?.whatsappNumber || dict.footer?.phone || "+201018595959",
     supportEmail:

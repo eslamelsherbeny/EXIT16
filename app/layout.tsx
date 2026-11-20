@@ -12,6 +12,7 @@ import { getServerI18n } from '@/lib/get-server-dictionary'
 
 export const dynamic = 'force-dynamic'
 
+
 const cairo = Cairo({
   subsets: ['arabic', 'latin'],
   weight: ['400', '600', '700', '900'],
@@ -19,22 +20,68 @@ const cairo = Cairo({
   display: 'swap',
 })
 
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL || 'https://dualdealz.com'
+
 export async function generateMetadata(): Promise<Metadata> {
-  const { dict } = await getServerI18n()
-  const title = dict.systemPages?.metaTitle || 'Aqar Exit — عقار إكزت'
+  const { dict, locale } = await getServerI18n()
+  const title =
+    dict.systemPages?.metaTitle ||
+    'DualDealz — Real Estate & Installment Transfers in Georgia'
   const description =
     dict.systemPages?.metaDesc ||
-    'منصة التنازل عن وحدات التقسيط واستكمال الأقساط في جورجيا بدون أوفر وبسعر العقد الأصلي.'
+    'Buy, sell, and transfer installment real estate in Tbilisi & Batumi, Georgia directly at original contract prices with DualDealz.'
+
+  const ogLocaleMap: Record<string, string> = {
+    ar: 'ar_AR',
+    en: 'en_US',
+    ru: 'ru_RU',
+    ka: 'ka_GE',
+  }
 
   return {
-    title,
+    metadataBase: new URL(SITE_URL),
+    title: {
+      default: title,
+      template: '%s | DualDealz',
+    },
     description,
-    applicationName: 'Aqar Exit',
+    applicationName: 'DualDealz',
+    keywords: [
+      'DualDealz',
+      'Georgia real estate',
+      'Tbilisi apartments for sale',
+      'Batumi real estate investment',
+      'installment transfer Georgia',
+      'عقارات جورجيا',
+      'شقق بالتقسيط في تبليسي',
+      'شقق للبيع في باتومي',
+      'تنازل عقارات جورجيا',
+      'недвижимость в Грузии',
+      'квартиры в Тбилиси и Батуми',
+      'უძრავი ქონება საქართველოში',
+    ],
+    authors: [{ name: 'DualDealz', url: SITE_URL }],
+    creator: 'DualDealz',
+    publisher: 'DualDealz',
+    alternates: {
+      canonical: '/',
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        'max-image-preview': 'large',
+        'max-snippet': -1,
+      },
+    },
     manifest: '/manifest.webmanifest',
     appleWebApp: {
       capable: true,
       statusBarStyle: 'default',
-      title: 'Aqar Exit',
+      title: 'DualDealz',
     },
     icons: {
       icon: [
@@ -44,19 +91,29 @@ export async function generateMetadata(): Promise<Metadata> {
       apple: [{ url: '/apple-icon.png', sizes: '180x180', type: 'image/png' }],
     },
     openGraph: {
+      type: 'website',
+      url: SITE_URL,
+      siteName: 'DualDealz',
+      locale: ogLocaleMap[locale] || 'en_US',
       title,
       description,
-      type: 'website',
-      siteName: 'Aqar Exit',
+      images: [
+        {
+          url: '/og-image.png',
+          width: 1200,
+          height: 630,
+          alt: 'DualDealz — Real Estate in Georgia',
+        },
+      ],
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description,
+      images: ['/og-image.png'],
     },
   }
 }
-
 export const viewport: Viewport = {
   colorScheme: 'light',
   themeColor: '#0a1122',

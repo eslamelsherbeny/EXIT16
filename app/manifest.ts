@@ -16,12 +16,12 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
   const description =
     dict?.systemPages?.manifestDesc ||
     dict?.systemPages?.metaDesc ||
-    'Aqar Exit'
+    'DualDealz'
 
   return {
     id: '/',
-    name: 'Aqar Exit',
-    short_name: 'Aqar Exit',
+    name: 'DualDealz',
+    short_name: 'DualDealz',
     description,
     start_url: '/',
     scope: '/',

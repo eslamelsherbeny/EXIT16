@@ -127,7 +127,7 @@ export function downloadExcelCsv<T>({
     <thead>
       <tr>
         <td colspan="${colSpanCount}" style="background-color:#0a1122; color:#ffffff; font-size:16pt; font-weight:bold; padding:16px 20px; text-align:center; border:2px solid #0a1122;">
-          AQAR EXIT &mdash; ${escapeHtml(resolvedTitle)}
+          DualDealz &mdash; ${escapeHtml(resolvedTitle)}
         </td>
       </tr>
       <tr>
@@ -500,7 +500,7 @@ export function downloadOfficialPdfReport<T>({
 
     <footer class="sheet-footer">
       <span>${escapeHtml(L.footerDisclaimer)}</span>
-      <span class="stamp-badge">✓ AQAR EXIT VERIFIED</span>
+      <span class="stamp-badge">✓ DualDealz VERIFIED</span>
     </footer>
   </div>
 

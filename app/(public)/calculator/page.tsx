@@ -50,7 +50,7 @@ const CALC_FALLBACK_I18N: Record<LocaleCode, Record<string, string>> = {
     expectedDurationLabel: "المدة المتوقعة لاسترداد المبلغ من المطور",
     aroundWord: "حوالي",
     sameDurationSuffix: "(أو حتى إعادة بيع الوحدة بمعرفة المطور)",
-    assignScenarioTitle: "البديل الثاني: التنازل المباشر عبر Aqar Exit",
+    assignScenarioTitle: "البديل الثاني: التنازل المباشر عبر DualDealz",
     recoveredViaAssignLabel: "المبلغ المسترد كاش في يدك عبر المنصة",
     recoveredViaAssignHint: "تسترد كامل مدفوعاتك كاش بدون خصم غرامة الفسخ",
     commissionLabel: "عمولة المنصة على البائع",
@@ -72,7 +72,7 @@ const CALC_FALLBACK_I18N: Record<LocaleCode, Record<string, string>> = {
   en: {
     title: "Exit & Instant Gain Calculator",
     subtitle:
-      "Compare cancelling your contract with the developer vs. direct exit takeover via Aqar Exit",
+      "Compare cancelling your contract with the developer vs. direct exit takeover via DualDealz",
     ownerTab: "I'm an Owner (Selling)",
     buyerTab: "I'm a Buyer (Buying)",
     contractPriceLabel: "Original Total Contract Price",
@@ -103,7 +103,7 @@ const CALC_FALLBACK_I18N: Record<LocaleCode, Record<string, string>> = {
     expectedDurationLabel: "Expected Refund Waiting Time",
     aroundWord: "Around",
     sameDurationSuffix: "(or until developer resells the unit)",
-    assignScenarioTitle: "Option 2: Direct Exit via Aqar Exit",
+    assignScenarioTitle: "Option 2: Direct Exit via DualDealz",
     recoveredViaAssignLabel: "Cash Recovered in Hand via Platform",
     recoveredViaAssignHint: "Recover 100% of your paid cash without cancellation penalties",
     commissionLabel: "Platform Fee for Seller",
@@ -125,7 +125,7 @@ const CALC_FALLBACK_I18N: Record<LocaleCode, Record<string, string>> = {
   ru: {
     title: "Калькулятор переуступки и выгоды",
     subtitle:
-      "Сравните расторжение договора с застройщиком и прямую переуступку через Aqar Exit",
+      "Сравните расторжение договора с застройщиком и прямую переуступку через DualDealz",
     ownerTab: "Я собственник (Продать)",
     buyerTab: "Я покупатель (Купить)",
     contractPriceLabel: "Полная стоимость по договору с застройщиком",
@@ -156,7 +156,7 @@ const CALC_FALLBACK_I18N: Record<LocaleCode, Record<string, string>> = {
     expectedDurationLabel: "Ожидаемый срок возврата средств",
     aroundWord: "Около",
     sameDurationSuffix: "(или до перепродажи квартиры застройщиком)",
-    assignScenarioTitle: "Вариант 2: Прямая переуступка через Aqar Exit",
+    assignScenarioTitle: "Вариант 2: Прямая переуступка через DualDealz",
     recoveredViaAssignLabel: "Сумма на руки через платформу",
     recoveredViaAssignHint: "Вы возвращаете 100% выплаченных средств без штрафа застройщика",
     commissionLabel: "Комиссия платформы для продавца",
@@ -178,7 +178,7 @@ const CALC_FALLBACK_I18N: Record<LocaleCode, Record<string, string>> = {
   ka: {
     title: "გადაბარების და სარგებლის კალკულატორი",
     subtitle:
-      "შეადარეთ ხელშეკრულების გაუქმება დეველოპერთან და პირდაპირი გადაბარება Aqar Exit-ით",
+      "შეადარეთ ხელშეკრულების გაუქმება დეველოპერთან და პირდაპირი გადაბარება DualDealz-ით",
     ownerTab: "მესაკუთრე ვარ (გაყიდვა)",
     buyerTab: "მყიდველი ვარ (ყიდვა)",
     contractPriceLabel: "ხელშეკრულების სრული საწყისი ფასი",
@@ -209,7 +209,7 @@ const CALC_FALLBACK_I18N: Record<LocaleCode, Record<string, string>> = {
     expectedDurationLabel: "თანხის დაბრუნების სავარაუდო ვადა",
     aroundWord: "დაახლოებით",
     sameDurationSuffix: "(ან ბინის ხელახლა გაყიდვამდე)",
-    assignScenarioTitle: "ვარიანტი 2: პირდაპირი გადაბარება Aqar Exit-ით",
+    assignScenarioTitle: "ვარიანტი 2: პირდაპირი გადაბარება DualDealz-ით",
     recoveredViaAssignLabel: "ხელზე მისაღები თანხა პლატფორმით",
     recoveredViaAssignHint: "იბრუნებთ გადახდილ თანხას სრულად ჯარიმის გარეშე",
     commissionLabel: "პლატფორმის საკომისიო გამყიდველისთვის",

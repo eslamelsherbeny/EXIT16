@@ -732,8 +732,8 @@ export async function submitBuyerOfferAction(payload: {
         dir,
         subject:
           locale === 'en'
-            ? `Offer Received (${offerRef}) — ${projectTitle} | Aqar Exit`
-            : `تم استلام عرضك (${offerRef}) على ${projectTitle} — Aqar Exit`,
+            ? `Offer Received (${offerRef}) — ${projectTitle} | DualDealz`
+            : `تم استلام عرضك (${offerRef}) على ${projectTitle} — DualDealz`,
         heading:
           locale === 'en'
             ? `Thank you, ${buyerNameFinal}! Your offer has been received.`

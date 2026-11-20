@@ -45,7 +45,7 @@
       "lossCardDurationLabel": "Refunded over",
       "lossCardDurationValue": "3 years",
       "lossCardFooter": "75% loss of paid cash + years of waiting",
-      "winCardTitle": "If transferred via Aqar Exit",
+      "winCardTitle": "If transferred via DualDealz",
       "winCardLabel": "Recovers full paid amount",
       "winCardAmount": "2,000,000",
       "winCardSub": "Cash upon transfer completion",
@@ -69,7 +69,7 @@
       "sellerPoint1": "Recover 100% of what you paid — cash upon transfer completion",
       "sellerPoint2": "No public listings or annoying broker calls",
       "sellerPoint3": "We prepare your assignment file and guide you step by step until signing",
-      "sellerFreeNote": "100% Free for you — Aqar Exit charges zero commission to sellers.",
+      "sellerFreeNote": "100% Free for you — DualDealz charges zero commission to sellers.",
       "sellerBtn": "List Your Unit for Assignment",
       "buyerBadge": "Buyer",
       "buyerTitle": "An Installment Unit Without Paying Overprice to Anyone",
@@ -84,7 +84,7 @@
       "subtitle": "The market is full of ads and brokers — we operate in a completely different way",
       "colCriterion": "Comparison",
       "colResale": "Traditional Resale",
-      "colExit": "Aqar Exit",
+      "colExit": "DualDealz",
       "rows": [
         {
           "criterion": "Price",
@@ -119,7 +119,7 @@
       "lossDurationLabel": "Refunded over",
       "lossDurationValue": "3 years",
       "lossFooter": "75% loss of paid money + years of waiting",
-      "winTitle": "If transferred via Aqar Exit",
+      "winTitle": "If transferred via DualDealz",
       "winReturnLabel": "Recovers full paid amount",
       "winReturnAmount": "2,000,000",
       "winReturnSub": "Cash upon transfer completion",
@@ -275,7 +275,7 @@
       "New projects": "Under construction"
     },
     "marketSections": {
-      "bannerBadge": "PREMIUM SPOTLIGHT · AQAR EXIT",
+      "bannerBadge": "PREMIUM SPOTLIGHT · DualDealz",
       "bannerTitle": "Want to Exit Your Unit or Promote Your Project Faster?",
       "bannerDesc": "Place your property at the top of the homepage in front of thousands of serious investors.",
       "bannerPill1": "Top placement",
@@ -368,7 +368,7 @@
     "privacy": "Privacy Policy",
     "appLabel": "Download App",
     "disclaimer": "Figures and estimates displayed on the platform are indicative and depend on individual contract terms. They do not constitute legal advice or a guaranteed outcome. Final review is conducted on your actual contract with our team and qualified legal advisors.",
-    "copyright": "© 2026 Aqar Exit. All rights reserved.",
+    "copyright": "© 2026 DualDealz. All rights reserved.",
     "powered": "Powered by Aqara for Real Estate and Ammar Group LLC",
     "marketsTitle": "Markets",
     "soonBadge": "Soon",
@@ -402,7 +402,7 @@
     "assignScenarioTitle": "Contract Assignment Scenario",
     "recoveredViaAssignLabel": "Recovered via Assignment",
     "recoveredViaAssignHint": "100% of documented paid amount — in cash upon transfer completion",
-    "commissionLabel": "Aqar Exit Commission on You (Zero — Free for Seller)",
+    "commissionLabel": "DualDealz Commission on You (Zero — Free for Seller)",
     "netDiffInFavorLabel": "Net Difference in Your Favor",
     "estimateBadge": "Estimate",
     "estimateNote": "Based on standard developer contract terms (10–15%) — confirmed upon reviewing your contract",
@@ -534,7 +534,7 @@
     "errStep3": "Please complete your contact details and choose a password of at least 8 characters"
   },
   "sell": {
-    "metaTitle": "Sell Your Unit | Aqar Exit",
+    "metaTitle": "Sell Your Unit | DualDealz",
     "metaDesc": "List your property safely and recover your paid installments in Georgia.",
     "shared": {
       "countryLabel": "Country *",
@@ -576,7 +576,7 @@
       "passwordHelper": "At least 8 characters — to access your account anytime",
       "showPass": "Show",
       "hidePass": "Hide",
-      "loginBoxDesc": "Sign in with your Aqar Exit account to sync your phone and link this unit:",
+      "loginBoxDesc": "Sign in with your DualDealz account to sync your phone and link this unit:",
       "loginIdLabel": "Email or Mobile Number *",
       "loginPassLabel": "Password *",
       "ownerDeclaration": "I declare that I am the original unit owner and not a real estate broker.",
@@ -1237,7 +1237,7 @@
       "fastTrackAfterOfferPrompt": "To fast-track unit reservation and notify the owner immediately, confirm via WhatsApp:",
       "collapseOffersBtn": "Show latest offers only",
       "expandRemainingOffersPrefix": "Show remaining submitted offers",
-      "waFastTrackOfferMsgPrefix": "Hello Aqar Exit, I confirm my purchase offer",
+      "waFastTrackOfferMsgPrefix": "Hello DualDealz, I confirm my purchase offer",
       "waFastTrackOfferMsgMiddle": "for unit",
       "waFastTrackOfferMsgSuffix": "to fast-track reservation with the owner.",
       "zeroLeakageBadge": "100% Secure & Verified Negotiation",
@@ -1572,7 +1572,7 @@
       "copyRefBtn": "Copy Code",
       "copiedBtn": "Copied ✓",
       "whatsappActivateBtn": "Confirm via WhatsApp to Activate",
-      "whatsappPromoMsgPrefix": "Hello Aqar Exit, I want to activate boost package",
+      "whatsappPromoMsgPrefix": "Hello DualDealz, I want to activate boost package",
       "whatsappPromoMsgMiddle": "for my unit in",
       "whatsappPromoMsgRef": "Order Ref:",
       "cancelActivePromoBtn": "Stop Active Boost",
@@ -1589,7 +1589,7 @@
       "incompleteNextStepHeadline": "Complete the remaining items below (including the 4 verification documents) so we can publish your unit",
       "fastTrackSellerWaTitle": "To verify your phone number and fast-track publishing your unit to buyers, confirm via WhatsApp:",
       "fastTrackSellerWaBtn": "Verify Phone & Fast-Track via WhatsApp",
-      "waFastTrackSellerMsgPrefix": "Hello Aqar Exit, I confirm my unit listing for fast-track review — Ref:",
+      "waFastTrackSellerMsgPrefix": "Hello DualDealz, I confirm my unit listing for fast-track review — Ref:",
       "msgPromoError": "Could not record boost request.",
       "msgPromoCancelled": "✓ Boost request cancelled.",
       "msgPromoCancelError": "Could not cancel boost request.",
@@ -1615,7 +1615,7 @@
       "adminNoteCardTitle": "Reviewer Note from Admin Regarding Your Unit:",
       "adminNoteFixBtn": "Edit Unit Details Now",
       "adminNoteWaReplyBtn": "Reply / Ask via WhatsApp",
-      "adminNoteWaMsgPrefix": "Hello Aqar Exit Admin, regarding your note on my unit",
+      "adminNoteWaMsgPrefix": "Hello DualDealz Admin, regarding your note on my unit",
       "adminNoteWaMsgMiddle": "in project",
       "checklistTitleIncomplete": "⚠️ Current Status: Not Published Yet (Waiting for Required Items)",
       "checklistSubIncomplete": "Units are only sent for market publication once all 3 requirements below are completed. Click any missing item to complete it:",
@@ -1759,7 +1759,7 @@
       "roomsWord": "Rooms",
       "fastTrackWaTitle": "To confirm your buying request and fast-track matching units, contact us via WhatsApp",
       "fastTrackWaBtn": "Confirm & Fast-Track via WhatsApp",
-      "waFastTrackMsgPrefix": "Hello Aqar Exit, I confirm my buying request — Available Cash:",
+      "waFastTrackMsgPrefix": "Hello DualDealz, I confirm my buying request — Available Cash:",
       "radarActiveSubtitle": "Smart Radar matches your budget and preferred districts in Georgia with verified exit units",
       "offersAvailableSub": "offers available",
       "noOffersSub": "Track your offers & matches",
@@ -1896,7 +1896,7 @@
       "subtitle": "To fast-track verified unit recommendations matching your budget, confirm your request via WhatsApp below:",
       "confirmWaBtn": "Confirm Request via WhatsApp",
       "goToAccountBtn": "Go to My Account & View Matches",
-      "waMsgPrefix": "Hello Aqar Exit, I confirm my buy request",
+      "waMsgPrefix": "Hello DualDealz, I confirm my buy request",
       "orderRefPrefix": "Ref:"
     },
     "stepOne": {
@@ -1948,7 +1948,7 @@
       "emailLabel": "Your Email *",
       "passwordLabel": "Choose a Password for Your Account *",
       "passwordHelper": "At least 8 characters — use this to log in later",
-      "loginBoxDesc": "Log in with your Aqar Exit account and we'll link this buyer request directly:",
+      "loginBoxDesc": "Log in with your DualDealz account and we'll link this buyer request directly:",
       "loginIdLabel": "Email or Mobile Number *",
       "loginPassLabel": "Password *",
       "buyerDeclaration": "By submitting this request, you confirm you are the actual buyer and not a broker.",
@@ -2099,14 +2099,14 @@
       "yourGainTitle": "Below Market Value Gain",
       "marketPriceTodayPrefix": "Market price today:",
       "afterCommissionSuffix": "· Net after 1.25% fee",
-      "marketDisclaimer": "Market price is estimated by the unit owner — not an official valuation by Aqar Exit.",
+      "marketDisclaimer": "Market price is estimated by the unit owner — not an official valuation by DualDealz.",
       "remainingToDev": "Remaining to Developer",
       "installmentLabel": "Installment",
       "deliveryLabel": "Handover",
       "detailsBtn": "Details"
     },
     "trustSection": {
-      "title": "Why Take Over an Installment Contract via Aqar Exit?",
+      "title": "Why Take Over an Installment Contract via DualDealz?",
       "card1Title": "Didn't find the right unit yet? Submit your request",
       "card1Desc": "Set your cash budget, preferred district in Tbilisi or Batumi, and monthly installment limit — we will match you with verified exit deals.",
       "card1Btn": "Submit Buy Request →",
@@ -2361,7 +2361,7 @@
       "fullPricePriorityHint": "Top priority for instant acceptance",
       "errBelowMinFloor": "Minimum allowed offer amount is",
       "fomoNegotiationWarning": "Full-price offers receive priority acceptance from the seller.",
-      "waConfirmIntro": "Hello Aqar Exit, I confirm my purchase offer",
+      "waConfirmIntro": "Hello DualDealz, I confirm my purchase offer",
       "waConfirmUnitWord": "for unit",
       "waConfirmAmountWord": "with amount",
       "waConfirmLinkLabel": "Verification Link:"
@@ -2377,7 +2377,7 @@
       "streetAddressLabel": "Address:",
       "cadastralCodeLabel": "Cadastral Code (NAPR):",
       "developerLabel": "Developer:",
-      "scoreHeader": "AQAR EXIT SCORE",
+      "scoreHeader": "DualDealz SCORE",
       "excellentDeal": "Excellent Deal",
       "veryGoodDeal": "Very Good Deal",
       "scoreCalculatedPrefix": "Calculated from unit sqm price ($",
@@ -2438,7 +2438,7 @@
       "open3dMapBtn": "Open 3D map",
       "closeFullscreenBtn": "Exit Fullscreen",
       "whatsNearbyTitle": "What's nearby",
-      "whatsNearbySub": "Nearest first · walking time · Aqar Exit Maps",
+      "whatsNearbySub": "Nearest first · walking time · DualDealz Maps",
       "loadingNearbyText": "Loading real nearby places...",
       "noPlacesInCategory": "No places listed nearby in this category",
       "allCat": "All",
@@ -2602,7 +2602,7 @@
       "sections": [
         {
           "title": "1. General information",
-          "body": "Aqar Exit operates an online real estate platform specialized in installment property resales and contract assignments (exit deals) in Georgia at original contract prices with zero overprice. This Privacy Policy explains what personal data and property documents we collect from sellers and buyers, how we use them, and how we protect them in accordance with Georgian data protection laws."
+          "body": "DualDealz operates an online real estate platform specialized in installment property resales and contract assignments (exit deals) in Georgia at original contract prices with zero overprice. This Privacy Policy explains what personal data and property documents we collect from sellers and buyers, how we use them, and how we protect them in accordance with Georgian data protection laws."
         },
         {
           "title": "2. What data we collect",
@@ -2614,7 +2614,7 @@
         },
         {
           "title": "4. Data sharing and contact protection",
-          "body": "To protect owner privacy and prevent spam or unauthorized solicitation, Aqar Exit does not publicly display the seller’s phone number, email address, or exact unit number on public listing pages; only property specifications and financial figures are shown publicly. Contact details and assignment procedures are coordinated strictly through our verification team when a serious, verified purchase offer is submitted, in cooperation with the developer and the National Agency of Public Registry (NAPR). We may use trusted infrastructure providers (cloud hosting, databases, and consented analytics tools) under strict confidentiality obligations."
+          "body": "To protect owner privacy and prevent spam or unauthorized solicitation, DualDealz does not publicly display the seller’s phone number, email address, or exact unit number on public listing pages; only property specifications and financial figures are shown publicly. Contact details and assignment procedures are coordinated strictly through our verification team when a serious, verified purchase offer is submitted, in cooperation with the developer and the National Agency of Public Registry (NAPR). We may use trusted infrastructure providers (cloud hosting, databases, and consented analytics tools) under strict confidentiality obligations."
         },
         {
           "title": "5. Cookies and local storage",
@@ -2646,11 +2646,11 @@
       "backHome": "Home",
       "title": "Terms & Conditions",
       "lastUpdated": "Last updated: November 2026",
-      "intro": "Welcome to Aqar Exit. By accessing our platform, creating an account, listing a property for contract assignment, or submitting a purchase offer, you agree to comply with these Terms & Conditions designed to protect both sellers and buyers.",
+      "intro": "Welcome to DualDealz. By accessing our platform, creating an account, listing a property for contract assignment, or submitting a purchase offer, you agree to comply with these Terms & Conditions designed to protect both sellers and buyers.",
       "sections": [
         {
           "title": "1. Platform Scope & Zero-Overprice Rule",
-          "body": "Aqar Exit operates as a verified digital marketplace and brokerage facilitator for installment property contract assignments at original contract prices. Our core rule prohibits any markup (overprice) above the actual amount paid to the developer: sellers recover their paid cash (or less if they offer a discount for a fast sale), while buyers take over the original contract price and continue remaining installments."
+          "body": "DualDealz operates as a verified digital marketplace and brokerage facilitator for installment property contract assignments at original contract prices. Our core rule prohibits any markup (overprice) above the actual amount paid to the developer: sellers recover their paid cash (or less if they offer a discount for a fast sale), while buyers take over the original contract price and continue remaining installments."
         },
         {
           "title": "2. Direct Principals Only (No Brokers)",
@@ -2666,11 +2666,11 @@
         },
         {
           "title": "5. Commission & Fee Structure (0% Seller Fee)",
-          "body": "Listing and assigning a unit through Aqar Exit is 100% free for sellers (0% seller commission). Buyers pay a 1.25% platform commission (calculated on the total original contract price), payable strictly upon successful completion of the official contract transfer at the developer's office."
+          "body": "Listing and assigning a unit through DualDealz is 100% free for sellers (0% seller commission). Buyers pay a 1.25% platform commission (calculated on the total original contract price), payable strictly upon successful completion of the official contract transfer at the developer's office."
         },
         {
           "title": "6. Official Contract Assignment & Liability Disclaimer",
-          "body": "All contract transfers and cash settlements take place officially at the developer's headquarters and/or the National Agency of Public Registry (NAPR). Aqar Exit facilitates document verification, matching, negotiation, and transfer coordination, and is not liable for pre-existing contractual disputes with developers or construction delays."
+          "body": "All contract transfers and cash settlements take place officially at the developer's headquarters and/or the National Agency of Public Registry (NAPR). DualDealz facilitates document verification, matching, negotiation, and transfer coordination, and is not liable for pre-existing contractual disputes with developers or construction delays."
         },
         {
           "title": "7. Listing Boost Packages (+VIP & SUPER VIP)",
@@ -2697,7 +2697,7 @@
       "subtitle": "Clear, direct answers on how to recover your paid installments as a seller or take over an original developer contract as a buyer.",
       "categories": {
         "all": "All Questions",
-        "general": "About Aqar Exit",
+        "general": "About DualDealz",
         "sellers": "For Sellers (Owners)",
         "buyers": "For Buyers",
         "deals": "Negotiation, Transfer & Fees"
@@ -2705,8 +2705,8 @@
       "items": [
         {
           "category": "general",
-          "q": "How is Aqar Exit different from traditional resale websites?",
-          "a": "In traditional resale, sellers and brokers add an inflated markup (overprice) and figures are unverified. On Aqar Exit, overprice is strictly prohibited: the required cash is the exact receipt-verified amount paid to the developer (or less if the owner offers a discount for a quick exit), and every contract is verified before publication."
+          "q": "How is DualDealz different from traditional resale websites?",
+          "a": "In traditional resale, sellers and brokers add an inflated markup (overprice) and figures are unverified. On DualDealz, overprice is strictly prohibited: the required cash is the exact receipt-verified amount paid to the developer (or less if the owner offers a discount for a quick exit), and every contract is verified before publication."
         },
         {
           "category": "general",
@@ -2715,8 +2715,8 @@
         },
         {
           "category": "sellers",
-          "q": "Why assign my contract via Aqar Exit instead of cancelling with the developer?",
-          "a": "Cancelling with a developer typically triggers a 10%–15% penalty calculated on the entire contract price (not just what you paid), which can wipe out 50%–75% of your paid cash, with the remainder refunded over several years. Assigning via Aqar Exit lets you recover up to 100% of your paid cash immediately upon transfer."
+          "q": "Why assign my contract via DualDealz instead of cancelling with the developer?",
+          "a": "Cancelling with a developer typically triggers a 10%–15% penalty calculated on the entire contract price (not just what you paid), which can wipe out 50%–75% of your paid cash, with the remainder refunded over several years. Assigning via DualDealz lets you recover up to 100% of your paid cash immediately upon transfer."
         },
         {
           "category": "sellers",
@@ -2756,7 +2756,7 @@
         {
           "category": "deals",
           "q": "Where and how does the cash payment and contract transfer happen?",
-          "a": "All payments and contract transfers happen officially at the developer's headquarters and/or the Public Registry (NAPR) in the presence of your Aqar Exit case manager, via certified bank check or instant bank transfer upon signing."
+          "a": "All payments and contract transfers happen officially at the developer's headquarters and/or the Public Registry (NAPR) in the presence of your DualDealz case manager, via certified bank check or instant bank transfer upon signing."
         }
       ],
       "bottomTitle": "Still have questions?",
@@ -2823,7 +2823,7 @@
     },
     "setPassword": {
       "title": "Activate Your Account",
-      "subtitle": "Choose a password for your Aqar Exit account — and access your request right away.",
+      "subtitle": "Choose a password for your DualDealz account — and access your request right away.",
       "passwordLabel": "Password (at least 8 characters)",
       "confirmLabel": "Re-enter to confirm",
       "submittingBtn": "Activating...",
@@ -2868,13 +2868,13 @@
   "investorsPage": {
     "hero": {
       "eyebrow": "Investor Relations",
-      "title": "Invest in Aqar Exit",
+      "title": "Invest in DualDealz",
       "subtitle": "A platform that exits sellers with 100% of what they paid and brings buyers in at the original contract price — with zero overprice. We welcome strategic partners who bring capital and expertise.",
       "ctaBtn": "Submit Expression of Interest",
       "minTicketBadge": "Minimum ticket size: $50,000 USD or equivalent"
     },
     "sidebar": {
-      "whyTitle": "Why Aqar Exit?",
+      "whyTitle": "Why DualDealz?",
       "whyPoints": [
         "The installment property assignment market in Egypt and the Gulf is massive and lacks an organized platform",
         "Asset-light model: commission upon successful transfer, holding zero real estate inventory",
@@ -3020,8 +3020,8 @@
       "s2Sectors": "Which sectors do you have experience in? (Select all that apply)",
       "s2StartupQ": "Have you previously invested in startups or digital platforms?",
       "s2Examples": "If yes, please share brief examples",
-      "s2Motivation": "What is your main motivation for investing in Aqar Exit?",
-      "s2Attraction": "What attracted you to the Aqar Exit model?",
+      "s2Motivation": "What is your main motivation for investing in DualDealz?",
+      "s2Attraction": "What attracted you to the DualDealz model?",
       "s2Opportunity": "What is the biggest opportunity you see in the project?",
       "s3Title": "Value, Ticket Size & Structure",
       "s3AddedValue": "What strategic value can you add?",
@@ -3058,7 +3058,7 @@
     "heroEyebrow": "The Story From Day One",
     "heroTitle": "Why should anyone lose a huge portion of their money just because they can't continue installments?",
     "founderName": "Dr. Mahmoud Ammar",
-    "founderRole": "Founder of Aqar Exit",
+    "founderRole": "Founder of DualDealz",
     "founderRoleFull": "Founder & CEO",
     "heroDescription": "That question sparked the idea: building a clearer, more humane real estate market that helps you make decisions without pressure or ambiguity, preserving the value of every pound you paid.",
     "introP1": "It started with a simple observation: many people enter real estate projects with a big dream, but life circumstances sometimes change before that dream is completed.",
@@ -3070,7 +3070,7 @@
     "sec1SubTitle": "Why not protect the interests of both parties?",
     "sec1Card1": "The contract owner exits their commitment and recovers 100% of what they paid",
     "sec1Card2": "And the buyer enters an opportunity at the original contract price with verified data",
-    "sec2Title": "And Thus Aqar Exit Was Born",
+    "sec2Title": "And Thus DualDealz Was Born",
     "sec2Desc": "A platform designed to make buying and selling installment units a clear process — not a race of empty promises or guesswork.",
     "points": [
       "You know the exact amount you will receive",
@@ -3082,7 +3082,7 @@
     "sec3Desc": "We started with a simple question: Can we be fair to both the seller and the buyer at the same time?",
     "quote2": "We committed ourselves to facilitating transparent exits — never profiting from a unit owner's distress.",
     "zeroWord": "Zero",
-    "zeroTitle": "Aqar Exit Commission on Sellers",
+    "zeroTitle": "DualDealz Commission on Sellers",
     "zeroDesc": "Because a fair exit shouldn't cost you extra commission, nor should you pay to recover your own money.",
     "sec4Title": "For Me... True Value Isn't Just Selling a Unit",
     "sec4Desc": "True value is exiting your financial commitment while understanding every number, starting your next chapter without regret or loss.",
@@ -3095,7 +3095,7 @@
       "Punctuality and continuous communication",
       "A secure platform protecting all parties' rights"
     ],
-    "sec6Title": "Ultimately... Aqar Exit is Built on One Idea",
+    "sec6Title": "Ultimately... DualDealz is Built on One Idea",
     "quote4": "A fair market is one where every party can walk away a winner.",
     "sec6Desc": "The story is just beginning, and every unit owner we help is another step toward a more transparent market.",
     "sellCta": "Sell Your Unit",
@@ -3145,7 +3145,7 @@
       "updatePassFailed": "Could not update password in the database.",
       "invalidLink": "Invalid link.",
       "accountNotFound": "Account not found.",
-      "emailSenderName": "Aqar Exit",
+      "emailSenderName": "DualDealz",
       "dearUser": "Valued User",
       "loginEmailSubject": "Security Alert: New sign-in to your Darak account",
       "loginEmailGreeting": "Welcome back,",
@@ -3184,7 +3184,7 @@
       "prefSaveFailed": "Could not save preferences.",
       "promoFailed": "Could not record boost request.",
       "cancelPromoFailed": "Could not cancel boost request.",
-      "emailSenderName": "Aqar Exit",
+      "emailSenderName": "DualDealz",
       "greetingWord": "Hello",
       "dearClient": "Valued Client",
       "unitWord": "Unit",
@@ -3193,13 +3193,13 @@
       "defaultReady": "Ready to Move",
       "methodCard": "Bank Card",
       "methodBank": "Bank Transfer",
-      "emailUpdatedSubject": "Your Email Address Was Updated — Aqar Exit",
-      "emailUpdatedBody": "The email address linked to your Aqar Exit account has been updated to:",
+      "emailUpdatedSubject": "Your Email Address Was Updated — DualDealz",
+      "emailUpdatedBody": "The email address linked to your DualDealz account has been updated to:",
       "noSpecificReason": "No specific reason",
       "reasonWord": "Reason",
       "deletionNotifTitle": "Account Deletion Request",
       "deletionEmailSubject": "We Received Your Account Deletion Request",
-      "deletionEmailLine1": "We received your request to delete your Aqar Exit account.",
+      "deletionEmailLine1": "We received your request to delete your DualDealz account.",
       "deletionEmailUnitsLine": "Your units have been temporarily hidden from the marketplace.",
       "deletionEmailLine2": "Our team will review the request. You can cancel this request anytime from your account.",
       "unitPausedNotifTitle": "Owner paused unit listing",
@@ -3313,7 +3313,7 @@
       "submitUnitFailed": "Could not save request. Please try again.",
       "enterNamePhone": "Please enter your name and phone number.",
       "investorFailed": "Could not submit investor details right now, please try again.",
-      "emailSenderName": "Aqar Exit",
+      "emailSenderName": "DualDealz",
       "greetingWord": "Hello",
       "unitOwnerFallback": "Unit Owner",
       "buyerFallback": "Buyer",
@@ -3328,7 +3328,7 @@
       "orderRefLabel": "We received your request — Order Ref",
       "orderPaidConfirmText": "For confirmation: the amount you will receive upon transfer completion (with zero overprice) is",
       "orderMagicLinkPrompt": "Complete your unit details from this link — no password or login required",
-      "recoveryEmailSubject": "Password Recovery — Aqar Exit",
+      "recoveryEmailSubject": "Password Recovery — DualDealz",
       "recoveryEmailPrompt": "Choose a new password for your account here (link valid for a limited time)",
       "editedUnitAdminTitle": "Unit Details Updated by Owner",
       "completedUnitAdminTitle": "Unit Details Completed",
@@ -3339,7 +3339,7 @@
       "buyOrderSubjectPrefix": "We Received Your Purchase Request",
       "registeredCashLabel": "Registered Available Cash",
       "newInvestorAdminTitle": "New Investor Request",
-      "otpSubjectPrefix": "Verification code to confirm your email on Aqar Exit:",
+      "otpSubjectPrefix": "Verification code to confirm your email on DualDealz:",
       "otpSendError": "Could not send verification code right now, please try again.",
       "otpInvalid": "Invalid or expired verification code.",
       "trackUnitInAccountBtn": "Track My Unit in My Account",
@@ -3409,9 +3409,9 @@
       "noticeReopenedBackups": "Reservation cancelled and waitlist buyers notified",
       "actionErrorFallback": "Could not execute action right now",
       "waBuyerGreetingPrefix": "Hello",
-      "waBuyerBodyPrefix": "This is Aqar Exit Management regarding your purchase offer",
+      "waBuyerBodyPrefix": "This is DualDealz Management regarding your purchase offer",
       "waSellerGreetingPrefix": "Hello",
-      "waSellerBodyPrefix": "This is Aqar Exit Management regarding purchase offer",
+      "waSellerBodyPrefix": "This is DualDealz Management regarding purchase offer",
       "retryBtn": "Retry",
       "tabWaitlist": "Backup Waitlist",
       "badgeReopenNotifiedWaiting": "Reopen Notification Sent — Awaiting Buyer Confirmation",
@@ -4301,7 +4301,7 @@
         "sendReportWaBtn": "Send Views Report to Owner (WhatsApp)",
         "viewsColumnHeader": "Views",
         "viewUnitBtn": "View Unit",
-        "waReportTitle": "📊 *Aqar Exit — Unit Performance Report*",
+        "waReportTitle": "📊 *DualDealz — Unit Performance Report*",
         "waReportGreetingPrefix": "Hello",
         "waReportGreetingSuffix": ", here are the live analytics for your listing:",
         "waReportProjectLabel": "🏢 *Project:*",
@@ -4364,8 +4364,8 @@
       "marketLocationValue": "Georgia (Tbilisi · Batumi · Gudauri) — Currency ($)",
       "generatedAtLabel": "Issued On",
       "totalRecordsLabel": "Total Records",
-      "officialDocBadge": "Official Document Generated by Aqar Exit Admin System",
-      "footerDisclaimer": "This document was electronically generated by Aqar Exit Admin Dashboard — Confidential & Verified.",
+      "officialDocBadge": "Official Document Generated by DualDealz Admin System",
+      "footerDisclaimer": "This document was electronically generated by DualDealz Admin Dashboard — Confidential & Verified.",
       "propertiesReportTitle": "Listed Properties & Seller Requests Directory",
       "promotionsReportTitle": "Featured Listings & VIP Promotions Report",
       "singlePropertyReportTitle": "Official Property & Seller Dossier",
@@ -4497,7 +4497,7 @@
   "common": {
     "floatingWhatsapp": {
       "tooltip": "Chat with us on WhatsApp",
-      "prefillMessage": "Hello Aqar Exit support team, I need assistance regarding the platform."
+      "prefillMessage": "Hello DualDealz support team, I need assistance regarding the platform."
     },
     "relativeTime": {
       "oneWeekAgo": "1 week ago",
@@ -4582,7 +4582,7 @@
       "languageWord": "Language:",
       "switchBtn": "Switch",
       "closeAria": "Close",
-      "pwaTitle": "Install Aqar Exit App",
+      "pwaTitle": "Install DualDealz App",
       "pwaSub": "Access installment exit deals and track your offers faster from your home screen.",
       "installBtn": "Install App",
       "manualInstallHint": "Tap your browser menu (⋮) at the top and select \"Install App\" or \"Add to Home Screen\".",

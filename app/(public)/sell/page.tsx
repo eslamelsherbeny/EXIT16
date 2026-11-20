@@ -5,7 +5,7 @@ import { getServerI18n } from '@/lib/get-server-dictionary'
 export async function generateMetadata(): Promise<Metadata> {
   const { dict } = await getServerI18n()
   return {
-    title: dict.sell?.metaTitle || 'Aqar Exit',
+    title: dict.sell?.metaTitle || 'DualDealz',
     description: dict.sell?.metaDesc || '',
   }
 }

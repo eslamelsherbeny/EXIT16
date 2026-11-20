@@ -39,7 +39,7 @@ export type GlobalSiteSettings = {
 }
 
 export const DEFAULT_SITE_SETTINGS: GlobalSiteSettings = {
-  siteName: 'Aqar Exit',
+  siteName: 'DualDealz',
   whatsappNumber: '+201018595959',
   supportEmail: 'info@aqarexit.com',
   buyerCommission: '1.25',

@@ -1156,7 +1156,7 @@ export async function saveSiteSettingsAction(formData: FormData) {
     )
 
     const settingsPayload: GlobalSiteSettings & Record<string, any> = {
-      siteName: sanitizeText(formData.get("siteName") || "Aqar Exit", 80),
+      siteName: sanitizeText(formData.get("siteName") || "DualDealz", 80),
       whatsappNumber: sanitizeText(
         formData.get("whatsappNumber") || "+201018595959",
         30

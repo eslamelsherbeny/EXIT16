@@ -131,7 +131,7 @@ export async function POST(req: Request) {
     const flittParams: Record<string, string | number> = {
       order_id: orderRef,
       merchant_id: Number(merchantId),
-      order_desc: `Aqar Exit ${packageLabel} (${durationDays}d) - ${unit.project_name || unit.code || unit.id}`,
+      order_desc: `DualDealz ${packageLabel} (${durationDays}d) - ${unit.project_name || unit.code || unit.id}`,
       amount: Math.round(amountGel * 100), // المبلغ بالتيتري (1 GEL = 100)
       currency: "GEL",
       response_url: `${DEFAULT_SITE_URL}/account?view=seller&unitId=${unit.id}&payment=returned&ref=${encodeURIComponent(orderRef)}`,

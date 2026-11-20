@@ -1164,7 +1164,7 @@ export function LocationSection({
               <div className="flex items-center gap-2">
                 <span className="inline-flex items-center gap-1.5 text-xs font-extrabold text-[#0a1122] sm:text-sm">
                   <span className="text-[#ea580c]">📍</span>
-                  <span>Aqar Exit Maps</span>
+                  <span>DualDealz Maps</span>
                 </span>
                 {reverseGeoLoading && (
                   <Loader2 className="size-3.5 animate-spin text-[#2563eb]" />

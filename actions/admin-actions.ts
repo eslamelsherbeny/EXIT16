@@ -314,48 +314,6 @@ export async function updatePropertyStatusAction(
           .eq("property_id", propertyId)
           .neq("status", "recommended")
       } else if (cleanStatus === "active") {
-        try {
-          const { data: paidBoost } = await supabase
-            .from("boost_requests")
-            .select("*")
-            .eq("unit_id", propertyId)
-            .eq("status", "paid_pending_approval")
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle()
-
-          if (paidBoost) {
-            const boostDays = Math.max(1, Number(paidBoost.duration_days) || 7)
-            const tierCode = String(paidBoost.package_tier || "")
-              .toUpperCase()
-              .includes("VIP+")
-              ? "vip_plus"
-              : "super_vip"
-            const untilDate = new Date(
-              Date.now() + boostDays * 24 * 60 * 60 * 1000
-            ).toISOString()
-
-            await supabase
-              .from("sell_requests")
-              .update({
-                is_featured: true,
-                boost_tier: tierCode,
-                featured_days: boostDays,
-                featured_status: "active",
-                featured_until: untilDate,
-              })
-              .eq("id", propertyId)
-
-            await supabase
-              .from("boost_requests")
-              .update({
-                status: "approved",
-                approved_at: new Date().toISOString(),
-              })
-              .eq("id", paidBoost.id)
-          }
-        } catch {}
-
         const { data: prevAccepted } = await supabase
           .from("property_offers")
           .select("id, buyer_user_id, lead_id")
@@ -1831,7 +1789,12 @@ export async function managePropertyPromotionAction(
   propertyId: string,
   action: "activate" | "cancel",
   days: number = 7,
-  tier?: "super_vip" | "vip_plus"
+  tier?: "super_vip" | "vip_plus",
+  options?: {
+    orderRef?: string | null
+    amountGel?: number | null
+    boostRequestId?: string | null
+  }
 ) {
   const { t: msg } = await getAdminActionsDict()
   try {
@@ -1839,12 +1802,24 @@ export async function managePropertyPromotionAction(
 
     const { data: prop } = await supabase
       .from("sell_requests")
-      .select("id, user_id, status, project_name, name, featured_days, boost_tier")
+      .select(
+        "id, user_id, status, project_name, name, is_featured, featured_days, featured_price, featured_until, boost_tier, views_count, documents"
+      )
       .eq("id", propertyId)
       .maybeSingle()
 
+    if (!prop) {
+      return { success: false, error: msg.unauthorizedNotFound }
+    }
+
+    const currentDocs =
+      prop.documents && typeof prop.documents === "object"
+        ? { ...prop.documents }
+        : {}
+    const currentMeta = getUnitMetaObject(currentDocs)
+
     if (action === "activate") {
-      const unitSt = String(prop?.status || "").trim().toLowerCase()
+      const unitSt = String(prop.status || "").trim().toLowerCase()
       if (
         unitSt !== "active" &&
         unitSt !== "approved" &&
@@ -1858,25 +1833,85 @@ export async function managePropertyPromotionAction(
         }
       }
 
-      const effectiveDays = Math.max(
-        1,
-        Number(days || prop?.featured_days) || 7
-      )
-      const resolvedTier: "super_vip" | "vip_plus" =
-        tier || (prop?.boost_tier === "vip_plus" ? "vip_plus" : "super_vip")
+      const addDays = Math.max(1, Number(days || prop.featured_days) || 7)
+      const nowMs = Date.now()
+      const nowIso = new Date(nowMs).toISOString()
 
-      const untilDate = new Date(
-        Date.now() + effectiveDays * 24 * 60 * 60 * 1000
+      const existingUntilMs = prop.featured_until
+        ? new Date(prop.featured_until).getTime()
+        : 0
+      const isExtendingActive =
+        Boolean(prop.is_featured) && existingUntilMs > nowMs
+
+      // في حالة التمديد أثناء نشاط الإعلان: تُضاف الأيام الجديدة فوق تاريخ الانتهاء الحالي
+      const baseMs = isExtendingActive ? existingUntilMs : nowMs
+      const untilIso = new Date(
+        baseMs + addDays * 24 * 60 * 60 * 1000
       ).toISOString()
+
+      const requestedTier: "super_vip" | "vip_plus" =
+        tier || (prop.boost_tier === "vip_plus" ? "vip_plus" : "super_vip")
+
+      // لا يتم تخفيض باقة SUPER VIP نشطة عند التمديد؛ نحتفظ دائماً بالأعلى
+      const resolvedTier: "super_vip" | "vip_plus" =
+        isExtendingActive && prop.boost_tier === "super_vip"
+          ? "super_vip"
+          : requestedTier
+
+      const totalDays = isExtendingActive
+        ? (Number(prop.featured_days) || 0) + addDays
+        : addDays
+
+      const existingActiveMeta =
+        currentMeta.boost_active && typeof currentMeta.boost_active === "object"
+          ? currentMeta.boost_active
+          : null
+
+      const currentViews = Math.max(0, Number(prop.views_count) || 0)
+
+      currentDocs.__unit_meta = {
+        ...currentMeta,
+        boost_pending: null,
+        boost_last_rejected: null,
+        boost_active: {
+          started_at:
+            isExtendingActive && existingActiveMeta?.started_at
+              ? existingActiveMeta.started_at
+              : nowIso,
+          last_extended_at: isExtendingActive ? nowIso : null,
+          ends_at: untilIso,
+          total_days: totalDays,
+          last_added_days: addDays,
+          tier: resolvedTier,
+          views_baseline:
+            isExtendingActive &&
+            typeof existingActiveMeta?.views_baseline === "number"
+              ? existingActiveMeta.views_baseline
+              : currentViews,
+          order_ref:
+            options?.orderRef ||
+            currentMeta.boost_pending?.order_ref ||
+            existingActiveMeta?.order_ref ||
+            null,
+          amount_gel:
+            options?.amountGel ??
+            currentMeta.boost_pending?.amount_gel ??
+            prop.featured_price ??
+            null,
+        },
+      }
 
       const { error } = await supabase
         .from("sell_requests")
         .update({
           is_featured: true,
           boost_tier: resolvedTier,
-          featured_days: effectiveDays,
+          featured_days: totalDays,
+          featured_price:
+            options?.amountGel ?? prop.featured_price ?? undefined,
           featured_status: "active",
-          featured_until: untilDate,
+          featured_until: untilIso,
+          documents: currentDocs,
         })
         .eq("id", propertyId)
 
@@ -1888,23 +1923,40 @@ export async function managePropertyPromotionAction(
       }
 
       try {
-        await supabase
-          .from("boost_requests")
-          .update({
-            status: "approved",
-            approved_at: new Date().toISOString(),
-          })
-          .eq("unit_id", propertyId)
-          .in("status", ["pending_admin_approval", "paid_pending_approval"])
+        if (options?.boostRequestId) {
+          await supabase
+            .from("boost_requests")
+            .update({
+              status: "approved",
+              approved_at: nowIso,
+            })
+            .eq("id", options.boostRequestId)
+        } else {
+          await supabase
+            .from("boost_requests")
+            .update({
+              status: "approved",
+              approved_at: nowIso,
+            })
+            .eq("unit_id", propertyId)
+            .in("status", ["pending_admin_approval", "paid_pending_approval"])
+        }
       } catch {}
 
-      if (prop?.user_id) {
+      if (prop.user_id) {
         try {
+          const notifTitle = isExtendingActive
+            ? `⭐ ${msg.boostExtendedNotifTitle || msg.promoActivatedNotifTitle} (+${addDays}d)`
+            : `⭐ ${msg.promoActivatedNotifTitle} (${resolvedTier === "vip_plus" ? "VIP+" : "SUPER VIP"} · ${addDays}d)`
+          const notifBody = isExtendingActive
+            ? `${msg.boostExtendedNotifMsg || msg.promoActivatedNotifMsg} (${prop.project_name || msg.defaultProjectWord})`
+            : `${msg.promoActivatedNotifMsg} (${prop.project_name || msg.defaultProjectWord})`
+
           await supabase.from("notifications").insert({
             user_id: prop.user_id,
             role: "client",
-            title: `⭐ ${msg.promoActivatedNotifTitle} (${resolvedTier === "vip_plus" ? "VIP+" : "SUPER VIP"} · ${effectiveDays}d)`,
-            message: `${msg.promoActivatedNotifMsg} (${prop.project_name || msg.defaultProjectWord})`,
+            title: notifTitle,
+            message: notifBody,
             type: "status_update",
             link: `/account?view=seller&unitId=${prop.id}`,
             is_read: false,
@@ -1912,6 +1964,12 @@ export async function managePropertyPromotionAction(
         } catch {}
       }
     } else {
+      currentDocs.__unit_meta = {
+        ...currentMeta,
+        boost_pending: null,
+        boost_active: null,
+      }
+
       const { error } = await supabase
         .from("sell_requests")
         .update({
@@ -1919,6 +1977,7 @@ export async function managePropertyPromotionAction(
           boost_tier: null,
           featured_status: "none",
           featured_until: null,
+          documents: currentDocs,
         })
         .eq("id", propertyId)
 
@@ -1952,63 +2011,29 @@ export async function approveBoostRequestByAdminAction(boostRequestId: string) {
       return { success: false, error: msg.unauthorizedNotFound }
     }
 
-    if (reqRow.unit_id) {
-      const { data: unitRow } = await supabase
-        .from("sell_requests")
-        .select("id, status")
-        .eq("id", reqRow.unit_id)
-        .maybeSingle()
+    if (!reqRow.unit_id) {
+      return { success: false, error: msg.boostUnitNotPublishedError }
+    }
 
-      const unitSt = String(unitRow?.status || "").trim().toLowerCase()
-      if (
-        unitSt !== "active" &&
-        unitSt !== "approved" &&
-        unitSt !== "published" &&
-        unitSt !== "offer_received"
-      ) {
-        return {
-          success: false,
-          code: "UNIT_NOT_PUBLISHED",
-          error: msg.boostUnitNotPublishedError,
-        }
+    const tierCode: "super_vip" | "vip_plus" = String(
+      reqRow.package_tier || ""
+    )
+      .toUpperCase()
+      .includes("VIP+")
+      ? "vip_plus"
+      : "super_vip"
+
+    return managePropertyPromotionAction(
+      String(reqRow.unit_id),
+      "activate",
+      Number(reqRow.duration_days) || 1,
+      tierCode,
+      {
+        orderRef: reqRow.order_ref || null,
+        amountGel: Number(reqRow.amount_gel) || null,
+        boostRequestId: String(reqRow.id),
       }
-    }
-
-    const { error: rpcErr } = await supabase.rpc("approve_boost_request", {
-      req_id: boostRequestId,
-    })
-
-    if (rpcErr && reqRow.unit_id) {
-      const tierCode = String(reqRow.package_tier || "")
-        .toUpperCase()
-        .includes("SUPER")
-        ? "super_vip"
-        : "vip_plus"
-      const activateRes = await managePropertyPromotionAction(
-        String(reqRow.unit_id),
-        "activate",
-        Number(reqRow.duration_days) || 1,
-        tierCode
-      )
-      if (!activateRes.success) return activateRes
-    }
-
-    if (reqRow.user_id) {
-      try {
-        await supabase.from("notifications").insert({
-          user_id: reqRow.user_id,
-          role: "client",
-          title: `⭐ ${msg.boostApprovedNotifTitle || msg.promoActivatedNotifTitle} (${reqRow.package_tier} · ${reqRow.duration_days}d)`,
-          message: `${msg.boostApprovedNotifMsg || msg.promoActivatedNotifMsg} (${reqRow.amount_gel} ₾)`,
-          type: "status_update",
-          link: "/account?view=seller",
-          is_read: false,
-        })
-      } catch {}
-    }
-
-    revalidateAdminAll()
-    return { success: true }
+    )
   } catch (err) {
     return {
       success: false,
@@ -2031,21 +2056,59 @@ export async function rejectBoostRequestByAdminAction(
       .eq("id", boostRequestId)
       .maybeSingle()
 
+    const rejectedAtIso = new Date().toISOString()
+
     await supabase
       .from("boost_requests")
       .update({
         status: "rejected",
         admin_note: reason || null,
-        rejected_at: new Date().toISOString(),
+        rejected_at: rejectedAtIso,
       })
       .eq("id", boostRequestId)
 
     if (reqRow?.unit_id) {
+      const { data: unitRow } = await supabase
+        .from("sell_requests")
+        .select("id, is_featured, featured_until, documents")
+        .eq("id", reqRow.unit_id)
+        .maybeSingle()
+
+      const isCurrentlyActive =
+        Boolean(unitRow?.is_featured) &&
+        (!unitRow?.featured_until ||
+          new Date(unitRow.featured_until) > new Date())
+
+      const currentDocs =
+        unitRow?.documents && typeof unitRow.documents === "object"
+          ? { ...unitRow.documents }
+          : {}
+      const currentMeta = getUnitMetaObject(currentDocs)
+
+      currentDocs.__unit_meta = {
+        ...currentMeta,
+        boost_pending: null,
+        boost_last_rejected: {
+          order_ref: reqRow.order_ref || null,
+          rejected_at: rejectedAtIso,
+          reason: reason || null,
+          paid_via: reqRow.payment_method || null,
+        },
+      }
+
+      const unitUpdate: Record<string, any> = {
+        documents: currentDocs,
+      }
+
+      if (!isCurrentlyActive) {
+        unitUpdate.featured_status = "none"
+        unitUpdate.boost_tier = null
+      }
+
       await supabase
         .from("sell_requests")
-        .update({ featured_status: "none", boost_tier: null })
+        .update(unitUpdate)
         .eq("id", reqRow.unit_id)
-        .eq("is_featured", false)
     }
 
     if (reqRow?.user_id) {
@@ -2059,7 +2122,9 @@ export async function rejectBoostRequestByAdminAction(
             msg.boostRejectedDefaultReason ||
             msg.notifRejectedMsg,
           type: "status_update",
-          link: "/account?view=seller",
+          link: reqRow.unit_id
+            ? `/account?view=seller&unitId=${reqRow.unit_id}`
+            : "/account?view=seller",
           is_read: false,
         })
       } catch {}

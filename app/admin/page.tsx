@@ -5,15 +5,16 @@ import { createServerClient } from "@supabase/ssr"
 import {
   ArrowLeft,
   BellRing,
-  Building2,
   CheckCircle2,
   ChevronDown,
   Clock3,
+  CreditCard,
   ExternalLink,
   FileText,
   Flame,
   Handshake,
   Send,
+  Sparkles,
   Star,
   WalletCards,
 } from "lucide-react"
@@ -168,6 +169,8 @@ export default async function AdminPage() {
   const { dict, locale, dir, siteSettings } = await getServerI18n()
   const t = (dict?.admin?.dashboard as Record<string, any>) || {}
   const L = (t.sections as Record<string, string>) || {}
+  const pm = ((dict?.admin as Record<string, any>)?.promotionsManager ||
+    {}) as Record<string, string>
   const nav = ((dict?.admin as Record<string, any>)?.shell?.nav ||
     {}) as Record<string, string>
   const statusesDict = (t.statuses as Record<string, string>) || {}
@@ -185,9 +188,10 @@ export default async function AdminPage() {
   let propertiesData: any[] = []
   let leadsData: any[] = []
   let allOffersData: any[] = []
+  let pendingBoostRowsData: any[] = []
 
   try {
-    const [propsRes, leadsRes, offersRes] = await Promise.all([
+    const [propsRes, leadsRes, offersRes, boostRes] = await Promise.all([
       supabase
         .from("sell_requests")
         .select("*")
@@ -202,6 +206,12 @@ export default async function AdminPage() {
         .select("*")
         .order("updated_at", { ascending: false })
         .limit(80),
+      supabase
+        .from("boost_requests")
+        .select("*")
+        .in("status", ["paid_pending_approval", "pending_admin_approval"])
+        .order("created_at", { ascending: false })
+        .limit(20),
     ])
 
     propertiesData = (propsRes.data || []).filter(
@@ -210,6 +220,7 @@ export default async function AdminPage() {
     )
     leadsData = leadsRes.data || []
     allOffersData = offersRes.data || []
+    pendingBoostRowsData = boostRes.data || []
   } catch (err) {
     console.error("Error loading AdminPage data:", err)
   }
@@ -293,9 +304,27 @@ export default async function AdminPage() {
     return !hasAnyOffer
   })
 
-  const pendingAdRequests = properties.filter(
-    (p) => !p.is_featured && p.featured_status === "pending_payment"
+  // دمج طلبات الإعلان المدفوعة عبر Flitt (التي لها وحدة صالحة) مع أي طلبات قديمة
+  const validPendingBoostAlerts = pendingBoostRowsData
+    .map((b: any) => ({
+      boost: b,
+      unit: b.unit_id ? propsMap.get(String(b.unit_id)) : null,
+    }))
+    .filter((item) => Boolean(item.unit))
+
+  const boostUnitIdsSet = new Set(
+    validPendingBoostAlerts.map((item) => String(item.unit.id))
   )
+
+  const legacyPendingAdUnits = properties.filter(
+    (p) =>
+      !p.is_featured &&
+      p.featured_status === "pending_payment" &&
+      !boostUnitIdsSet.has(String(p.id))
+  )
+
+  const pendingAdTotalCount =
+    validPendingBoostAlerts.length + legacyPendingAdUnits.length
   const activeFeaturedUnits = properties.filter((p) => p.is_featured)
 
   const kpis = [
@@ -345,23 +374,23 @@ export default async function AdminPage() {
     },
     {
       label: t.adRequests || "",
-      value: pendingAdRequests.length.toLocaleString("en-US"),
+      value: pendingAdTotalCount.toLocaleString("en-US"),
       note:
-        pendingAdRequests.length > 0
-          ? `${pendingAdRequests.length} ${t.adPendingNote || ""}`
+        pendingAdTotalCount > 0
+          ? `${pendingAdTotalCount} ${t.adPendingNote || ""}`
           : `${activeFeaturedUnits.length} ${t.adActiveNote || ""}`,
       icon: Star,
       href: "/admin/promotions",
       iconWrap: "bg-amber-50 text-amber-600",
       noteClass:
-        pendingAdRequests.length > 0 ? "text-amber-700" : "text-slate-500",
+        pendingAdTotalCount > 0 ? "text-amber-700" : "text-slate-500",
     },
   ]
 
   return (
-    <div dir={dir} className="mx-auto max-w-7xl space-y-5 text-start">
-      {/* 1. صف الإحصائيات السريعة */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+    <div dir={dir} className="mx-auto max-w-7xl space-y-4 text-start sm:space-y-5">
+      {/* 1. صف الإحصائيات السريعة (متجاوب تماماً على الموبايل) */}
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 xl:grid-cols-5">
         {kpis.map(
           (
             { label, value, note, icon: Icon, href, iconWrap, noteClass },
@@ -375,28 +404,28 @@ export default async function AdminPage() {
               }`}
             >
               <Card className="h-full rounded-2xl border border-slate-200/90 bg-white shadow-2xs transition-all hover:border-[#007a5a]/40 hover:shadow-sm">
-                <CardContent className="flex h-full flex-col justify-between p-3.5 sm:p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-xs leading-snug font-extrabold text-slate-700 group-hover:text-[#0f1d40]">
+                <CardContent className="flex h-full flex-col justify-between p-3 sm:p-4">
+                  <div className="flex items-center justify-between gap-1.5">
+                    <p className="truncate text-[11px] font-extrabold text-slate-700 group-hover:text-[#0f1d40] sm:text-xs">
                       {label}
                     </p>
                     <span
-                      className={`flex size-8 shrink-0 items-center justify-center rounded-xl sm:size-9 ${iconWrap}`}
+                      className={`flex size-7 shrink-0 items-center justify-center rounded-xl sm:size-9 ${iconWrap}`}
                     >
-                      <Icon className="size-4 shrink-0" />
+                      <Icon className="size-3.5 shrink-0 sm:size-4" />
                     </span>
                   </div>
 
                   <div
                     dir="ltr"
-                    className="my-2.5 text-center text-2xl font-black tracking-tight text-[#0f1d40] tabular-nums sm:my-3 sm:text-3xl"
+                    className="my-2 text-center text-2xl font-black tracking-tight text-[#0f1d40] tabular-nums sm:my-3 sm:text-3xl"
                   >
                     {value}
                   </div>
 
-                  <div className="flex items-center justify-between gap-1.5 border-t border-slate-100 pt-2">
+                  <div className="flex items-center justify-between gap-1 border-t border-slate-100 pt-2">
                     <span
-                      className={`text-[11px] leading-tight font-bold ${noteClass}`}
+                      className={`truncate text-[10px] font-bold sm:text-[11px] ${noteClass}`}
                     >
                       {note}
                     </span>
@@ -409,6 +438,128 @@ export default async function AdminPage() {
         )}
       </div>
 
+      {/* 1.5. تنبيه بارز لطلبات الإعلان المدفوعة عبر Flitt وبانتظار التفعيل */}
+      {validPendingBoostAlerts.length > 0 && (
+        <details
+          open
+          className="group overflow-hidden rounded-2xl border-2 border-amber-300 bg-white shadow-2xs"
+        >
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 bg-amber-50/70 px-3.5 py-3 select-none sm:px-5 sm:py-3.5 [&::-webkit-details-marker]:hidden">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white shadow-2xs sm:size-9">
+                <Star className="size-4 fill-white" />
+              </span>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="truncate text-xs font-black text-[#0f1d40] sm:text-sm">
+                    {L.secBoostTitle}
+                  </span>
+                  <span
+                    dir="ltr"
+                    className="shrink-0 rounded-full bg-amber-500 px-2 py-0.5 text-[10.5px] font-black text-white"
+                  >
+                    {validPendingBoostAlerts.length}
+                  </span>
+                </div>
+                <p className="mt-0.5 hidden text-[11px] font-semibold text-amber-900 sm:block">
+                  {L.secBoostSub}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex shrink-0 items-center gap-1.5">
+              <Link
+                href="/admin/promotions"
+                className="inline-flex h-8 items-center gap-1 rounded-xl bg-[#007a5a] px-2.5 text-[11px] font-extrabold text-white hover:bg-[#006248] sm:px-3.5 sm:text-xs"
+              >
+                <span>{L.secBoostBtn}</span>
+                <ArrowLeft className="size-3 rtl:rotate-0 ltr:rotate-180" />
+              </Link>
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-xl border border-amber-200 bg-white text-slate-500">
+                <ChevronDown className="size-4 transition-transform duration-200 group-open:rotate-180" />
+              </span>
+            </div>
+          </summary>
+
+          <div className="divide-y divide-slate-100">
+            {validPendingBoostAlerts.slice(0, 5).map(({ boost, unit }) => {
+              const uCode = deriveUnitCode(unit.id, unit.code)
+              const isFlittPaid = boost.status === "paid_pending_approval"
+
+              return (
+                <div
+                  key={boost.id}
+                  className="flex flex-col gap-2.5 px-3.5 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5"
+                >
+                  <div className="min-w-0 space-y-1">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span
+                        dir="ltr"
+                        className="rounded-md bg-[#0f1d40] px-1.5 py-0.5 font-mono text-[10px] font-bold text-white"
+                      >
+                        {uCode}
+                      </span>
+                      <span className="truncate text-xs font-extrabold text-[#0f1d40]">
+                        {unit.project_name || t.defaultUnit}
+                      </span>
+                      <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-900">
+                        <Sparkles className="size-3" />
+                        <span>
+                          {boost.package_tier} · {boost.duration_days}d
+                        </span>
+                      </span>
+                      {isFlittPaid && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[#007a5a] px-2 py-0.5 text-[10px] font-extrabold text-white">
+                          <CreditCard className="size-2.5" />
+                          <span>{pm.paidFlittBadge}</span>
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="text-[11px] font-semibold text-slate-500">
+                      {unit.name} ·{" "}
+                      <strong dir="ltr" className="text-[#007a5a]">
+                        {boost.amount_gel} ₾
+                      </strong>
+                      {boost.order_ref ? (
+                        <>
+                          {" "}
+                          ·{" "}
+                          <span dir="ltr" className="font-mono text-[10px]">
+                            {boost.order_ref}
+                          </span>
+                        </>
+                      ) : null}
+                    </p>
+                  </div>
+
+                  <div className="flex shrink-0 items-center justify-end gap-1.5">
+                    {unit.phone && (
+                      <a
+                        data-admin-client-wa="true"
+                        href={`https://wa.me/${String(unit.phone).replace(/\D/g, "")}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex size-8 items-center justify-center rounded-xl bg-[#25D366] text-white shadow-2xs"
+                      >
+                        <WhatsAppOfficialIcon className="size-4" />
+                      </a>
+                    )}
+                    <Link
+                      href="/admin/promotions"
+                      className="inline-flex h-8 items-center gap-1 rounded-xl bg-[#007a5a] px-3 text-[11px] font-extrabold text-white hover:bg-[#006248]"
+                    >
+                      <span>{L.secBoostActionBtn}</span>
+                      <ArrowLeft className="size-3 rtl:rotate-0 ltr:rotate-180" />
+                    </Link>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </details>
+      )}
+
       {/* 2. السيكشن الأول: صفقات متفق عليها جاهزة للتعاقد */}
       <details
         open={readyDeals.length > 0}
@@ -419,61 +570,56 @@ export default async function AdminPage() {
         }`}
       >
         <summary
-          className={`flex cursor-pointer list-none flex-col gap-3 p-4 transition select-none sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-3.5 [&::-webkit-details-marker]:hidden ${
+          className={`flex cursor-pointer list-none items-center justify-between gap-2 px-3.5 py-3 transition select-none sm:px-5 sm:py-3.5 [&::-webkit-details-marker]:hidden ${
             readyDeals.length > 0
               ? "bg-[#eaf8f2]/65 group-open:border-b group-open:border-emerald-100"
               : "bg-white hover:bg-slate-50/70 group-open:border-b group-open:border-slate-100"
           }`}
         >
-          <div className="flex items-start gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
             <span
-              className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl text-white shadow-2xs ${
+              className={`flex size-8 shrink-0 items-center justify-center rounded-xl text-white shadow-2xs sm:size-9 ${
                 readyDeals.length > 0 ? "bg-[#007a5a]" : "bg-slate-400"
               }`}
             >
               <Handshake className="size-4" />
             </span>
             <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-black text-[#0f1d40] sm:text-base">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="truncate text-xs font-black text-[#0f1d40] sm:text-sm">
                   {L.sec1Title}
                 </span>
                 <span
                   dir="ltr"
-                  className={`rounded-full px-2.5 py-0.5 text-xs font-black text-white ${
+                  className={`shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-black text-white ${
                     readyDeals.length > 0 ? "bg-[#007a5a]" : "bg-slate-400"
                   }`}
                 >
                   {readyDeals.length}
                 </span>
-                {readyDeals.length === 0 && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-500">
-                    <CheckCircle2 className="size-3.5 text-emerald-500" />
-                    <span>{L.sec1EmptyShort}</span>
-                  </span>
-                )}
               </div>
               {readyDeals.length > 0 && (
-                <p className="mt-1 text-[11.5px] leading-relaxed font-semibold text-[#007a5a]">
+                <p className="mt-0.5 hidden text-[11px] font-semibold text-[#007a5a] sm:block">
                   {L.sec1Sub}
                 </p>
               )}
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-2 self-end sm:self-center">
+          <div className="flex shrink-0 items-center gap-1.5">
             <Link
               href="/admin/deals"
-              className={`inline-flex h-8.5 items-center gap-1.5 rounded-xl px-3.5 text-xs font-extrabold transition ${
+              className={`inline-flex h-8 items-center gap-1 rounded-xl px-2.5 text-[11px] font-extrabold transition sm:px-3.5 sm:text-xs ${
                 readyDeals.length > 0
                   ? "bg-[#007a5a] text-white hover:bg-[#006248]"
                   : "border border-slate-200 bg-white text-[#0f1d40] hover:border-[#007a5a] hover:text-[#007a5a]"
               }`}
             >
-              <span>{L.sec1Btn}</span>
-              <ArrowLeft className="size-3.5 rtl:rotate-0 ltr:rotate-180" />
+              <span className="hidden sm:inline">{L.sec1Btn}</span>
+              <span className="sm:hidden">{t.allShort}</span>
+              <ArrowLeft className="size-3 rtl:rotate-0 ltr:rotate-180" />
             </Link>
-            <span className="flex size-8.5 shrink-0 items-center justify-center rounded-xl border border-slate-200/80 bg-white text-slate-500 transition group-hover:text-[#0f1d40]">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-xl border border-slate-200/80 bg-white text-slate-500">
               <ChevronDown className="size-4 transition-transform duration-200 group-open:rotate-180" />
             </span>
           </div>
@@ -487,7 +633,6 @@ export default async function AdminPage() {
             </div>
           ) : (
             <>
-              {/* عرض الموبايل */}
               <div className="divide-y divide-slate-100 md:hidden">
                 {readyDeals.map(({ offer, unit }) => {
                   const uCode = deriveUnitCode(unit.id, unit.code)
@@ -504,18 +649,21 @@ export default async function AdminPage() {
                   const buyerWa = `${leadsDict.waUnitLeadPrefix || ""} ${offer.buyer_name || ""}${listSep}(${unit.project_name || t.defaultUnit || ""} - ${uCode}) — ${sm.agreedCashLabel || ""}: ${agreedCash.toLocaleString("en-US")} ${cur}`
 
                   return (
-                    <div key={offer.id} className="space-y-3 p-4">
+                    <div key={offer.id} className="space-y-2.5 p-3.5">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="rounded-md bg-[#eaf8f2] px-2 py-0.5 font-mono text-[10.5px] font-black text-[#007a5a]">
+                            <span
+                              dir="ltr"
+                              className="rounded-md bg-[#eaf8f2] px-1.5 py-0.5 font-mono text-[10px] font-black text-[#007a5a]"
+                            >
                               {uCode}
                             </span>
-                            <span className="text-xs font-extrabold text-[#0f1d40]">
+                            <span className="truncate text-xs font-extrabold text-[#0f1d40]">
                               {unit.project_name || t.defaultUnit}
                             </span>
                           </div>
-                          <p className="mt-0.5 text-[11px] font-medium text-slate-400">
+                          <p className="mt-0.5 text-[10.5px] font-medium text-slate-400">
                             {localizedArea}
                           </p>
                         </div>
@@ -538,20 +686,14 @@ export default async function AdminPage() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                        <div className="flex items-center justify-between gap-2 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="flex items-center justify-between gap-1.5 rounded-xl border border-slate-100 bg-slate-50/80 px-2.5 py-2">
                           <div className="min-w-0">
-                            <span className="block text-[10px] font-bold text-slate-400">
+                            <span className="block text-[9.5px] font-bold text-slate-400">
                               {L.colSeller}
                             </span>
-                            <p className="truncate text-xs font-extrabold text-[#0f1d40]">
+                            <p className="truncate text-[11px] font-extrabold text-[#0f1d40]">
                               {unit.name || "—"}
-                            </p>
-                            <p
-                              dir="ltr"
-                              className="text-start font-mono text-[11px] text-slate-500"
-                            >
-                              {unit.phone || "—"}
                             </p>
                           </div>
                           <a
@@ -559,25 +701,19 @@ export default async function AdminPage() {
                             href={`https://wa.me/${String(unit.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(sellerWa)}`}
                             target="_blank"
                             rel="noreferrer"
-                            className="inline-flex size-8.5 shrink-0 items-center justify-center rounded-xl bg-[#25D366] text-white shadow-2xs"
+                            className="inline-flex size-7.5 shrink-0 items-center justify-center rounded-lg bg-[#25D366] text-white"
                           >
-                            <WhatsAppOfficialIcon className="size-4" />
+                            <WhatsAppOfficialIcon className="size-3.5" />
                           </a>
                         </div>
 
-                        <div className="flex items-center justify-between gap-2 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2">
+                        <div className="flex items-center justify-between gap-1.5 rounded-xl border border-slate-100 bg-slate-50/80 px-2.5 py-2">
                           <div className="min-w-0">
-                            <span className="block text-[10px] font-bold text-slate-400">
+                            <span className="block text-[9.5px] font-bold text-slate-400">
                               {L.colBuyer}
                             </span>
-                            <p className="truncate text-xs font-extrabold text-[#0f1d40]">
+                            <p className="truncate text-[11px] font-extrabold text-[#0f1d40]">
                               {offer.buyer_name || "—"}
-                            </p>
-                            <p
-                              dir="ltr"
-                              className="text-start font-mono text-[11px] text-slate-500"
-                            >
-                              {offer.buyer_phone || "—"}
                             </p>
                           </div>
                           <a
@@ -585,16 +721,16 @@ export default async function AdminPage() {
                             href={`https://wa.me/${String(offer.buyer_phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(buyerWa)}`}
                             target="_blank"
                             rel="noreferrer"
-                            className="inline-flex size-8.5 shrink-0 items-center justify-center rounded-xl bg-[#25D366] text-white shadow-2xs"
+                            className="inline-flex size-7.5 shrink-0 items-center justify-center rounded-lg bg-[#25D366] text-white"
                           >
-                            <WhatsAppOfficialIcon className="size-4" />
+                            <WhatsAppOfficialIcon className="size-3.5" />
                           </a>
                         </div>
                       </div>
 
                       <Link
                         href={`/admin/deals?offerId=${offer.id}`}
-                        className="flex h-9 w-full items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] text-xs font-extrabold text-white transition hover:bg-[#006248]"
+                        className="flex h-8.5 w-full items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] text-xs font-extrabold text-white transition hover:bg-[#006248]"
                       >
                         <span>{L.btnCloseDeal}</span>
                         <ArrowLeft className="size-3.5 rtl:rotate-0 ltr:rotate-180" />
@@ -604,7 +740,6 @@ export default async function AdminPage() {
                 })}
               </div>
 
-              {/* عرض الكمبيوتر */}
               <div className="hidden overflow-x-auto md:block">
                 <table className="w-full text-start text-xs">
                   <thead>
@@ -641,7 +776,10 @@ export default async function AdminPage() {
                         >
                           <td className="px-5 py-3.5">
                             <div className="flex items-center gap-2">
-                              <span className="rounded-md bg-[#eaf8f2] px-2 py-0.5 font-mono text-[10.5px] font-black text-[#007a5a]">
+                              <span
+                                dir="ltr"
+                                className="rounded-md bg-[#eaf8f2] px-2 py-0.5 font-mono text-[10.5px] font-black text-[#007a5a]"
+                              >
                                 {uCode}
                               </span>
                               <span className="font-extrabold text-[#0f1d40]">
@@ -755,28 +893,28 @@ export default async function AdminPage() {
         }`}
       >
         <summary
-          className={`flex cursor-pointer list-none flex-col gap-3 p-4 transition select-none sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-3.5 [&::-webkit-details-marker]:hidden ${
+          className={`flex cursor-pointer list-none items-center justify-between gap-2 px-3.5 py-3 transition select-none sm:px-5 sm:py-3.5 [&::-webkit-details-marker]:hidden ${
             actionableOffers.length > 0
               ? "bg-amber-50/60 group-open:border-b group-open:border-amber-100"
               : "bg-white hover:bg-slate-50/70 group-open:border-b group-open:border-slate-100"
           }`}
         >
-          <div className="flex items-start gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
             <span
-              className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl text-white shadow-2xs ${
+              className={`flex size-8 shrink-0 items-center justify-center rounded-xl text-white shadow-2xs sm:size-9 ${
                 actionableOffers.length > 0 ? "bg-amber-500" : "bg-slate-400"
               }`}
             >
               <BellRing className="size-4" />
             </span>
             <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-black text-[#0f1d40] sm:text-base">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="truncate text-xs font-black text-[#0f1d40] sm:text-sm">
                   {L.sec2Title}
                 </span>
                 <span
                   dir="ltr"
-                  className={`rounded-full px-2.5 py-0.5 text-xs font-black text-white ${
+                  className={`shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-black text-white ${
                     actionableOffers.length > 0
                       ? "bg-amber-500"
                       : "bg-slate-400"
@@ -784,30 +922,25 @@ export default async function AdminPage() {
                 >
                   {actionableOffers.length}
                 </span>
-                {actionableOffers.length === 0 && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-500">
-                    <CheckCircle2 className="size-3.5 text-emerald-500" />
-                    <span>{L.sec2EmptyShort}</span>
-                  </span>
-                )}
               </div>
               {actionableOffers.length > 0 && (
-                <p className="mt-1 text-[11.5px] leading-relaxed font-semibold text-amber-900">
+                <p className="mt-0.5 hidden text-[11px] font-semibold text-amber-900 sm:block">
                   {L.sec2Sub}
                 </p>
               )}
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-2 self-end sm:self-center">
+          <div className="flex shrink-0 items-center gap-1.5">
             <Link
               href="/admin/offers"
-              className="inline-flex h-8.5 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-extrabold text-[#0f1d40] transition hover:border-[#007a5a] hover:text-[#007a5a]"
+              className="inline-flex h-8 items-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5 text-[11px] font-extrabold text-[#0f1d40] transition hover:border-[#007a5a] hover:text-[#007a5a] sm:px-3.5 sm:text-xs"
             >
-              <span>{L.sec2Btn}</span>
-              <ArrowLeft className="size-3.5 rtl:rotate-0 ltr:rotate-180" />
+              <span className="hidden sm:inline">{L.sec2Btn}</span>
+              <span className="sm:hidden">{t.allShort}</span>
+              <ArrowLeft className="size-3 rtl:rotate-0 ltr:rotate-180" />
             </Link>
-            <span className="flex size-8.5 shrink-0 items-center justify-center rounded-xl border border-slate-200/80 bg-white text-slate-500 transition group-hover:text-[#0f1d40]">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-xl border border-slate-200/80 bg-white text-slate-500">
               <ChevronDown className="size-4 transition-transform duration-200 group-open:rotate-180" />
             </span>
           </div>
@@ -821,7 +954,6 @@ export default async function AdminPage() {
             </div>
           ) : (
             <>
-              {/* عرض الموبايل */}
               <div className="divide-y divide-slate-100 md:hidden">
                 {actionableOffers.slice(0, 6).map(({ offer, unit }) => {
                   const uCode = deriveUnitCode(unit.id, unit.code)
@@ -829,8 +961,6 @@ export default async function AdminPage() {
                   const isCounter = offer.status === "counter_offered"
                   const offeredCash = Number(offer.offered_cash) || 0
                   const counterCash = Number(offer.counter_cash) || 0
-                  const originalCash =
-                    Number(unit.paid_amount || offer.required_cash) || 0
                   const localizedArea = cleanAreaDisplay(unit.area, locale)
 
                   const buyerWa = `${leadsDict.waUnitLeadPrefix || ""} ${offer.buyer_name || ""}${listSep}(${unit.project_name || t.defaultUnit || ""} - ${uCode}) — ${sm.agreedCashLabel || ""}: ${offeredCash.toLocaleString("en-US")} ${cur}`
@@ -839,21 +969,24 @@ export default async function AdminPage() {
                   return (
                     <div
                       key={offer.id}
-                      className={`space-y-3 p-4 ${
+                      className={`space-y-2.5 p-3.5 ${
                         isCounter ? "bg-purple-50/20" : "bg-amber-50/20"
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[10px] font-black text-[#0f1d40]">
+                            <span
+                              dir="ltr"
+                              className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-black text-[#0f1d40]"
+                            >
                               {uCode}
                             </span>
-                            <span className="text-xs font-extrabold text-[#0f1d40]">
+                            <span className="truncate text-xs font-extrabold text-[#0f1d40]">
                               {unit.project_name || t.defaultUnit}
                             </span>
                           </div>
-                          <p className="mt-0.5 text-[11px] font-medium text-slate-400">
+                          <p className="mt-0.5 text-[10.5px] font-medium text-slate-400">
                             {localizedArea}
                           </p>
                         </div>
@@ -866,51 +999,26 @@ export default async function AdminPage() {
                             {cur}
                             {offeredCash.toLocaleString("en-US")}
                           </strong>
-                          {isCounter && counterCash > 0 ? (
-                            <span className="text-[10.5px] font-extrabold text-purple-800">
+                          {isCounter && counterCash > 0 && (
+                            <span className="text-[10px] font-extrabold text-purple-800">
                               →{" "}
                               <span dir="ltr">
                                 {cur}
                                 {counterCash.toLocaleString("en-US")}
                               </span>
                             </span>
-                          ) : (
-                            <span className="text-[10px] font-semibold text-slate-400">
-                              {L.colOriginalCash}:{" "}
-                              <span dir="ltr">
-                                {cur}
-                                {originalCash.toLocaleString("en-US")}
-                              </span>
-                            </span>
                           )}
                         </div>
                       </div>
 
-                      {isCounter ? (
-                        <span className="inline-flex items-center gap-1 rounded-lg border border-purple-200 bg-purple-50 px-2.5 py-1 text-[11px] font-extrabold text-purple-900">
-                          <Flame className="size-3" />
-                          <span>{L.negotiatingBadge}</span>
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-white px-2.5 py-1 text-[11px] font-extrabold text-amber-900">
-                          <span>{L.newOfferBadge}</span>
-                        </span>
-                      )}
-
-                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                        <div className="flex items-center justify-between gap-2 rounded-xl border border-slate-200/80 bg-white px-3 py-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="flex items-center justify-between gap-1.5 rounded-xl border border-slate-200/80 bg-white px-2.5 py-2">
                           <div className="min-w-0">
-                            <span className="block text-[10px] font-bold text-slate-400">
+                            <span className="block text-[9.5px] font-bold text-slate-400">
                               {L.colBuyer}
                             </span>
-                            <p className="truncate text-xs font-extrabold text-[#0f1d40]">
+                            <p className="truncate text-[11px] font-extrabold text-[#0f1d40]">
                               {offer.buyer_name || "—"}
-                            </p>
-                            <p
-                              dir="ltr"
-                              className="text-start font-mono text-[11px] text-slate-500"
-                            >
-                              {offer.buyer_phone || "—"}
                             </p>
                           </div>
                           <a
@@ -918,25 +1026,19 @@ export default async function AdminPage() {
                             href={`https://wa.me/${String(offer.buyer_phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(buyerWa)}`}
                             target="_blank"
                             rel="noreferrer"
-                            className="inline-flex size-8.5 shrink-0 items-center justify-center rounded-xl bg-[#25D366] text-white shadow-2xs"
+                            className="inline-flex size-7.5 shrink-0 items-center justify-center rounded-lg bg-[#25D366] text-white"
                           >
-                            <WhatsAppOfficialIcon className="size-4" />
+                            <WhatsAppOfficialIcon className="size-3.5" />
                           </a>
                         </div>
 
-                        <div className="flex items-center justify-between gap-2 rounded-xl border border-slate-200/80 bg-white px-3 py-2">
+                        <div className="flex items-center justify-between gap-1.5 rounded-xl border border-slate-200/80 bg-white px-2.5 py-2">
                           <div className="min-w-0">
-                            <span className="block text-[10px] font-bold text-slate-400">
+                            <span className="block text-[9.5px] font-bold text-slate-400">
                               {L.colSeller}
                             </span>
-                            <p className="truncate text-xs font-extrabold text-[#0f1d40]">
+                            <p className="truncate text-[11px] font-extrabold text-[#0f1d40]">
                               {unit.name || "—"}
-                            </p>
-                            <p
-                              dir="ltr"
-                              className="text-start font-mono text-[11px] text-slate-500"
-                            >
-                              {unit.phone || "—"}
                             </p>
                           </div>
                           <a
@@ -944,16 +1046,16 @@ export default async function AdminPage() {
                             href={`https://wa.me/${String(unit.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(sellerWa)}`}
                             target="_blank"
                             rel="noreferrer"
-                            className="inline-flex size-8.5 shrink-0 items-center justify-center rounded-xl bg-[#25D366] text-white shadow-2xs"
+                            className="inline-flex size-7.5 shrink-0 items-center justify-center rounded-lg bg-[#25D366] text-white"
                           >
-                            <WhatsAppOfficialIcon className="size-4" />
+                            <WhatsAppOfficialIcon className="size-3.5" />
                           </a>
                         </div>
                       </div>
 
                       <Link
                         href={`/admin/offers?offerId=${offer.id}`}
-                        className={`flex h-9 w-full items-center justify-center gap-1.5 rounded-xl text-xs font-extrabold text-white transition ${
+                        className={`flex h-8.5 w-full items-center justify-center gap-1.5 rounded-xl text-xs font-extrabold text-white transition ${
                           isCounter
                             ? "bg-purple-700 hover:bg-purple-800"
                             : "bg-amber-500 hover:bg-amber-600"
@@ -963,14 +1065,12 @@ export default async function AdminPage() {
                         <span>
                           {isCounter ? L.btnNegotiateNow : L.btnApproveOffer}
                         </span>
-                        <ArrowLeft className="size-3.5 rtl:rotate-0 ltr:rotate-180" />
                       </Link>
                     </div>
                   )
                 })}
               </div>
 
-              {/* عرض الكمبيوتر */}
               <div className="hidden overflow-x-auto md:block">
                 <table className="w-full text-start text-xs">
                   <thead>
@@ -1012,7 +1112,10 @@ export default async function AdminPage() {
                               className="block"
                             >
                               <div className="flex items-center gap-2">
-                                <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[10px] font-black text-[#0f1d40]">
+                                <span
+                                  dir="ltr"
+                                  className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[10px] font-black text-[#0f1d40]"
+                                >
                                   {uCode}
                                 </span>
                                 <span className="font-extrabold text-[#0f1d40] hover:text-[#007a5a]">
@@ -1138,30 +1241,30 @@ export default async function AdminPage() {
         </div>
       </details>
 
-      {/* 4. السيكشن الثالث: وحدات بانتظار المراجعة فقط + طلبات شراء جديدة فقط */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+      {/* 4. السيكشن الثالث: وحدات بانتظار المراجعة + طلبات شراء جديدة */}
+      <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-12">
         <Card className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-2xs lg:col-span-7">
-          <CardHeader className="flex flex-row items-center justify-between gap-2 border-b border-slate-100 px-4 py-3.5 sm:px-5 sm:py-4">
-            <div className="flex min-w-0 items-center gap-2.5">
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+          <CardHeader className="flex flex-row items-center justify-between gap-2 border-b border-slate-100 px-3.5 py-3 sm:px-5 sm:py-4">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="flex size-7.5 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600 sm:size-8">
                 <Clock3 className="size-4" />
               </span>
-              <CardTitle className="truncate text-sm font-black text-[#0f1d40]">
+              <CardTitle className="truncate text-xs font-black text-[#0f1d40] sm:text-sm">
                 {L.pendingUnitsTitle} ({pendingReviewProperties.length})
               </CardTitle>
             </div>
             <Link
               href="/admin/properties?tab=pending"
-              className="inline-flex shrink-0 items-center gap-1 text-xs font-extrabold text-[#007a5a] hover:underline"
+              className="inline-flex shrink-0 items-center gap-1 text-[11px] font-extrabold text-[#007a5a] hover:underline sm:text-xs"
             >
               <span>{t.viewAll}</span>
-              <ArrowLeft className="size-3.5 rtl:rotate-0 ltr:rotate-180" />
+              <ArrowLeft className="size-3 rtl:rotate-0 ltr:rotate-180" />
             </Link>
           </CardHeader>
 
           <CardContent className="p-0">
             {pendingReviewProperties.length === 0 ? (
-              <div className="flex items-center justify-center gap-2 py-10 text-xs font-bold text-slate-400">
+              <div className="flex items-center justify-center gap-2 py-8 text-xs font-bold text-slate-400">
                 <CheckCircle2 className="size-4 text-emerald-500" />
                 <span>{L.pendingUnitsEmpty}</span>
               </div>
@@ -1180,21 +1283,24 @@ export default async function AdminPage() {
                     const sellerWaMsg = `${leadsDict.waGeneralPrefix || ""} ${prop.name}${listSep}(${prop.project_name || t.defaultUnit || ""} - ${localizedArea} - ${uCode}) — $${Number(prop.paid_amount || 0).toLocaleString("en-US")}`
 
                     return (
-                      <div key={prop.id} className="space-y-2.5 p-3.5">
+                      <div key={prop.id} className="space-y-2 p-3.5">
                         <div className="flex items-start justify-between gap-2">
                           <Link
                             href={`/admin/properties?unitId=${prop.id}`}
                             className="min-w-0 flex-1"
                           >
                             <div className="flex flex-wrap items-center gap-1.5">
-                              <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[10px] font-black text-[#0f1d40]">
+                              <span
+                                dir="ltr"
+                                className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-black text-[#0f1d40]"
+                              >
                                 {uCode}
                               </span>
-                              <span className="text-xs font-extrabold text-[#0f1d40]">
+                              <span className="truncate text-xs font-extrabold text-[#0f1d40]">
                                 {prop.project_name || t.defaultUnit}
                               </span>
                             </div>
-                            <p className="mt-1 text-[11px] font-medium text-slate-500">
+                            <p className="mt-0.5 truncate text-[11px] font-medium text-slate-500">
                               {localizedArea} · {prop.name || "—"}
                             </p>
                           </Link>
@@ -1209,7 +1315,7 @@ export default async function AdminPage() {
                         <div className="flex items-center justify-between border-t border-slate-100 pt-2">
                           <span
                             dir="ltr"
-                            className="text-sm font-black text-[#007a5a] tabular-nums"
+                            className="text-xs font-black text-[#007a5a] tabular-nums sm:text-sm"
                           >
                             {prop.paid_amount
                               ? `$${Number(prop.paid_amount).toLocaleString("en-US")}`
@@ -1219,7 +1325,7 @@ export default async function AdminPage() {
                           <div className="flex items-center gap-1.5">
                             <Link
                               href={`/admin/properties?unitId=${prop.id}`}
-                              className="inline-flex size-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600"
+                              className="inline-flex size-7.5 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600"
                             >
                               <ExternalLink className="size-3.5" />
                             </Link>
@@ -1228,9 +1334,9 @@ export default async function AdminPage() {
                               href={`https://wa.me/${String(prop.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(sellerWaMsg)}`}
                               target="_blank"
                               rel="noreferrer"
-                              className="inline-flex size-8 items-center justify-center rounded-lg bg-[#25D366] text-white shadow-2xs"
+                              className="inline-flex size-7.5 items-center justify-center rounded-lg bg-[#25D366] text-white shadow-2xs"
                             >
-                              <WhatsAppOfficialIcon className="size-4" />
+                              <WhatsAppOfficialIcon className="size-3.5" />
                             </a>
                           </div>
                         </div>
@@ -1282,7 +1388,10 @@ export default async function AdminPage() {
                                 className="block"
                               >
                                 <div className="flex items-center gap-2">
-                                  <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[10px] font-black text-[#0f1d40]">
+                                  <span
+                                    dir="ltr"
+                                    className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[10px] font-black text-[#0f1d40]"
+                                  >
                                     {uCode}
                                   </span>
                                   <span className="font-extrabold text-[#0f1d40] group-hover:text-[#007a5a]">
@@ -1357,27 +1466,27 @@ export default async function AdminPage() {
         </Card>
 
         <Card className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-2xs lg:col-span-5">
-          <CardHeader className="flex flex-row items-center justify-between gap-2 border-b border-slate-100 px-4 py-3.5 sm:px-5 sm:py-4">
-            <div className="flex min-w-0 items-center gap-2.5">
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+          <CardHeader className="flex flex-row items-center justify-between gap-2 border-b border-slate-100 px-3.5 py-3 sm:px-5 sm:py-4">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="flex size-7.5 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700 sm:size-8">
                 <FileText className="size-4" />
               </span>
-              <CardTitle className="truncate text-sm font-black text-[#0f1d40]">
+              <CardTitle className="truncate text-xs font-black text-[#0f1d40] sm:text-sm">
                 {L.newLeadsTitle} ({newUncontactedLeads.length})
               </CardTitle>
             </div>
             <Link
               href="/admin/leads"
-              className="inline-flex shrink-0 items-center gap-1 text-xs font-extrabold text-[#007a5a] hover:underline"
+              className="inline-flex shrink-0 items-center gap-1 text-[11px] font-extrabold text-[#007a5a] hover:underline sm:text-xs"
             >
               <span>{t.allShort}</span>
-              <ArrowLeft className="size-3.5 rtl:rotate-0 ltr:rotate-180" />
+              <ArrowLeft className="size-3 rtl:rotate-0 ltr:rotate-180" />
             </Link>
           </CardHeader>
 
           <CardContent className="p-0">
             {newUncontactedLeads.length === 0 ? (
-              <div className="flex items-center justify-center gap-2 py-10 text-xs font-bold text-slate-400">
+              <div className="flex items-center justify-center gap-2 py-8 text-xs font-bold text-slate-400">
                 <CheckCircle2 className="size-4 text-emerald-500" />
                 <span>{L.newLeadsEmpty}</span>
               </div>
@@ -1410,13 +1519,13 @@ export default async function AdminPage() {
                   return (
                     <div
                       key={lead.id}
-                      className="flex items-center justify-between gap-3 px-4 py-3.5 transition hover:bg-slate-50/80"
+                      className="flex items-center justify-between gap-2.5 px-3.5 py-3 transition hover:bg-slate-50/80 sm:px-4"
                     >
                       <Link
                         href={`/admin/leads?leadId=${lead.id}`}
-                        className="flex min-w-0 flex-1 items-start gap-3"
+                        className="flex min-w-0 flex-1 items-start gap-2.5"
                       >
-                        <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-xs font-black text-blue-700">
+                        <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-xs font-black text-blue-700 sm:size-9">
                           {leadInitial}
                         </span>
                         <div className="min-w-0 flex-1">
@@ -1426,12 +1535,12 @@ export default async function AdminPage() {
                           <div className="mt-1 flex flex-wrap items-center gap-1.5">
                             <span
                               dir="ltr"
-                              className="rounded-md bg-[#eaf8f2] px-2 py-0.5 text-[10.5px] font-black text-[#007a5a] tabular-nums"
+                              className="rounded-md bg-[#eaf8f2] px-2 py-0.5 text-[10px] font-black text-[#007a5a] tabular-nums"
                             >
                               ${cashFormatted}
                             </span>
                           </div>
-                          <p className="mt-1 truncate text-[11px] font-medium text-slate-400">
+                          <p className="mt-1 truncate text-[10.5px] font-medium text-slate-400">
                             {cleanTarget}
                           </p>
                         </div>
@@ -1442,7 +1551,7 @@ export default async function AdminPage() {
                         href={`https://wa.me/${String(lead.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(buyerWaMsg)}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex size-8.5 shrink-0 items-center justify-center rounded-xl bg-[#25D366] text-white shadow-2xs transition hover:bg-[#1ebe5d]"
+                        className="inline-flex size-8 shrink-0 items-center justify-center rounded-xl bg-[#25D366] text-white shadow-2xs transition hover:bg-[#1ebe5d]"
                       >
                         <WhatsAppOfficialIcon className="size-4" />
                       </a>

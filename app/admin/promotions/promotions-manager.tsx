@@ -5,16 +5,21 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
   AlertTriangle,
+  CalendarClock,
   Check,
   CheckCircle2,
   Clock,
   CreditCard,
   Crown,
   ExternalLink,
+  Eye,
   Flame,
   Landmark,
   Loader2,
   Lock,
+  MessageCircle,
+  Plus,
+  RefreshCw,
   Search,
   Sparkles,
   Star,
@@ -61,13 +66,55 @@ export type BoostRequestRow = {
   rejected_at: string | null
 }
 
-function getRemainingDays(untilIso?: string | null, fallbackDays = 1): number {
-  if (untilIso) {
-    const diff = new Date(untilIso).getTime() - Date.now()
-    if (diff > 0) return Math.max(1, Math.ceil(diff / (1000 * 60 * 60 * 24)))
-    return 0
+function formatDateTimeCompact(iso?: string | null): string {
+  if (!iso) return "—"
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return "—"
+  const dt = d.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+  })
+  const tm = d.toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  })
+  return `${dt} · ${tm}`
+}
+
+function formatTimeWaiting(
+  iso: string | null | undefined,
+  pm: Record<string, string>
+): string {
+  if (!iso) return "—"
+  const diffMs = Math.max(0, Date.now() - new Date(iso).getTime())
+  const mins = Math.floor(diffMs / 60000)
+  if (mins < 2) return pm.justNowWord || "1m"
+  if (mins < 60) return `${mins} ${pm.minsAgoSuffix || "m"}`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours} ${pm.hoursAgoSuffix || "h"}`
+  const days = Math.floor(hours / 24)
+  return `${days} ${pm.daysAgoSuffix || "d"}`
+}
+
+function formatRemainingDetailed(
+  untilIso: string | null | undefined,
+  pm: Record<string, string>,
+  fallbackDays = 1
+): string {
+  if (!untilIso) return `${fallbackDays} ${pm.daysAgoSuffix || "d"}`
+  const diffMs = new Date(untilIso).getTime() - Date.now()
+  if (diffMs <= 0) return `0 ${pm.hoursAgoSuffix || "h"}`
+  const totalHours = Math.floor(diffMs / (1000 * 60 * 60))
+  const days = Math.floor(totalHours / 24)
+  const hours = totalHours % 24
+  if (days > 0) {
+    return hours > 0
+      ? `${days} ${pm.daysAgoSuffix || "d"} · ${hours} ${pm.hoursAgoSuffix || "h"}`
+      : `${days} ${pm.daysAgoSuffix || "d"}`
   }
-  return Math.max(1, fallbackDays)
+  return `${Math.max(1, hours)} ${pm.hoursAgoSuffix || "h"}`
 }
 
 function isUnitLiveForBoost(unit?: SellRequest | null): boolean {
@@ -104,6 +151,8 @@ export function PromotionsManager({
     kind: "boost_row" | "legacy_unit"
     id: string
     title: string
+    isFlittPaid?: boolean
+    orderRef?: string | null
   } | null>(null)
   const [rejectReason, setRejectReason] = useState("")
   const [manualModalUnit, setManualModalUnit] = useState<SellRequest | null>(
@@ -190,7 +239,7 @@ export function PromotionsManager({
 
     return (
       <span
-        className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10.5px] font-extrabold ${
+        className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-extrabold ${
           isLive
             ? "border-emerald-200 bg-[#eaf8f2] text-[#007a5a]"
             : st === "paused_by_admin" || st === "rejected"
@@ -203,7 +252,7 @@ export function PromotionsManager({
         ) : (
           <Clock className="size-3 shrink-0" />
         )}
-        <span>{label}</span>
+        <span className="truncate">{label}</span>
       </span>
     )
   }
@@ -332,23 +381,24 @@ export function PromotionsManager({
   }
 
   return (
-    <div dir={dir} className="space-y-4 text-start">
-      <div className="rounded-2xl border border-slate-200/90 bg-white px-5 py-4 shadow-2xs">
-        <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-[11px] font-extrabold text-amber-800">
-          <Star className="size-3.5 fill-amber-400 text-amber-600" />
+    <div dir={dir} className="space-y-3.5 text-start sm:space-y-4">
+      {/* الهيدر المتجاوب */}
+      <div className="rounded-2xl border border-slate-200/90 bg-white px-4 py-3.5 shadow-2xs sm:px-5 sm:py-4">
+        <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-[10.5px] font-extrabold text-amber-800 sm:text-[11px]">
+          <Star className="size-3 fill-amber-400 text-amber-600" />
           <span>{pm.eyebrow}</span>
         </div>
-        <h1 className="mt-1 text-lg font-black text-[#0f1d40] sm:text-xl">
+        <h1 className="mt-1 text-base leading-snug font-black text-[#0f1d40] sm:text-xl">
           {pm.title}
         </h1>
-        <p className="mt-0.5 text-xs font-medium text-slate-500">
+        <p className="mt-0.5 text-[11px] leading-relaxed font-medium text-slate-500 sm:text-xs">
           {pm.subtitle}
         </p>
       </div>
 
       {notice && (
         <div
-          className={`flex items-center justify-between gap-3 rounded-xl border p-3.5 text-xs font-extrabold shadow-xs ${
+          className={`flex items-center justify-between gap-2 rounded-xl border p-3 text-xs font-extrabold shadow-xs ${
             notice.isError
               ? "border-red-200 bg-red-50 text-red-700"
               : "border-emerald-200 bg-[#eaf8f2] text-[#007a5a]"
@@ -372,7 +422,8 @@ export function PromotionsManager({
         </div>
       )}
 
-      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-2xs sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+      {/* شريط البحث والتبويبات المتجاوب */}
+      <div className="flex flex-col gap-2.5 rounded-2xl border border-slate-200/90 bg-white p-3 shadow-2xs sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:p-3.5">
         <div className="relative w-full sm:max-w-xs sm:flex-1">
           <Search className="pointer-events-none absolute top-1/2 end-3 size-4 -translate-y-1/2 text-slate-400" />
           <input
@@ -384,7 +435,7 @@ export function PromotionsManager({
           />
         </div>
 
-        <div className="flex flex-wrap gap-1.5">
+        <div className="grid grid-cols-2 gap-1.5 sm:flex sm:flex-wrap">
           {(
             [
               {
@@ -409,7 +460,7 @@ export function PromotionsManager({
               key={tItem.id}
               type="button"
               onClick={() => setTab(tItem.id)}
-              className={`rounded-xl px-3.5 py-1.5 text-xs font-extrabold transition ${
+              className={`truncate rounded-xl px-2.5 py-1.5 text-[11px] font-extrabold transition sm:px-3.5 sm:text-xs ${
                 tab === tItem.id
                   ? "bg-[#007a5a] text-white shadow-2xs"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
@@ -421,10 +472,11 @@ export function PromotionsManager({
         </div>
       </div>
 
+      {/* تبويب 1: بانتظار التفعيل */}
       {tab === "pending" && (
         <div className="space-y-3">
           {pendingTotalCount === 0 ? (
-            <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center text-xs font-bold text-slate-400">
+            <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-xs font-bold text-slate-400">
               {pm.emptyPending}
             </div>
           ) : (
@@ -438,6 +490,7 @@ export function PromotionsManager({
                 })
                 .map((req) => {
                   const unit = req.unit_id ? propsMap.get(req.unit_id) : null
+                  const isOrphan = !unit
                   const uCode =
                     req.unit_code ||
                     (unit ? deriveShortUnitCode(unit.id, unit.code) : "—")
@@ -449,12 +502,51 @@ export function PromotionsManager({
                     : uCode
                   const isFlittPaid = req.status === "paid_pending_approval"
                   const canActivateNow = isUnitLiveForBoost(unit)
+                  const isRenewal =
+                    Boolean(unit?.is_featured) &&
+                    (!unit?.featured_until ||
+                      new Date(unit.featured_until) > new Date())
                   const isBusy = isPending && busyId === req.id
+
+                  if (isOrphan) {
+                    return (
+                      <div
+                        key={req.id}
+                        className="flex flex-wrap items-center justify-between gap-2.5 rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 p-3.5 text-xs"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <span className="font-black text-slate-700">
+                            {req.package_tier} · {req.amount_gel} ₾
+                          </span>
+                          <p className="mt-0.5 text-[11px] font-medium text-slate-500">
+                            {pm.orphanUnitNotice}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={isBusy}
+                          onClick={() =>
+                            setRejectTarget({
+                              kind: "boost_row",
+                              id: req.id,
+                              title: `${req.package_tier} (${req.amount_gel} ₾)`,
+                              isFlittPaid,
+                              orderRef: req.order_ref,
+                            })
+                          }
+                          className="inline-flex h-8 items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 text-[11px] font-extrabold text-red-700 hover:bg-red-100"
+                        >
+                          <XCircle className="size-3.5" />
+                          <span>{pm.rejectBtn}</span>
+                        </button>
+                      </div>
+                    )
+                  }
 
                   return (
                     <div
                       key={req.id}
-                      className={`rounded-2xl border bg-white p-4 shadow-2xs ${
+                      className={`rounded-2xl border bg-white p-3.5 shadow-2xs sm:p-4 ${
                         !canActivateNow
                           ? "border-2 border-amber-300"
                           : isFlittPaid
@@ -462,16 +554,23 @@ export function PromotionsManager({
                             : "border-amber-200"
                       }`}
                     >
-                      <div className="flex flex-wrap items-start justify-between gap-3">
+                      {/* السطر العلوي: العنوان + المبلغ وشارة الدفع */}
+                      <div className="flex items-start justify-between gap-2.5">
                         <div className="min-w-0 flex-1 space-y-1.5">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="rounded-md bg-[#0f1d40] px-2 py-0.5 font-mono text-[10.5px] font-bold text-white">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span
+                              dir="ltr"
+                              className="rounded-md bg-[#0f1d40] px-2 py-0.5 font-mono text-[10px] font-bold text-white"
+                            >
                               {uCode}
                             </span>
-                            <h3 className="text-sm font-black text-[#0f1d40]">
+                            <h3 className="truncate text-xs font-black text-[#0f1d40] sm:text-sm">
                               {unitTitle}
                             </h3>
-                            <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-[10.5px] font-black text-amber-900">
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-900">
                               <Sparkles className="size-3" />
                               <span>
                                 {req.package_tier} · {req.duration_days}{" "}
@@ -479,64 +578,98 @@ export function PromotionsManager({
                               </span>
                             </span>
                             {renderUnitStatusBadge(unit)}
+                            {isRenewal && (
+                              <span className="inline-flex items-center gap-1 rounded-md bg-purple-100 px-2 py-0.5 text-[10px] font-extrabold text-purple-900">
+                                <RefreshCw className="size-3" />
+                                <span>{pm.renewalBadge}</span>
+                              </span>
+                            )}
                           </div>
-
-                          <p className="text-xs font-semibold text-slate-500">
-                            {pm.sellerLabel}:{" "}
-                            <strong className="text-[#0f1d40]">
-                              {unit?.name || "—"}
-                            </strong>
-                            {unit?.phone ? (
-                              <>
-                                {" "}
-                                ·{" "}
-                                <span dir="ltr" className="font-mono">
-                                  {unit.phone}
-                                </span>
-                              </>
-                            ) : null}
-                            {req.order_ref ? (
-                              <>
-                                {" "}
-                                · {pm.refCodeLabel}:{" "}
-                                <span dir="ltr" className="font-mono font-bold">
-                                  {req.order_ref}
-                                </span>
-                              </>
-                            ) : null}
-                          </p>
                         </div>
 
-                        <div className="flex flex-col items-end gap-1">
+                        <div className="flex shrink-0 flex-col items-end gap-1">
                           <strong
                             dir="ltr"
-                            className="text-lg font-black text-[#007a5a] tabular-nums"
+                            className="text-base font-black text-[#007a5a] tabular-nums sm:text-lg"
                           >
                             {req.amount_gel} ₾
                           </strong>
                           {isFlittPaid ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-[#007a5a] px-2.5 py-0.5 text-[10.5px] font-extrabold text-white">
-                              <CreditCard className="size-3" />
+                            <span className="inline-flex items-center gap-1 rounded-full bg-[#007a5a] px-2 py-0.5 text-[10px] font-extrabold text-white">
+                              <CreditCard className="size-2.5" />
                               <span>{pm.paidFlittBadge}</span>
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[10.5px] font-extrabold text-amber-900">
-                              <Landmark className="size-3" />
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-extrabold text-amber-900">
+                              <Landmark className="size-2.5" />
                               <span>{pm.bankTransferPendingBadge}</span>
                             </span>
                           )}
                         </div>
                       </div>
 
-                      {!canActivateNow && unit && (
-                        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300 bg-amber-50/90 px-3.5 py-2.5 text-xs">
-                          <div className="flex items-center gap-2 font-bold text-amber-950">
-                            <Lock className="size-4 shrink-0 text-amber-600" />
+                      {/* شبكة تفاصيل الطلب (المالك، وقت الدفع، مدة الانتظار، المرجع) */}
+                      <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl border border-slate-100 bg-slate-50/75 p-2.5 text-[11px] sm:grid-cols-4">
+                        <div className="min-w-0">
+                          <span className="block text-[9.5px] font-bold text-slate-400">
+                            {pm.sellerLabel}
+                          </span>
+                          <strong className="mt-0.5 block truncate text-[#0f1d40]">
+                            {unit.name || "—"}
+                          </strong>
+                          {unit.phone && (
+                            <span
+                              dir="ltr"
+                              className="block truncate font-mono text-[10px] text-slate-500"
+                            >
+                              {unit.phone}
+                            </span>
+                          )}
+                        </div>
+
+                        <div>
+                          <span className="block text-[9.5px] font-bold text-slate-400">
+                            {pm.paidAtLabel}
+                          </span>
+                          <strong
+                            dir="ltr"
+                            className="mt-0.5 block font-mono text-[10.5px] text-[#0f1d40]"
+                          >
+                            {formatDateTimeCompact(req.created_at)}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span className="block text-[9.5px] font-bold text-slate-400">
+                            {pm.paidSinceLabel}
+                          </span>
+                          <strong className="mt-0.5 block text-amber-700">
+                            {formatTimeWaiting(req.created_at, pm)}
+                          </strong>
+                        </div>
+
+                        <div className="min-w-0">
+                          <span className="block text-[9.5px] font-bold text-slate-400">
+                            {pm.refCodeLabel}
+                          </span>
+                          <strong
+                            dir="ltr"
+                            className="mt-0.5 block truncate font-mono text-[10.5px] text-[#007a5a]"
+                          >
+                            {req.order_ref || "—"}
+                          </strong>
+                        </div>
+                      </div>
+
+                      {!canActivateNow && (
+                        <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300 bg-amber-50/90 px-3 py-2 text-[11px]">
+                          <div className="flex items-center gap-1.5 font-bold text-amber-950">
+                            <Lock className="size-3.5 shrink-0 text-amber-600" />
                             <span>{pm.unitNotPublishedNotice}</span>
                           </div>
                           <Link
                             href={`/admin/properties?unitId=${unit.id}`}
-                            className="inline-flex h-7.5 items-center gap-1 rounded-lg bg-[#0f1d40] px-3 text-[11px] font-extrabold text-white hover:bg-[#1e293b]"
+                            className="inline-flex h-7 items-center gap-1 rounded-lg bg-[#0f1d40] px-2.5 text-[10.5px] font-extrabold text-white hover:bg-[#1e293b]"
                           >
                             <ExternalLink className="size-3 text-emerald-300" />
                             <span>{pm.reviewAndPublishUnitBtn}</span>
@@ -544,57 +677,61 @@ export function PromotionsManager({
                         </div>
                       )}
 
-                      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
-                        <span
-                          dir="ltr"
-                          className="font-mono text-[11px] text-slate-400"
+                      {/* شريط الإجراءات المتجاوب */}
+                      <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-100 pt-2.5 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
+                        {unit.phone && (
+                          <a
+                            href={`https://wa.me/${String(unit.phone).replace(/\D/g, "")}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex h-8.5 items-center justify-center gap-1.5 rounded-xl bg-[#25D366] px-3 text-[11px] font-extrabold text-white transition hover:opacity-95 sm:text-xs"
+                          >
+                            <MessageCircle className="size-3.5" />
+                            <span>{pm.contactSellerWaBtn}</span>
+                          </a>
+                        )}
+
+                        <Link
+                          href={`/admin/properties?unitId=${unit.id}`}
+                          className="inline-flex h-8.5 items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-[11px] font-bold text-[#0f1d40] hover:bg-slate-50 sm:text-xs"
                         >
-                          {new Date(req.created_at).toLocaleDateString("en-GB")}
-                        </span>
+                          <ExternalLink className="size-3.5 text-[#007a5a]" />
+                          <span>{propDict.actions?.detailsBtn}</span>
+                        </Link>
 
-                        <div className="flex flex-wrap items-center gap-2">
-                          {unit && (
-                            <Link
-                              href={`/admin/properties?unitId=${unit.id}`}
-                              className="inline-flex h-8.5 items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-[#0f1d40] hover:bg-slate-50"
-                            >
-                              <ExternalLink className="size-3.5 text-[#007a5a]" />
-                              <span>{propDict.actions?.detailsBtn}</span>
-                            </Link>
+                        <button
+                          type="button"
+                          disabled={isBusy}
+                          onClick={() =>
+                            setRejectTarget({
+                              kind: "boost_row",
+                              id: req.id,
+                              title: `${unitTitle} (${req.package_tier})`,
+                              isFlittPaid,
+                              orderRef: req.order_ref,
+                            })
+                          }
+                          className="inline-flex h-8.5 items-center justify-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 text-[11px] font-extrabold text-red-700 hover:bg-red-100 disabled:opacity-50 sm:text-xs"
+                        >
+                          <XCircle className="size-3.5" />
+                          <span>{pm.rejectBtn}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={isBusy || !canActivateNow}
+                          onClick={() => handleApproveBoostRow(req)}
+                          className="col-span-2 inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-4 text-xs font-extrabold text-white shadow-2xs hover:bg-[#006248] disabled:cursor-not-allowed disabled:opacity-45 sm:col-span-1 sm:h-8.5"
+                        >
+                          {isBusy ? (
+                            <Loader2 className="size-3.5 animate-spin" />
+                          ) : canActivateNow ? (
+                            <Check className="size-3.5" />
+                          ) : (
+                            <Lock className="size-3.5" />
                           )}
-
-                          <button
-                            type="button"
-                            disabled={isBusy}
-                            onClick={() =>
-                              setRejectTarget({
-                                kind: "boost_row",
-                                id: req.id,
-                                title: `${unitTitle} (${req.package_tier})`,
-                              })
-                            }
-                            className="inline-flex h-8.5 items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 text-xs font-extrabold text-red-700 hover:bg-red-100 disabled:opacity-50"
-                          >
-                            <XCircle className="size-3.5" />
-                            <span>{pm.rejectBtn}</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            disabled={isBusy || !canActivateNow}
-                            onClick={() => handleApproveBoostRow(req)}
-                            className="inline-flex h-8.5 items-center gap-1.5 rounded-xl bg-[#007a5a] px-4 text-xs font-extrabold text-white shadow-2xs hover:bg-[#006248] disabled:cursor-not-allowed disabled:opacity-45"
-                          >
-                            {isBusy ? (
-                              <Loader2 className="size-3.5 animate-spin" />
-                            ) : canActivateNow ? (
-                              <Check className="size-3.5" />
-                            ) : (
-                              <Lock className="size-3.5" />
-                            )}
-                            <span>{pm.activateBtn}</span>
-                          </button>
-                        </div>
+                          <span>{pm.activateBtn}</span>
+                        </button>
                       </div>
                     </div>
                   )
@@ -620,18 +757,23 @@ export function PromotionsManager({
                   return (
                     <div
                       key={unit.id}
-                      className="rounded-2xl border border-amber-200 bg-white p-4 shadow-2xs"
+                      className="rounded-2xl border border-amber-200 bg-white p-3.5 shadow-2xs sm:p-4"
                     >
-                      <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="flex items-start justify-between gap-2.5">
                         <div className="min-w-0 flex-1 space-y-1.5">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="rounded-md bg-[#0f1d40] px-2 py-0.5 font-mono text-[10.5px] font-bold text-white">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span
+                              dir="ltr"
+                              className="rounded-md bg-[#0f1d40] px-2 py-0.5 font-mono text-[10px] font-bold text-white"
+                            >
                               {uCode}
                             </span>
-                            <h3 className="text-sm font-black text-[#0f1d40]">
+                            <h3 className="truncate text-xs font-black text-[#0f1d40] sm:text-sm">
                               {unitTitle}
                             </h3>
-                            <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-[10.5px] font-black text-amber-900">
+                          </div>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-900">
                               <Sparkles className="size-3" />
                               <span>
                                 {tierLabel} · {unit.featured_days || 7}{" "}
@@ -640,72 +782,55 @@ export function PromotionsManager({
                             </span>
                             {renderUnitStatusBadge(unit)}
                           </div>
-                          <p className="text-xs font-semibold text-slate-500">
-                            {pm.sellerLabel}:{" "}
-                            <strong className="text-[#0f1d40]">
-                              {unit.name}
-                            </strong>{" "}
-                            ·{" "}
-                            <span dir="ltr" className="font-mono">
-                              {unit.phone}
-                            </span>
-                          </p>
                         </div>
 
-                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-[10.5px] font-extrabold text-amber-900">
+                        <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-extrabold text-amber-900">
                           <Clock className="size-3" />
                           <span>{pm.bankTransferPendingBadge}</span>
                         </span>
                       </div>
 
-                      {!canActivateNow && (
-                        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300 bg-amber-50/90 px-3.5 py-2.5 text-xs">
-                          <div className="flex items-center gap-2 font-bold text-amber-950">
-                            <Lock className="size-4 shrink-0 text-amber-600" />
-                            <span>{pm.unitNotPublishedNotice}</span>
-                          </div>
-                          <Link
-                            href={`/admin/properties?unitId=${unit.id}`}
-                            className="inline-flex h-7.5 items-center gap-1 rounded-lg bg-[#0f1d40] px-3 text-[11px] font-extrabold text-white hover:bg-[#1e293b]"
+                      <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2.5">
+                        <span className="text-[11px] font-semibold text-slate-500">
+                          {unit.name} ·{" "}
+                          <span dir="ltr" className="font-mono">
+                            {unit.phone}
+                          </span>
+                        </span>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={isBusy}
+                            onClick={() =>
+                              setRejectTarget({
+                                kind: "legacy_unit",
+                                id: unit.id,
+                                title: `${unitTitle} (${tierLabel})`,
+                              })
+                            }
+                            className="inline-flex h-8 items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 text-[11px] font-extrabold text-red-700 hover:bg-red-100 disabled:opacity-50"
                           >
-                            <ExternalLink className="size-3 text-emerald-300" />
-                            <span>{pm.reviewAndPublishUnitBtn}</span>
-                          </Link>
+                            <XCircle className="size-3.5" />
+                            <span>{pm.rejectBtn}</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={isBusy || !canActivateNow}
+                            onClick={() => handleApproveLegacyUnit(unit)}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-xl bg-[#007a5a] px-3.5 text-[11px] font-extrabold text-white hover:bg-[#006248] disabled:cursor-not-allowed disabled:opacity-45"
+                          >
+                            {isBusy ? (
+                              <Loader2 className="size-3.5 animate-spin" />
+                            ) : canActivateNow ? (
+                              <Check className="size-3.5" />
+                            ) : (
+                              <Lock className="size-3.5" />
+                            )}
+                            <span>{pm.activateBtn}</span>
+                          </button>
                         </div>
-                      )}
-
-                      <div className="mt-3 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-3">
-                        <button
-                          type="button"
-                          disabled={isBusy}
-                          onClick={() =>
-                            setRejectTarget({
-                              kind: "legacy_unit",
-                              id: unit.id,
-                              title: `${unitTitle} (${tierLabel})`,
-                            })
-                          }
-                          className="inline-flex h-8.5 items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 text-xs font-extrabold text-red-700 hover:bg-red-100 disabled:opacity-50"
-                        >
-                          <XCircle className="size-3.5" />
-                          <span>{pm.rejectBtn}</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          disabled={isBusy || !canActivateNow}
-                          onClick={() => handleApproveLegacyUnit(unit)}
-                          className="inline-flex h-8.5 items-center gap-1.5 rounded-xl bg-[#007a5a] px-4 text-xs font-extrabold text-white hover:bg-[#006248] disabled:cursor-not-allowed disabled:opacity-45"
-                        >
-                          {isBusy ? (
-                            <Loader2 className="size-3.5 animate-spin" />
-                          ) : canActivateNow ? (
-                            <Check className="size-3.5" />
-                          ) : (
-                            <Lock className="size-3.5" />
-                          )}
-                          <span>{pm.activateBtn}</span>
-                        </button>
                       </div>
                     </div>
                   )
@@ -715,10 +840,11 @@ export function PromotionsManager({
         </div>
       )}
 
+      {/* تبويب 2: الإعلانات النشطة حالياً */}
       {tab === "active" && (
         <div className="space-y-3">
           {activeFeaturedUnits.length === 0 ? (
-            <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center text-xs font-bold text-slate-400">
+            <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-xs font-bold text-slate-400">
               {pm.emptyActive}
             </div>
           ) : (
@@ -731,84 +857,160 @@ export function PromotionsManager({
               .map((unit) => {
                 const uCode = deriveShortUnitCode(unit.id, unit.code)
                 const isVipPlus = unit.boost_tier === "vip_plus"
-                const remaining = getRemainingDays(
-                  unit.featured_until,
-                  unit.featured_days || 7
-                )
                 const isBusy = isPending && busyId === unit.id
+                const activeMeta = (unit.documents?.__unit_meta?.boost_active ||
+                  {}) as Record<string, any>
+                const totalViews = Math.max(0, Number(unit.views_count) || 0)
+                const viewsGained =
+                  typeof activeMeta.views_baseline === "number"
+                    ? Math.max(0, totalViews - activeMeta.views_baseline)
+                    : null
 
                 return (
                   <div
                     key={unit.id}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-white p-4 shadow-2xs"
+                    className="rounded-2xl border border-amber-300 bg-white p-3.5 shadow-2xs sm:p-4"
                   >
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-md bg-[#0f1d40] px-2 py-0.5 font-mono text-[10.5px] font-bold text-white">
-                          {uCode}
-                        </span>
-                        <Link
-                          href={`/opportunities/${unit.id}`}
-                          target="_blank"
-                          className="text-sm font-black text-[#0f1d40] hover:text-[#007a5a] hover:underline"
-                        >
-                          {getPropertyHeadline(
-                            unit,
-                            propDict.table?.unspecifiedProject
-                          )}
-                        </Link>
-                        <span
-                          className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10.5px] font-black ${
-                            isVipPlus
-                              ? "bg-indigo-100 text-indigo-900"
-                              : "bg-amber-100 text-amber-900"
-                          }`}
-                        >
-                          {isVipPlus ? (
-                            <Flame className="size-3" />
-                          ) : (
-                            <Crown className="size-3" />
-                          )}
-                          <span>{isVipPlus ? "+VIP" : "SUPER VIP"}</span>
-                        </span>
-                        {renderUnitStatusBadge(unit)}
-                      </div>
-
-                      <p className="text-xs font-semibold text-slate-500">
-                        {cleanPropertyAreaDisplay(unit.area, locale)} ·{" "}
-                        {unit.name} (
-                        <span dir="ltr" className="font-mono">
-                          {unit.phone}
-                        </span>
-                        )
-                      </p>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2.5">
-                      <div className="rounded-xl border border-emerald-200 bg-[#eaf8f2] px-3 py-1.5 text-center">
-                        <span className="block text-[10px] font-bold text-[#007a5a]">
-                          {pm.remainingDaysLabel}
-                        </span>
-                        <strong className="text-sm font-black text-[#0f1d40]">
-                          {remaining} {propBadges.dayWord}
-                        </strong>
-                        {unit.featured_until && (
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
                           <span
                             dir="ltr"
-                            className="block font-mono text-[9.5px] text-slate-500"
+                            className="rounded-md bg-[#0f1d40] px-2 py-0.5 font-mono text-[10px] font-bold text-white"
                           >
-                            {new Date(unit.featured_until).toLocaleDateString(
-                              "en-GB"
-                            )}
+                            {uCode}
                           </span>
-                        )}
+                          <Link
+                            href={`/opportunities/${unit.id}`}
+                            target="_blank"
+                            className="truncate text-xs font-black text-[#0f1d40] hover:text-[#007a5a] hover:underline sm:text-sm"
+                          >
+                            {getPropertyHeadline(
+                              unit,
+                              propDict.table?.unspecifiedProject
+                            )}
+                          </Link>
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-black ${
+                              isVipPlus
+                                ? "bg-indigo-100 text-indigo-900"
+                                : "bg-amber-100 text-amber-900"
+                            }`}
+                          >
+                            {isVipPlus ? (
+                              <Flame className="size-3" />
+                            ) : (
+                              <Crown className="size-3" />
+                            )}
+                            <span>{isVipPlus ? "+VIP" : "SUPER VIP"}</span>
+                          </span>
+                        </div>
+
+                        <p className="text-[11px] font-semibold text-slate-500">
+                          {cleanPropertyAreaDisplay(unit.area, locale)} ·{" "}
+                          {unit.name} (
+                          <span dir="ltr" className="font-mono">
+                            {unit.phone}
+                          </span>
+                          )
+                        </p>
                       </div>
+
+                      {renderUnitStatusBadge(unit)}
+                    </div>
+
+                    {/* شبكة بيانات الإعلان النشط */}
+                    <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl border border-slate-100 bg-slate-50/75 p-2.5 text-[11px] sm:grid-cols-4">
+                      <div>
+                        <span className="flex items-center gap-1 text-[9.5px] font-bold text-slate-400">
+                          <CalendarClock className="size-3 text-[#007a5a]" />
+                          <span>{pm.startedAtLabel}</span>
+                        </span>
+                        <strong
+                          dir="ltr"
+                          className="mt-0.5 block font-mono text-[10.5px] text-[#0f1d40]"
+                        >
+                          {formatDateTimeCompact(activeMeta.started_at)}
+                        </strong>
+                      </div>
+
+                      <div>
+                        <span className="flex items-center gap-1 text-[9.5px] font-bold text-slate-400">
+                          <Clock className="size-3 text-amber-600" />
+                          <span>{pm.endsAtLabel}</span>
+                        </span>
+                        <strong
+                          dir="ltr"
+                          className="mt-0.5 block font-mono text-[10.5px] text-[#0f1d40]"
+                        >
+                          {formatDateTimeCompact(unit.featured_until)}
+                        </strong>
+                      </div>
+
+                      <div>
+                        <span className="block text-[9.5px] font-bold text-[#007a5a]">
+                          {pm.remainingTimeLabel}
+                        </span>
+                        <strong className="mt-0.5 block text-[11px] font-black text-[#007a5a]">
+                          {formatRemainingDetailed(
+                            unit.featured_until,
+                            pm,
+                            unit.featured_days || 7
+                          )}
+                        </strong>
+                      </div>
+
+                      <div>
+                        <span className="flex items-center gap-1 text-[9.5px] font-bold text-[#2563eb]">
+                          <Eye className="size-3" />
+                          <span>{pm.viewsLabel}</span>
+                        </span>
+                        <strong
+                          dir="ltr"
+                          className="mt-0.5 block text-[11px] font-black text-[#0f1d40]"
+                        >
+                          {totalViews.toLocaleString("en-US")}
+                          {viewsGained !== null ? (
+                            <span className="ms-1 text-[10px] text-[#007a5a]">
+                              (+{viewsGained})
+                            </span>
+                          ) : null}
+                        </strong>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-3 gap-2 border-t border-slate-100 pt-2.5 sm:flex sm:items-center sm:justify-end">
+                      {unit.phone && (
+                        <a
+                          href={`https://wa.me/${String(unit.phone).replace(/\D/g, "")}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex h-8.5 items-center justify-center gap-1 rounded-xl bg-[#25D366] px-3 text-[11px] font-extrabold text-white"
+                        >
+                          <MessageCircle className="size-3.5" />
+                          <span>{pm.contactSellerWaBtn}</span>
+                        </a>
+                      )}
+
+                      <button
+                        type="button"
+                        disabled={isBusy}
+                        onClick={() => {
+                          setManualModalUnit(unit)
+                          setManualTier(isVipPlus ? "vip_plus" : "super_vip")
+                          setManualDays(7)
+                        }}
+                        className="inline-flex h-8.5 items-center justify-center gap-1 rounded-xl border border-emerald-200 bg-[#eaf8f2] px-3 text-[11px] font-extrabold text-[#007a5a] hover:bg-emerald-100"
+                      >
+                        <Plus className="size-3.5" />
+                        <span>{pm.extendManualBtn}</span>
+                      </button>
 
                       <button
                         type="button"
                         disabled={isBusy}
                         onClick={() => handleStopActivePromo(unit.id)}
-                        className="inline-flex h-9 items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 text-xs font-extrabold text-red-700 hover:bg-red-100 disabled:opacity-50"
+                        className="inline-flex h-8.5 items-center justify-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 text-[11px] font-extrabold text-red-700 hover:bg-red-100 disabled:opacity-50"
                       >
                         {isBusy ? (
                           <Loader2 className="size-3.5 animate-spin" />
@@ -825,10 +1027,11 @@ export function PromotionsManager({
         </div>
       )}
 
+      {/* تبويب 3: السجل */}
       {tab === "history" && (
         <div className="space-y-2.5">
           {historyBoostRows.length === 0 ? (
-            <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center text-xs font-bold text-slate-400">
+            <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-xs font-bold text-slate-400">
               {pm.emptyHistory}
             </div>
           ) : (
@@ -845,24 +1048,35 @@ export function PromotionsManager({
                 return (
                   <div
                     key={req.id}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs"
+                    className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white px-3.5 py-3 text-xs sm:flex-row sm:items-center sm:justify-between sm:px-4"
                   >
                     <div className="min-w-0 space-y-0.5">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded bg-slate-100 px-2 py-0.5 font-mono text-[10.5px] font-bold text-[#0f1d40]">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span
+                          dir="ltr"
+                          className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-[#0f1d40]"
+                        >
                           {req.unit_code ||
                             (unit
                               ? deriveShortUnitCode(unit.id, unit.code)
                               : "—")}
                         </span>
-                        <strong className="text-[#0f1d40]">
+                        <strong className="truncate text-[#0f1d40]">
                           {unit ? getPropertyHeadline(unit, "—") : "—"}
                         </strong>
-                        <span className="font-bold text-slate-500">
+                        <span className="text-[11px] font-bold text-slate-500">
                           {req.package_tier} · {req.duration_days}{" "}
                           {propBadges.dayWord}
                         </span>
                       </div>
+                      {req.order_ref && (
+                        <span
+                          dir="ltr"
+                          className="block font-mono text-[10px] text-slate-400"
+                        >
+                          {req.order_ref}
+                        </span>
+                      )}
                       {req.admin_note && (
                         <p className="text-[11px] font-semibold text-red-600">
                           {req.admin_note}
@@ -870,7 +1084,7 @@ export function PromotionsManager({
                       )}
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-between gap-2.5 border-t border-slate-100 pt-2 sm:justify-end sm:border-0 sm:pt-0">
                       <strong
                         dir="ltr"
                         className="font-black text-[#0f1d40] tabular-nums"
@@ -878,7 +1092,7 @@ export function PromotionsManager({
                         {req.amount_gel} ₾
                       </strong>
                       <span
-                        className={`rounded-full px-2.5 py-0.5 text-[10.5px] font-extrabold ${
+                        className={`rounded-full px-2.5 py-0.5 text-[10px] font-extrabold ${
                           isApproved
                             ? "bg-[#eaf8f2] text-[#007a5a]"
                             : "bg-red-50 text-red-700"
@@ -888,9 +1102,11 @@ export function PromotionsManager({
                       </span>
                       <span
                         dir="ltr"
-                        className="font-mono text-[10.5px] text-slate-400"
+                        className="font-mono text-[10px] text-slate-400"
                       >
-                        {new Date(req.created_at).toLocaleDateString("en-GB")}
+                        {formatDateTimeCompact(
+                          req.approved_at || req.rejected_at || req.created_at
+                        )}
                       </span>
                     </div>
                   </div>
@@ -900,9 +1116,10 @@ export function PromotionsManager({
         </div>
       )}
 
+      {/* تبويب 4: تمييز يدوي */}
       {tab === "manual" && (
         <div className="space-y-2.5">
-          <div className="rounded-xl border border-blue-100 bg-blue-50/70 px-4 py-2.5 text-xs font-semibold text-blue-950">
+          <div className="rounded-xl border border-blue-100 bg-blue-50/70 px-3.5 py-2 text-[11px] font-semibold text-blue-950 sm:text-xs">
             {pm.onlyActiveUnitHint}
           </div>
           {eligibleManualUnits
@@ -916,21 +1133,24 @@ export function PromotionsManager({
               return (
                 <div
                   key={unit.id}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs"
+                  className="flex items-center justify-between gap-2.5 rounded-2xl border border-slate-200 bg-white px-3.5 py-3 text-xs sm:px-4"
                 >
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="rounded bg-slate-100 px-2 py-0.5 font-mono text-[10.5px] font-bold text-[#0f1d40]">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span
+                        dir="ltr"
+                        className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-[#0f1d40]"
+                      >
                         {uCode}
                       </span>
-                      <strong className="text-sm text-[#0f1d40]">
+                      <strong className="truncate text-xs text-[#0f1d40] sm:text-sm">
                         {getPropertyHeadline(
                           unit,
                           propDict.table?.unspecifiedProject
                         )}
                       </strong>
                     </div>
-                    <p className="mt-0.5 text-[11px] font-semibold text-slate-500">
+                    <p className="mt-0.5 truncate text-[11px] font-semibold text-slate-500">
                       {cleanPropertyAreaDisplay(unit.area, locale)} ·{" "}
                       {unit.name}
                     </p>
@@ -943,7 +1163,7 @@ export function PromotionsManager({
                       setManualTier("super_vip")
                       setManualDays(7)
                     }}
-                    className="inline-flex h-8.5 items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-3.5 text-xs font-extrabold text-amber-900 hover:bg-amber-100"
+                    className="inline-flex h-8.5 shrink-0 items-center gap-1 rounded-xl border border-amber-300 bg-amber-50 px-3 text-[11px] font-extrabold text-amber-900 hover:bg-amber-100 sm:text-xs"
                   >
                     <Star className="size-3.5 text-amber-600" />
                     <span>{pm.manualPromoteBtn}</span>
@@ -954,13 +1174,14 @@ export function PromotionsManager({
         </div>
       )}
 
+      {/* نافذة تأكيد الرفض مع تنبيه الاسترداد المالي */}
       <Dialog
         open={Boolean(rejectTarget)}
         onOpenChange={(o) => !o && setRejectTarget(null)}
       >
         <DialogContent
           dir={dir}
-          className="w-[92vw] max-w-[420px] rounded-2xl p-5 text-start"
+          className="w-[92vw] max-w-[430px] rounded-2xl p-5 text-start"
         >
           {rejectTarget && (
             <>
@@ -975,6 +1196,20 @@ export function PromotionsManager({
                   </strong>
                 </DialogDescription>
               </DialogHeader>
+
+              {rejectTarget.isFlittPaid && (
+                <div className="mt-2.5 flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-[11px] leading-relaxed font-bold text-amber-950">
+                  <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+                  <div>
+                    <p>{pm.flittRefundWarning}</p>
+                    {rejectTarget.orderRef && (
+                      <p dir="ltr" className="mt-1 font-mono text-[#0f1d40]">
+                        Ref: {rejectTarget.orderRef}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <Textarea
                 value={rejectReason}
@@ -1011,6 +1246,7 @@ export function PromotionsManager({
         </DialogContent>
       </Dialog>
 
+      {/* نافذة التمييز / التمديد اليدوي */}
       <Dialog
         open={Boolean(manualModalUnit)}
         onOpenChange={(o) => !o && setManualModalUnit(null)}

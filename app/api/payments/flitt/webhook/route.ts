@@ -82,6 +82,8 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true })
       }
 
+      const paidAtIso = new Date().toISOString()
+
       await supabase
         .from("boost_requests")
         .update({
@@ -97,15 +99,57 @@ export async function POST(req: Request) {
           ? "vip_plus"
           : "super_vip"
 
+        const { data: unitRow } = await supabase
+          .from("sell_requests")
+          .select("id, is_featured, featured_until, documents")
+          .eq("id", reqRow.unit_id)
+          .maybeSingle()
+
+        const isAlreadyActive =
+          Boolean(unitRow?.is_featured) &&
+          (!unitRow?.featured_until ||
+            new Date(unitRow.featured_until) > new Date())
+
+        const currentDocs =
+          unitRow?.documents && typeof unitRow.documents === "object"
+            ? { ...unitRow.documents }
+            : {}
+        const currentMeta =
+          currentDocs.__unit_meta &&
+          typeof currentDocs.__unit_meta === "object"
+            ? { ...currentDocs.__unit_meta }
+            : {}
+
+        currentDocs.__unit_meta = {
+          ...currentMeta,
+          boost_pending: {
+            order_ref: orderRef,
+            paid_via: "flitt",
+            paid_at: paidAtIso,
+            tier: tierCode,
+            days: Number(reqRow.duration_days) || 1,
+            amount_gel: Number(reqRow.amount_gel) || 0,
+            is_renewal: isAlreadyActive,
+          },
+          boost_last_rejected: null,
+        }
+
+        const unitUpdate: Record<string, any> = {
+          documents: currentDocs,
+        }
+
+        // لا نعدّل حالة الإعلان النشط حالياً إذا كان الطلب تمديداً لباقة شغالة بالفعل
+        if (!isAlreadyActive) {
+          unitUpdate.featured_status = "pending_payment"
+          unitUpdate.boost_tier = tierCode
+          unitUpdate.featured_days = reqRow.duration_days
+          unitUpdate.featured_price = reqRow.amount_gel
+          unitUpdate.featured_fawry_code = orderRef
+        }
+
         await supabase
           .from("sell_requests")
-          .update({
-            featured_status: "pending_payment",
-            boost_tier: tierCode,
-            featured_days: reqRow.duration_days,
-            featured_price: reqRow.amount_gel,
-            featured_fawry_code: orderRef,
-          })
+          .update(unitUpdate)
           .eq("id", reqRow.unit_id)
       }
 
@@ -113,7 +157,7 @@ export async function POST(req: Request) {
         await supabase.from("notifications").insert({
           user_id: null,
           role: "admin",
-          title: `💳 Flitt Paid (${reqRow.amount_gel} ₾) — ${reqRow.package_tier}`,
+          title: `💳 Flitt Paid (${reqRow.amount_gel} ₾ · ${reqRow.duration_days}d) — ${reqRow.package_tier}`,
           message: `${reqRow.unit_code || reqRow.unit_id || ""} · Ref: ${orderRef}`,
           type: "property",
           link: "/admin/promotions",

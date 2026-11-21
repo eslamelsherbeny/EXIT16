@@ -60,9 +60,9 @@ export function calculateGelBoostPackage(
   let tier: 'VIP+' | 'SUPER VIP' = cleanAmt < 10 ? 'VIP+' : 'SUPER VIP'
   let days = 1
   let discountBadge = ''
-  let upsellTarget = 60
+  let upsellTarget = 50
   let upsellDiscount = '-25%'
-  let upsellDays = 10
+  let upsellDays = 7
 
   if (cleanAmt < 10) {
     tier = 'VIP+'
@@ -73,27 +73,17 @@ export function calculateGelBoostPackage(
   } else if (cleanAmt < 50) {
     tier = 'SUPER VIP'
     days = Math.max(2, Math.floor(cleanAmt / 10))
-  } else if (cleanAmt < 60) {
-    tier = 'SUPER VIP'
-    days = 7
   } else if (cleanAmt < 100) {
     tier = 'SUPER VIP'
-    days = Math.max(10, Math.round(cleanAmt / 6))
+    days = Math.max(7, Math.round(cleanAmt / 6.5))
     discountBadge = '-25%'
     upsellTarget = 100
     upsellDiscount = '-30%'
     upsellDays = 17
-  } else if (cleanAmt < 200) {
+  } else {
     tier = 'SUPER VIP'
     days = Math.max(17, Math.round(cleanAmt / 5.88))
     discountBadge = '-30%'
-    upsellTarget = 200
-    upsellDiscount = '-33%'
-    upsellDays = 30
-  } else {
-    tier = 'SUPER VIP'
-    days = Math.max(30, Math.round(cleanAmt / 6.6))
-    discountBadge = '-33%'
     upsellTarget = 0
   }
 
@@ -358,7 +348,7 @@ export function TopUpBalanceGelSection() {
     {
       id: 50,
       val: 50,
-      topBadge: mT.popularBadge,
+      topBadge: `${mT.popularBadge} -25%`,
       subText: 'SUPER VIP',
     },
     {
@@ -536,8 +526,11 @@ export function TopUpBalanceGelSection() {
                   <button
                     type="button"
                     onClick={() => {
-                      setSelectedPreset('custom')
-                      setTopUpAmount((prev) => Math.min(10000, prev + 5))
+                      const next = Math.min(10000, topUpAmount + 5)
+                      setSelectedPreset(
+                        [5, 10, 20, 50, 100].includes(next) ? next : 'custom'
+                      )
+                      setTopUpAmount(next)
                     }}
                     className="flex size-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-sm font-bold text-slate-600 hover:bg-slate-100"
                   >
@@ -564,8 +557,11 @@ export function TopUpBalanceGelSection() {
                   dir="ltr"
                   value={topUpAmount}
                   onChange={(e) => {
-                    setSelectedPreset('custom')
-                    setTopUpAmount(Math.max(5, Number(e.target.value) || 5))
+                    const next = Math.max(5, Number(e.target.value) || 5)
+                    setSelectedPreset(
+                      [5, 10, 20, 50, 100].includes(next) ? next : 'custom'
+                    )
+                    setTopUpAmount(next)
                   }}
                   className="w-full bg-transparent text-center text-base font-bold text-[#0f1d40] focus:outline-none"
                 />
@@ -573,8 +569,11 @@ export function TopUpBalanceGelSection() {
                 <button
                   type="button"
                   onClick={() => {
-                    setSelectedPreset('custom')
-                    setTopUpAmount((prev) => Math.max(5, prev - 5))
+                    const next = Math.max(5, topUpAmount - 5)
+                    setSelectedPreset(
+                      [5, 10, 20, 50, 100].includes(next) ? next : 'custom'
+                    )
+                    setTopUpAmount(next)
                   }}
                   className="flex size-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-sm font-bold text-slate-600 hover:bg-slate-100"
                 >
@@ -601,15 +600,6 @@ export function TopUpBalanceGelSection() {
                 </div>
               </div>
 
-              <div className="mt-3 flex flex-wrap justify-end gap-2">
-                <span className="rounded-full bg-blue-100/70 px-2.5 py-0.5 text-[10px] font-bold text-[#2563eb]">
-                  ✓ {mT.zeroFeeBadge}
-                </span>
-                <span className="rounded-full bg-blue-100/70 px-2.5 py-0.5 text-[10px] font-bold text-[#2563eb]">
-                  ✓ {mT.instantCreditBadge}
-                </span>
-              </div>
-
               {pkgDetails.upsellTarget > 0 && (
                 <div className="mt-3 border-t border-blue-200/60 pt-3 text-end">
                   <p className="text-[11px] leading-relaxed text-slate-600">
@@ -623,8 +613,13 @@ export function TopUpBalanceGelSection() {
                   <button
                     type="button"
                     onClick={() => {
-                      setSelectedPreset('custom')
-                      setTopUpAmount(pkgDetails.upsellTarget)
+                      const target = pkgDetails.upsellTarget
+                      setSelectedPreset(
+                        [5, 10, 20, 50, 100].includes(target)
+                          ? target
+                          : 'custom'
+                      )
+                      setTopUpAmount(target)
                     }}
                     className="mt-2 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-3 py-1 text-[10.5px] font-bold text-white shadow-2xs transition hover:opacity-95"
                   >
@@ -632,12 +627,6 @@ export function TopUpBalanceGelSection() {
                   </button>
                 </div>
               )}
-            </div>
-
-            <div className="mt-3.5 flex flex-wrap items-center justify-between gap-1 text-[10.5px] font-semibold text-slate-500">
-              <span>⚡ {mT.zeroFeeBadge}</span>
-              <span>✓ {mT.neverExpires}</span>
-              <span>🛡️ {mT.fullyRefundable}</span>
             </div>
 
             <button
@@ -655,7 +644,7 @@ export function TopUpBalanceGelSection() {
             </p>
 
             <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3 text-[10px] text-slate-400">
-              <span>TBC Bank · Bank of Georgia · Instant Activation</span>
+              <span>Flitt · Visa · Mastercard · Apple Pay · Google Pay</span>
               <span className="inline-flex items-center gap-1">
                 <Lock className="size-3" /> 256-bit SSL
               </span>

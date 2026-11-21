@@ -143,6 +143,7 @@ export function SellerDashboard({
         ref
       )
       if (msg) setActionMessage(msg)
+      setIsPromoCollapsed(false)
       params.delete('payment')
       params.delete('ref')
       const cleanSearch = params.toString()
@@ -151,8 +152,14 @@ export function SellerDashboard({
         '',
         `${window.location.pathname}${cleanSearch ? `?${cleanSearch}` : ''}`
       )
+      setTimeout(() => {
+        router.refresh()
+        document
+          .getElementById('promo-section')
+          ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 1200)
     }
-  }, [t.flittPaymentReturnedNotice])
+  }, [t.flittPaymentReturnedNotice, router])
 
   useEffect(() => {
     getCurrentSellerProfileAction().then((res) => {
@@ -244,13 +251,11 @@ export function SellerDashboard({
   const isLockedInTransferOrSold =
     meta.code === 'transferring' || meta.code === 'sold'
 
+  // سياسة الأمان: التمييز يُفتح فقط بعد اعتماد ونشر الوحدة في السوق
   const boostState: 'active' | 'pending_review' | 'incomplete' =
     meta.code === 'active' || meta.code === 'offer_received'
       ? 'active'
-      : (meta.code === 'pending_review' || meta.code === 'under_review') &&
-          comp.hasAllCoreDetails &&
-          comp.hasImages &&
-          comp.hasAllDocuments
+      : comp.hasAllCoreDetails && comp.hasImages && comp.hasAllDocuments
         ? 'pending_review'
         : 'incomplete'
 
@@ -359,11 +364,11 @@ export function SellerDashboard({
         `AD-${activeUnit.id.slice(0, 6).toUpperCase()}`
       : null
 
-  const activePromoDays = activeUnit.featured_days || 14
+  const activePromoDays = activeUnit.featured_days || 1
   const activePromoPrice =
     activeUnit.featured_price ||
     dynamicPackages.find((p) => p.days === activePromoDays)?.price ||
-    pkgPrices.days14
+    10
 
   const executeConfirmedAction = () => {
     if (!confirmModal) return

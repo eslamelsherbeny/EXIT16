@@ -1693,7 +1693,41 @@
       "boostPendingPriorityTitle": "⚡ Priority Review + Early Boost Booking",
       "boostPendingPriorityDesc": "Your unit is complete and awaiting Admin approval. Book a boost now for priority review — your boost days will only start counting once published.",
       "boostSubmittingBtn": "Submitting boost request...",
-      "boostFooterProviders": "TBC Bank · Bank of Georgia · WhatsApp Fast Activation"
+      "boostFooterProviders": "TBC Bank · Bank of Georgia · WhatsApp Fast Activation",
+      "boostNotPublishedTitle": "Boost Unlocks Once Your Unit Is Live",
+      "boostNotPublishedDesc": "To protect your payment, boosting opens only after our team approves and publishes your unit. Once live, you can promote it in seconds.",
+      "boostWaitingReviewBtn": "Unit Currently Under Review",
+      "boostPaidWaitingTitle": "Payment Received — Pending Activation",
+      "boostPaidWaitingBadge": "Paid via Flitt ✓",
+      "boostDaysStartAfterApprovalNote": "Rest assured: your boost days start counting ONLY once the Admin activates your ad — never from payment time.",
+      "boostPaidAtLabel": "Paid On",
+      "boostPackageLabel": "Package",
+      "boostAmountPaidLabel": "Amount Paid",
+      "boostRefLabel": "Reference",
+      "boostSpeedUpWaBtn": "WhatsApp to Speed Up",
+      "boostRefundSupportNote": "Need help or a refund?",
+      "boostRefundSupportLink": "Contact Support on WhatsApp",
+      "boostActiveLiveTitle": "Your Listing Boost Is Live",
+      "boostActiveLiveBadge": "Active Now",
+      "boostStartedAtLabel": "Started On",
+      "boostEndsAtLabel": "Ends On",
+      "boostRemainingTimeLabel": "Time Left",
+      "boostViewsDuringLabel": "Views",
+      "boostViewsSinceBoostPrefix": "+",
+      "boostViewsSinceBoostSuffix": "since boost",
+      "boostRenewSameBtn": "Renew Same Package",
+      "boostChooseOtherBtn": "Other Package / Upgrade",
+      "boostHidePickerBtn": "Hide Packages",
+      "boostExtensionNote": "Renewing while active automatically adds the new days on top of your current expiry — zero time lost.",
+      "boostPendingRenewalTitle": "Extension Paid — Pending Activation",
+      "boostPendingRenewalDesc": "+{days} days will be added automatically on top of your current end date upon Admin approval.",
+      "boostHoursWord": "hrs",
+      "boostMinutesWord": "min",
+      "boostEndedBanner": "Your previous boost period has ended — renew now to put your unit back on top.",
+      "boostRejectedBannerTitle": "Last Boost Request Could Not Be Activated",
+      "boostRejectedRefundHint": "If you paid by card, contact our team via WhatsApp for assistance or a refund.",
+      "waSpeedUpMsgPrefix": "Hello DualDealz team, I paid for a boost package via Flitt and would like to speed up activation",
+      "waRefundMsgPrefix": "Hello DualDealz team, I need assistance regarding boost request ref"
     },
     "buyer": {
       "popularAreas": [
@@ -3345,7 +3379,9 @@
       "fileTooLargeError": "File size exceeds the maximum allowed limit (12 MB).",
       "storageUploadError": "Could not upload file to storage. Check Supabase Storage Bucket permissions.",
       "missingFileOrUrlError": "Please select a file or enter a document URL.",
-      "boostUnitNotPublishedError": "Cannot activate boost before approving and publishing the unit on the marketplace first."
+      "boostUnitNotPublishedError": "Cannot activate boost before approving and publishing the unit on the marketplace first.",
+      "boostExtendedNotifTitle": "Your Unit Boost Was Extended",
+      "boostExtendedNotifMsg": "New boost days were added on top of your active promotion period"
     },
     "forms": {
       "expiredLink": "This link has expired.",
@@ -3721,7 +3757,11 @@
         "btnNegotiateNow": "Follow Up",
         "btnCloseDeal": "Manage Deal",
         "negotiatingBadge": "🔥 Counter-Offer",
-        "newOfferBadge": "New Offer"
+        "newOfferBadge": "New Offer",
+        "secBoostTitle": "Ad Requests Pending Activation",
+        "secBoostSub": "Sellers paid to boost their units — review & activate so their days start counting",
+        "secBoostBtn": "All Requests",
+        "secBoostActionBtn": "Review & Activate"
       }
     },
     "promotions": {
@@ -4604,7 +4644,23 @@
       "rejectedSuccess": "Boost request rejected and owner notified.",
       "cancelledSuccess": "Boost stopped and unit returned to standard listing.",
       "unitNotPublishedNotice": "This unit is not published yet — review and publish it first before activating the boost.",
-      "reviewAndPublishUnitBtn": "Review & Publish Unit First"
+      "reviewAndPublishUnitBtn": "Review & Publish Unit First",
+      "paidSinceLabel": "Waiting",
+      "paidAtLabel": "Paid At",
+      "startedAtLabel": "Activated",
+      "endsAtLabel": "Ends At",
+      "remainingTimeLabel": "Remaining",
+      "viewsLabel": "Views",
+      "viewsGainedLabel": "during boost",
+      "renewalBadge": "Active Boost Extension (+Stacks Days)",
+      "contactSellerWaBtn": "WhatsApp",
+      "flittRefundWarning": "Financial Note: This request was paid via Flitt. If rejected, remember to refund the customer from your Flitt Dashboard using the order reference.",
+      "orphanUnitNotice": "Legacy request not linked to a unit — click Reject to clear it.",
+      "extendManualBtn": "Extend",
+      "justNowWord": "Just now",
+      "minsAgoSuffix": "m",
+      "hoursAgoSuffix": "h",
+      "daysAgoSuffix": "d"
     }
   },
   "smartMatcher": {

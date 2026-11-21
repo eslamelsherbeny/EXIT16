@@ -1693,7 +1693,41 @@
       "boostPendingPriorityTitle": "⚡ أولوية مراجعة + حجز مبكّر للتمييز",
       "boostPendingPriorityDesc": "وحدتك مكتملة وبانتظار اعتماد الإدارة. يمكنك طلب وحجز باقة التمييز الآن لإعطاء وحدتك أولوية في المراجعة، ولن يبدأ عدّاد أيام التمييز إلا لحظة نشر الوحدة في السوق.",
       "boostSubmittingBtn": "جاري تسجيل طلب التمييز...",
-      "boostFooterProviders": "TBC Bank · Bank of Georgia · تفعيل سريع عبر واتساب"
+      "boostFooterProviders": "TBC Bank · Bank of Georgia · تفعيل سريع عبر واتساب",
+      "boostNotPublishedTitle": "التمييز يُتاح فور اعتماد ونشر وحدتك",
+      "boostNotPublishedDesc": "حرصاً على أموالك، لا يُفتح الدفع إلا بعد مراجعة وحدتك ونشرها في السوق. فور اعتماد الإدارة لها يمكنك تمييزها في ثوانٍ.",
+      "boostWaitingReviewBtn": "وحدتك قيد المراجعة حالياً",
+      "boostPaidWaitingTitle": "تم استلام الدفع بنجاح — بانتظار التفعيل",
+      "boostPaidWaitingBadge": "مدفوع عبر Flitt ✓",
+      "boostDaysStartAfterApprovalNote": "اطمئن: عدّاد أيام إعلانك يبدأ حسابه فقط من لحظة موافقة الإدارة وتفعيل الإعلان وليس من وقت الدفع، فلن تخسر أي ساعة.",
+      "boostPaidAtLabel": "تاريخ الدفع",
+      "boostPackageLabel": "الباقة",
+      "boostAmountPaidLabel": "المدفوع",
+      "boostRefLabel": "الرقم المرجعي",
+      "boostSpeedUpWaBtn": "واتساب لتسريع التفعيل",
+      "boostRefundSupportNote": "لديك مشكلة أو طلب استرداد؟",
+      "boostRefundSupportLink": "تواصل مع الإدارة عبر واتساب",
+      "boostActiveLiveTitle": "إعلانك مميّز ونشط حالياً بالسوق",
+      "boostActiveLiveBadge": "نشط الآن",
+      "boostStartedAtLabel": "بدأ التمييز",
+      "boostEndsAtLabel": "ينتهي في",
+      "boostRemainingTimeLabel": "الوقت المتبقي",
+      "boostViewsDuringLabel": "المشاهدات",
+      "boostViewsSinceBoostPrefix": "+",
+      "boostViewsSinceBoostSuffix": "بعد التمييز",
+      "boostRenewSameBtn": "تجديد نفس الباقة",
+      "boostChooseOtherBtn": "باقة أخرى / ترقية",
+      "boostHidePickerBtn": "إخفاء الباقات",
+      "boostExtensionNote": "عند التجديد أثناء نشاط إعلانك، تُضاف الأيام الجديدة تلقائياً فوق موعد انتهاء باقتك الحالية بدون خسارة أي ساعة.",
+      "boostPendingRenewalTitle": "طلب تمديد مدفوع بانتظار التفعيل",
+      "boostPendingRenewalDesc": "سيتم إضافة +{days} يوم تلقائياً فوق موعد انتهاء إعلانك الحالي فور موافقة الإدارة.",
+      "boostHoursWord": "ساعة",
+      "boostMinutesWord": "دقيقة",
+      "boostEndedBanner": "انتهت مدة تمييزك السابقة — يمكنك التجديد الآن لإعادة وحدتك للصدارة.",
+      "boostRejectedBannerTitle": "تعذّر تفعيل طلب الإعلان الأخير",
+      "boostRejectedRefundHint": "إذا كنت قد دفعت بالبطاقة، تواصل مع الإدارة عبر واتساب لترتيب الاسترداد أو التفعيل.",
+      "waSpeedUpMsgPrefix": "مرحباً إدارة DualDealz، قمت بدفع باقة تمييز عبر Flitt وأرغب في تسريع التفعيل",
+      "waRefundMsgPrefix": "مرحباً إدارة DualDealz، أحتاج مساعدة بخصوص طلب التمييز رقم"
     },
     "buyer": {
       "popularAreas": [
@@ -3156,7 +3190,9 @@
       "fileTooLargeError": "حجم الملف أكبر من الحد المسموح (12 ميجابايت).",
       "storageUploadError": "تعذّر رفع الملف إلى مساحة التخزين. تأكد من صلاحيات الـ Storage Bucket في Supabase.",
       "missingFileOrUrlError": "يرجى اختيار ملف أو إدخال رابط المستند.",
-      "boostUnitNotPublishedError": "لا يمكن تفعيل التمييز قبل اعتماد الوحدة ونشرها في السوق أولاً. يرجى مراجعتها ونشرها من طلبات البيع."
+      "boostUnitNotPublishedError": "لا يمكن تفعيل التمييز قبل اعتماد الوحدة ونشرها في السوق أولاً. يرجى مراجعتها ونشرها من طلبات البيع.",
+      "boostExtendedNotifTitle": "تم تمديد باقة تمييز وحدتك بنجاح",
+      "boostExtendedNotifMsg": "تمت إضافة الأيام الجديدة فوق مدة إعلانك الحالية بنجاح"
     },
     "forms": {
       "expiredLink": "الرابط منتهي الصلاحية.",
@@ -3532,7 +3568,11 @@
         "btnNegotiateNow": "متابعة التفاوض",
         "btnCloseDeal": "إدارة الصفقة",
         "negotiatingBadge": "🔥 سعر مقابل",
-        "newOfferBadge": "عرض جديد"
+        "newOfferBadge": "عرض جديد",
+        "secBoostTitle": "طلبات إعلان بانتظار التفعيل",
+        "secBoostSub": "عملاء دفعوا لتمييز وحداتهم — راجع وفعّل التمييز ليبدأ عدّاد أيامهم",
+        "secBoostBtn": "كل الطلبات",
+        "secBoostActionBtn": "مراجعة وتفعيل"
       }
     },
     "promotions": {
@@ -4415,7 +4455,23 @@
       "rejectedSuccess": "تم رفض طلب التمييز وإشعار المالك.",
       "cancelledSuccess": "تم إيقاف التمييز وعادت الوحدة للعرض العادي.",
       "unitNotPublishedNotice": "هذه الوحدة غير منشورة بالسوق بعد — يرجى مراجعتها ونشرها أولاً قبل تفعيل التمييز.",
-      "reviewAndPublishUnitBtn": "مراجعة ونشر الوحدة أولاً"
+      "reviewAndPublishUnitBtn": "مراجعة ونشر الوحدة أولاً",
+      "paidSinceLabel": "بانتظار التفعيل منذ",
+      "paidAtLabel": "وقت الدفع",
+      "startedAtLabel": "تاريخ التفعيل",
+      "endsAtLabel": "ينتهي في",
+      "remainingTimeLabel": "المتبقي",
+      "viewsLabel": "المشاهدات",
+      "viewsGainedLabel": "منذ التمييز",
+      "renewalBadge": "تمديد باقة نشطة (+يُضاف فوق المدة)",
+      "contactSellerWaBtn": "واتساب",
+      "flittRefundWarning": "تنبيه مالي: هذا الطلب مدفوع إلكترونياً عبر Flitt. في حال الرفض، تذكّر إعادة المبلغ للعميل من لوحة تحكم Flitt برقم المرجع.",
+      "orphanUnitNotice": "طلب قديم غير مرتبط بوحدة — اضغط «رفض الطلب» لتنظيف القائمة.",
+      "extendManualBtn": "تمديد",
+      "justNowWord": "الآن",
+      "minsAgoSuffix": "دقيقة",
+      "hoursAgoSuffix": "ساعة",
+      "daysAgoSuffix": "يوم"
     }
   },
   "smartMatcher": {

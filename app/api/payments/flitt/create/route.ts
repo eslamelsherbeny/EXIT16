@@ -6,10 +6,7 @@ import {
   extractUserIdFromCookie,
   parseAndVerifySessionCookie,
 } from "@/lib/session-security"
-import {
-  getUnifiedUnitCode,
-  isUnitCompleteForReview,
-} from "@/lib/unit-display-helpers"
+import { getUnifiedUnitCode } from "@/lib/unit-display-helpers"
 
 const FLITT_API_URL =
   process.env.FLITT_API_URL || "https://pay.flitt.com/api/checkout/url"
@@ -93,7 +90,7 @@ export async function POST(req: Request) {
 
     const { data: unit } = await supabase
       .from("sell_requests")
-      .select("*")
+      .select("id, user_id, code, project_name, status")
       .eq("id", unitId)
       .maybeSingle()
 
@@ -104,6 +101,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "UNIT_NOT_FOUND" }, { status: 404 })
     }
 
+    // قاعدة الأمان الصارمة: لا يُسمح بالدفع للتمييز إلا بعد اعتماد ونشر الوحدة في السوق
     const unitSt = String(unit.status || "").trim().toLowerCase()
     const isLive = [
       "active",
@@ -111,13 +109,10 @@ export async function POST(req: Request) {
       "published",
       "offer_received",
     ].includes(unitSt)
-    const isPendingComplete =
-      (unitSt === "pending" || unitSt === "under_review") &&
-      isUnitCompleteForReview(unit)
 
-    if (!isLive && !isPendingComplete) {
+    if (!isLive) {
       return NextResponse.json(
-        { error: "UNIT_MUST_BE_COMPLETE_TO_BOOST" },
+        { error: "UNIT_MUST_BE_ACTIVE_TO_BOOST" },
         { status: 400 }
       )
     }
@@ -126,7 +121,7 @@ export async function POST(req: Request) {
     const orderRef = `FL-${Date.now().toString(36).toUpperCase()}-${String(unit.id).slice(0, 4).toUpperCase()}`
     const packageLabel = tier === "vip_plus" ? "VIP+" : "SUPER VIP"
 
-    // تنظيف أي محاولات دفع غير مكتملة سابقة لنفس الوحدة
+    // تنظيف محاولات الدفع غير المكتملة السابقة لنفس الوحدة
     try {
       await supabase
         .from("boost_requests")
@@ -166,7 +161,7 @@ export async function POST(req: Request) {
       order_desc: `DualDealz ${packageLabel} (${durationDays}d) - ${unitCode}`,
       amount: Math.round(amountGel * 100),
       currency: "GEL",
-      response_url: `${cleanOrigin}/account?view=seller&unitId=${encodeURIComponent(unit.id)}&payment=returned&ref=${encodeURIComponent(orderRef)}`,
+      response_url: `${cleanOrigin}/api/payments/flitt/return?unitId=${encodeURIComponent(unit.id)}&ref=${encodeURIComponent(orderRef)}`,
       server_callback_url: `${cleanOrigin}/api/payments/flitt/webhook`,
     }
 

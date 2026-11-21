@@ -1693,7 +1693,41 @@
       "boostPendingPriorityTitle": "⚡ პრიორიტეტული შემოწმება + წინასწარი VIP ჯავშანი",
       "boostPendingPriorityDesc": "თქვენი ობიექტი სრულია და ელოდება დადასტურებას. დაჯავშნეთ VIP პრიორიტეტისთვის — დღეების ათვლა დაიწყება გამოქვეყნებისთანავე.",
       "boostSubmittingBtn": "მოთხოვნა იგზავნება...",
-      "boostFooterProviders": "TBC Bank · Bank of Georgia · სწრაფი აქტივაცია WhatsApp-ით"
+      "boostFooterProviders": "TBC Bank · Bank of Georgia · სწრაფი აქტივაცია WhatsApp-ით",
+      "boostNotPublishedTitle": "VIP გაიხსნება გამოქვეყნების შემდეგ",
+      "boostNotPublishedDesc": "თქვენი თანხის დასაცავად, VIP გადახდა იხსნება მხოლოდ ობიექტის დამტკიცებისა და ბაზარზე გამოქვეყნების შემდეგ.",
+      "boostWaitingReviewBtn": "ობიექტი შემოწმებაზეა",
+      "boostPaidWaitingTitle": "გადახდა მიღებულია — ელოდება გააქტიურებას",
+      "boostPaidWaitingBadge": "გადახდილია Flitt-ით ✓",
+      "boostDaysStartAfterApprovalNote": "VIP დღეების ათვლა იწყება მხოლოდ ადმინისტრაციის მიერ გააქტიურების მომენტიდან და არა გადახდის წუთიდან.",
+      "boostPaidAtLabel": "გადახდის დრო",
+      "boostPackageLabel": "პაკეტი",
+      "boostAmountPaidLabel": "გადახდილი",
+      "boostRefLabel": "კოდი",
+      "boostSpeedUpWaBtn": "WhatsApp დასაჩქარებლად",
+      "boostRefundSupportNote": "გჭირდებათ დახმარება ან თანხის დაბრუნება?",
+      "boostRefundSupportLink": "მოგვწერეთ WhatsApp-ზე",
+      "boostActiveLiveTitle": "თქვენი VIP განცხადება აქტიურია",
+      "boostActiveLiveBadge": "აქტიურია",
+      "boostStartedAtLabel": "დაწყება",
+      "boostEndsAtLabel": "დასრულება",
+      "boostRemainingTimeLabel": "დარჩენილი",
+      "boostViewsDuringLabel": "ნახვები",
+      "boostViewsSinceBoostPrefix": "+",
+      "boostViewsSinceBoostSuffix": "VIP-ის შემდეგ",
+      "boostRenewSameBtn": "იგივე პაკეტის განახლება",
+      "boostChooseOtherBtn": "სხვა პაკეტი",
+      "boostHidePickerBtn": "პაკეტების დამალვა",
+      "boostExtensionNote": "აქტიური VIP-ის განახლებისას ახალი დღეები ემატება არსებულ ვადას — დრო არ იკარგება.",
+      "boostPendingRenewalTitle": "გახანგრძლივება გადახდილია — ელოდება გააქტიურებას",
+      "boostPendingRenewalDesc": "+{days} დღე ავტომატურად დაემატება მიმდინარე ვადას დამტკიცებისთანავე.",
+      "boostHoursWord": "სთ",
+      "boostMinutesWord": "წთ",
+      "boostEndedBanner": "წინა VIP ვადა დასრულდა — განაახლეთ ახლა ტოპში დასაბრუნებლად.",
+      "boostRejectedBannerTitle": "ბოლო VIP მოთხოვნა ვერ გააქტიურდა",
+      "boostRejectedRefundHint": "ბარათით გადახდის შემთხვევაში, დაგვიკავშირდით WhatsApp-ზე დასაბრუნებლად.",
+      "waSpeedUpMsgPrefix": "გამარჯობა DualDealz, გადავიხადე VIP პაკეტი Flitt-ით და მსურს გააქტიურების დაჩქარება",
+      "waRefundMsgPrefix": "გამარჯობა DualDealz, მჭირდება დახმარება VIP მოთხოვნაზე"
     },
     "buyer": {
       "popularAreas": [
@@ -3345,7 +3379,9 @@
       "fileTooLargeError": "ფაილის ზომა აღემატება დასაშვებ ლიმიტს (12 მბ).",
       "storageUploadError": "ფაილის ატვირთვა ვერ მოხერხდა. შეამოწმეთ Supabase Storage-ის უფლებები.",
       "missingFileOrUrlError": "აირჩიეთ ფაილი ან შეიყვანეთ ბმული.",
-      "boostUnitNotPublishedError": "VIP პაკეტის ჩართვა შეუძლებელია ობიექტის გამოქვეყნებამდე."
+      "boostUnitNotPublishedError": "VIP პაკეტის ჩართვა შეუძლებელია ობიექტის გამოქვეყნებამდე.",
+      "boostExtendedNotifTitle": "თქვენი VIP ვადა გახანგრძლივდა",
+      "boostExtendedNotifMsg": "ახალი დღეები წარმატებით დაემატა მიმდინარე VIP ვადას"
     },
     "forms": {
       "expiredLink": "ბმულის ვადა გავიდა.",
@@ -3721,7 +3757,11 @@
         "btnNegotiateNow": "მოლაპარაკება",
         "btnCloseDeal": "გარიგება",
         "negotiatingBadge": "🔥 საპასუხო ფასი",
-        "newOfferBadge": "ახალი შეთავაზება"
+        "newOfferBadge": "ახალი შეთავაზება",
+        "secBoostTitle": "VIP მოთხოვნები გააქტიურების მოლოდინში",
+        "secBoostSub": "მესაკუთრეებმა გადაიხადეს VIP — შეამოწმეთ და გაააქტიურეთ",
+        "secBoostBtn": "ყველა მოთხოვნა",
+        "secBoostActionBtn": "გააქტიურება"
       }
     },
     "promotions": {
@@ -4604,7 +4644,23 @@
       "rejectedSuccess": "VIP მოთხოვნა უარყოფილია.",
       "cancelledSuccess": "VIP შეჩერდა.",
       "unitNotPublishedNotice": "ეს ობიექტი ჯერ არ გამოქვეყნებულა — ჯერ გადაამოწმეთ და გამოაქვეყნეთ VIP-ის ჩართვამდე.",
-      "reviewAndPublishUnitBtn": "ობიექტის შემოწმება და გამოქვეყნება"
+      "reviewAndPublishUnitBtn": "ობიექტის შემოწმება და გამოქვეყნება",
+      "paidSinceLabel": "ელოდება",
+      "paidAtLabel": "გადახდის დრო",
+      "startedAtLabel": "გააქტიურდა",
+      "endsAtLabel": "სრულდება",
+      "remainingTimeLabel": "დარჩა",
+      "viewsLabel": "ნახვები",
+      "viewsGainedLabel": "VIP-ის დროს",
+      "renewalBadge": "აქტიური VIP-ის გახანგრძლივება (+დღეების დამატება)",
+      "contactSellerWaBtn": "WhatsApp",
+      "flittRefundWarning": "ყურადღება: გადახდილია Flitt-ით. უარყოფის შემთხვევაში, თანხა დააბრუნეთ Flitt-ის პანელიდან შეკვეთის კოდით.",
+      "orphanUnitNotice": "ძველი მოთხოვნა ობიექტის გარეშე — დააჭირეთ უარყოფას გასასუფთავებლად.",
+      "extendManualBtn": "გახანგრძლივება",
+      "justNowWord": "ახლახანს",
+      "minsAgoSuffix": "წთ",
+      "hoursAgoSuffix": "სთ",
+      "daysAgoSuffix": "დღე"
     }
   },
   "smartMatcher": {

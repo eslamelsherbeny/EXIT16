@@ -1693,7 +1693,41 @@
       "boostPendingPriorityTitle": "⚡ Приоритетная проверка + Раннее бронирование VIP",
       "boostPendingPriorityDesc": "Ваш объект заполнен и ждет проверки. Забронируйте VIP сейчас для приоритета — дни продвижения начнут считаться только после публикации.",
       "boostSubmittingBtn": "Отправка заявки...",
-      "boostFooterProviders": "TBC Bank · Bank of Georgia · Быстрая активация WhatsApp"
+      "boostFooterProviders": "TBC Bank · Bank of Georgia · Быстрая активация WhatsApp",
+      "boostNotPublishedTitle": "Продвижение откроется после публикации",
+      "boostNotPublishedDesc": "Для вашей безопасности оплата VIP открывается только после проверки и публикации объекта на витрине.",
+      "boostWaitingReviewBtn": "Объект на проверке",
+      "boostPaidWaitingTitle": "Оплата получена — ожидает активации",
+      "boostPaidWaitingBadge": "Оплачено через Flitt ✓",
+      "boostDaysStartAfterApprovalNote": "Дни продвижения начнут отсчитываться ТОЛЬКО с момента активации администратором, а не с момента оплаты.",
+      "boostPaidAtLabel": "Дата оплаты",
+      "boostPackageLabel": "Пакет",
+      "boostAmountPaidLabel": "Оплачено",
+      "boostRefLabel": "Код заказа",
+      "boostSpeedUpWaBtn": "WhatsApp для ускорения",
+      "boostRefundSupportNote": "Нужна помощь или возврат?",
+      "boostRefundSupportLink": "Написать в поддержку WhatsApp",
+      "boostActiveLiveTitle": "Ваше VIP-продвижение активно",
+      "boostActiveLiveBadge": "Активно",
+      "boostStartedAtLabel": "Активировано",
+      "boostEndsAtLabel": "Завершится",
+      "boostRemainingTimeLabel": "Осталось",
+      "boostViewsDuringLabel": "Просмотры",
+      "boostViewsSinceBoostPrefix": "+",
+      "boostViewsSinceBoostSuffix": "за время VIP",
+      "boostRenewSameBtn": "Продлить этот пакет",
+      "boostChooseOtherBtn": "Другой пакет",
+      "boostHidePickerBtn": "Скрыть пакеты",
+      "boostExtensionNote": "При продлении активного VIP новые дни добавляются поверх оставшегося срока без потери времени.",
+      "boostPendingRenewalTitle": "Продление оплачено — ожидает активации",
+      "boostPendingRenewalDesc": "+{days} дн. будут добавлены к текущему сроку сразу после подтверждения администратором.",
+      "boostHoursWord": "ч",
+      "boostMinutesWord": "мин",
+      "boostEndedBanner": "Срок предыдущего продвижения истек — продлите сейчас, чтобы вернуть объект в топ.",
+      "boostRejectedBannerTitle": "Последняя заявка на VIP не активирована",
+      "boostRejectedRefundHint": "Если вы оплатили картой, напишите нам в WhatsApp для возврата или помощи.",
+      "waSpeedUpMsgPrefix": "Здравствуйте, DualDealz! Я оплатил VIP-пакет через Flitt и хочу ускорить активацию",
+      "waRefundMsgPrefix": "Здравствуйте, DualDealz! Мне нужна помощь по заявке VIP номер"
     },
     "buyer": {
       "popularAreas": [
@@ -3345,7 +3379,9 @@
       "fileTooLargeError": "Размер файла превышает допустимый лимит (12 МБ).",
       "storageUploadError": "Не удалось загрузить файл в хранилище. Проверьте права Supabase Storage.",
       "missingFileOrUrlError": "Выберите файл или укажите ссылку на документ.",
-      "boostUnitNotPublishedError": "Нельзя активировать VIP до одобрения и публикации объекта на витрине."
+      "boostUnitNotPublishedError": "Нельзя активировать VIP до одобрения и публикации объекта на витрине.",
+      "boostExtendedNotifTitle": "VIP-продвижение вашего объекта продлено",
+      "boostExtendedNotifMsg": "Новые дни успешно добавлены к текущему сроку продвижения"
     },
     "forms": {
       "expiredLink": "Срок действия ссылки истек.",
@@ -3721,7 +3757,11 @@
         "btnNegotiateNow": "К торгу",
         "btnCloseDeal": "К сделке",
         "negotiatingBadge": "🔥 Встречная цена",
-        "newOfferBadge": "Новый оффер"
+        "newOfferBadge": "Новый оффер",
+        "secBoostTitle": "Заявки на рекламу ожидают активации",
+        "secBoostSub": "Владельцы оплатили VIP — проверьте и активируйте продвижение",
+        "secBoostBtn": "Все заявки",
+        "secBoostActionBtn": "Активировать"
       }
     },
     "promotions": {
@@ -4604,7 +4644,23 @@
       "rejectedSuccess": "Заявка на продвижение отклонена.",
       "cancelledSuccess": "VIP-продвижение остановлено.",
       "unitNotPublishedNotice": "Объект еще не опубликован — сначала проверьте и опубликуйте его перед активацией VIP.",
-      "reviewAndPublishUnitBtn": "Проверить и опубликовать объект"
+      "reviewAndPublishUnitBtn": "Проверить и опубликовать объект",
+      "paidSinceLabel": "Ожидает",
+      "paidAtLabel": "Оплачено",
+      "startedAtLabel": "Начало",
+      "endsAtLabel": "Окончание",
+      "remainingTimeLabel": "Осталось",
+      "viewsLabel": "Просмотры",
+      "viewsGainedLabel": "за VIP",
+      "renewalBadge": "Продление активного VIP (+к сроку)",
+      "contactSellerWaBtn": "WhatsApp",
+      "flittRefundWarning": "Внимание: заявка оплачена через Flitt. При отказе не забудьте оформить возврат в кабинете Flitt по номеру заказа.",
+      "orphanUnitNotice": "Старая заявка без объекта — нажмите «Отклонить», чтобы очистить список.",
+      "extendManualBtn": "Продлить",
+      "justNowWord": "Только что",
+      "minsAgoSuffix": "мин",
+      "hoursAgoSuffix": "ч",
+      "daysAgoSuffix": "дн"
     }
   },
   "smartMatcher": {

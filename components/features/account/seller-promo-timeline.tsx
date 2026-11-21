@@ -8,8 +8,8 @@ import {
   CheckCircle2,
   Clock,
   Copy,
+  CreditCard,
   EyeOff,
-  Landmark,
   Loader2,
   Lock,
   MessageCircle,
@@ -30,7 +30,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { requestUnitPromotionAction } from '@/actions/account-actions'
 import { calculateGelBoostPackage } from '@/components/features/home/home-market-sections'
 import { useTranslation, type LocaleCode } from '@/lib/i18n'
 import {
@@ -58,7 +57,6 @@ export function SellerPromoSection({
   copiedAdRef,
   setCopiedAdRef,
   isPending,
-  onBoostRequested,
   onCancelPromo,
 }: {
   t: Record<string, any>
@@ -105,7 +103,7 @@ export function SellerPromoSection({
     [5, 10, 20, 50, 100].includes(defaultAmt) ? defaultAmt : 'custom'
   )
   const [topUpAmount, setTopUpAmount] = useState<number>(defaultAmt)
-  const [submittingRequest, setSubmittingRequest] = useState(false)
+  const [submittingPayment, setSubmittingPayment] = useState(false)
   const [boostNotice, setBoostNotice] = useState<{
     text: string
     isError?: boolean
@@ -168,53 +166,44 @@ export function SellerPromoSection({
     },
   ]
 
-  const handleBookBoostRequest = async () => {
+  const handleFlittCardPayment = async () => {
     if (boostState === 'incomplete') {
       onNavigateMissing?.()
       return
     }
 
-    setSubmittingRequest(true)
+    setSubmittingPayment(true)
     setBoostNotice(null)
     try {
-      const res = await requestUnitPromotionAction({
-        unitId: activeUnit.id,
-        days: pkgDetails.days,
-        price: pkgDetails.amount,
-        tier: pkgDetails.tier,
-        paymentMethod: 'bank',
+      const res = await fetch('/api/payments/flitt/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          unitId: activeUnit.id,
+          tier: pkgDetails.tier === 'VIP+' ? 'vip_plus' : 'super_vip',
+          days: pkgDetails.days,
+          amountGel: pkgDetails.amount,
+        }),
       })
 
-      if (res.success) {
-        const orderRef =
-          res.fawryCode || `BK-${unitCode.replace(/[^A-Z0-9]/g, '').slice(-4)}`
-        const defaultBookedMsg = String(t.boostBookedDefaultMsg || '').replace(
-          '{ref}',
-          orderRef
-        )
-        setBoostNotice({
-          text: res.message || defaultBookedMsg,
-        })
-        onBoostRequested?.({
-          orderRef,
-          days: pkgDetails.days,
-          price: pkgDetails.amount,
-          tier: pkgDetails.tier === 'VIP+' ? 'vip_plus' : 'super_vip',
-          message: res.message,
-        })
+      const data = await res.json().catch(() => ({}))
+
+      if (res.ok && data?.checkoutUrl) {
+        window.location.href = data.checkoutUrl
+        return
+      }
+
+      if (data?.error === 'FLITT_NOT_CONFIGURED') {
+        setBoostNotice({ text: t.flittNotConfiguredErr, isError: true })
+      } else if (data?.error === 'UNIT_MUST_BE_COMPLETE_TO_BOOST') {
+        setBoostNotice({ text: t.boostIncompleteTitle, isError: true })
       } else {
-        setBoostNotice({
-          text: res.error || t.msgPromoError || t.boostErrorFallback,
-          isError: true,
-        })
+        setBoostNotice({ text: t.flittInitFailedErr, isError: true })
       }
     } catch {
-      setBoostNotice({
-        text: t.msgPromoError || t.boostUnexpectedErr,
-        isError: true,
-      })
+      setBoostNotice({ text: t.flittInitFailedErr, isError: true })
     } finally {
-      setSubmittingRequest(false)
+      setSubmittingPayment(false)
     }
   }
 
@@ -242,16 +231,6 @@ export function SellerPromoSection({
   }
 
   const whatsappMessage = `${t.whatsappPromoMsgPrefix} (${pkgDetails.tier} - ${activePromoDays || pkgDetails.days} ${t.daysWord} - ${(activePromoPrice || pkgDetails.amount).toLocaleString('en-US')} ${GEL}) ${t.whatsappPromoMsgMiddle} (${unitHeadline} · ${unitCode}) — ${t.whatsappPromoMsgRef} ${currentAdRef}`
-
-  const ctaLabel =
-    boostState === 'pending_review'
-      ? String(t.boostPriorityCtaTemplate || '').replace(
-          '{amount}',
-          String(pkgDetails.amount)
-        )
-      : String(t.boostConfirmCtaTemplate || '')
-          .replace('{amount}', String(pkgDetails.amount))
-          .replace('{tier}', pkgDetails.tier)
 
   return (
     <section
@@ -503,19 +482,21 @@ export function SellerPromoSection({
         ) : (
           <button
             type="button"
-            disabled={isPending || submittingRequest}
-            onClick={handleBookBoostRequest}
+            disabled={isPending || submittingPayment}
+            onClick={handleFlittCardPayment}
             className="flex h-11 w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-5 text-xs font-bold text-white shadow-[0_8px_20px_rgba(255,100,55,0.28)] transition hover:opacity-95 disabled:opacity-60"
           >
-            {submittingRequest ? (
+            {submittingPayment ? (
               <>
                 <Loader2 className="size-4 animate-spin" />
-                <span>{t.boostSubmittingBtn}</span>
+                <span>{t.flittRedirectingBtn}</span>
               </>
             ) : (
               <>
-                <Landmark className="size-4" />
-                <span>{ctaLabel}</span>
+                <CreditCard className="size-4" />
+                <span>
+                  {t.payCardPrefix} {pkgDetails.amount} {GEL} {t.payCardSuffix}
+                </span>
               </>
             )}
           </button>
@@ -597,7 +578,7 @@ export function SellerPromoSection({
       )}
 
       <div className="mt-3.5 flex items-center justify-between text-[10px] text-slate-400">
-        <span>{t.boostFooterProviders}</span>
+        <span>Flitt · Visa · Mastercard · Apple Pay · Google Pay</span>
         <span className="inline-flex items-center gap-1">
           <Lock className="size-3" /> 256-bit SSL
         </span>

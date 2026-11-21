@@ -252,6 +252,17 @@ export default function PropertiesTable({
     allStatusBadges.pending,
     allStatusBadges.under_review,
     allStatusBadges.active,
+    {
+      ...allStatusBadges.has_offers,
+      label: t.statuses.offer_received,
+      disabled: true,
+    },
+    {
+      ...allStatusBadges.in_deal,
+      label: t.statuses.transferring,
+      disabled: true,
+    },
+    { ...allStatusBadges.sold, disabled: true },
     allStatusBadges.paused_by_admin,
     allStatusBadges.paused_by_seller,
     allStatusBadges.rejected,

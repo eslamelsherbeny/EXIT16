@@ -452,7 +452,7 @@ export function PropertyStageTimelineDialog({
   const mL = (t.modals as Record<string, string>) || {}
   const { property, stage, offerId } = data
   const { stages, currentStepIndex, isExceptionState, exceptionNote } =
-    getSixStageTimelineMeta(stage)
+    getSixStageTimelineMeta(stage, t)
   const uCode = deriveShortUnitCode(property.id, property.code)
   const headline = getPropertyHeadline(property, property.name)
 
@@ -460,14 +460,17 @@ export function PropertyStageTimelineDialog({
     <Dialog open={Boolean(data)} onOpenChange={(o) => !o && onClose()}>
       <DialogContent
         dir={dir}
-        className="w-[93vw] max-w-[470px] rounded-2xl p-5 text-start"
+        className="max-h-[90vh] w-[93vw] max-w-[470px] overflow-y-auto rounded-2xl p-5 text-start"
       >
-        <DialogHeader className="border-b border-slate-100 pb-3 text-start">
-          <div className="flex items-center gap-2">
-            <span className="rounded-md bg-[#0f1d40] px-2 py-0.5 font-mono text-[11px] font-bold text-white">
+        <DialogHeader className="border-b border-slate-100 pb-3 pe-8 text-start">
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              dir="ltr"
+              className="shrink-0 rounded-md bg-[#0f1d40] px-2 py-0.5 font-mono text-[11px] font-bold text-white"
+            >
               {uCode}
             </span>
-            <DialogTitle className="truncate text-sm font-black text-[#0f1d40] sm:text-base">
+            <DialogTitle className="text-sm font-black text-[#0f1d40] sm:text-base">
               {mL.stageTimelineTitlePrefix} — {headline}
             </DialogTitle>
           </div>
@@ -519,7 +522,7 @@ export function PropertyStageTimelineDialog({
                       ? "border-[#007a5a] bg-[#eaf8f2]/70"
                       : isDone
                         ? "border-slate-100 bg-slate-50/70"
-                        : "border-slate-100 bg-white opacity-70"
+                        : "border-slate-100 bg-white opacity-75"
                   }`}
                 >
                   <div className="flex flex-wrap items-center justify-between gap-1.5">
@@ -529,7 +532,7 @@ export function PropertyStageTimelineDialog({
                           ? "text-[#0f1d40]"
                           : isDone
                             ? "text-[#007a5a]"
-                            : "text-slate-400"
+                            : "text-slate-500"
                       }`}
                     >
                       {st.label}

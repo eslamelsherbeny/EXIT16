@@ -114,6 +114,7 @@ export type StatusOptionItem = {
   value: string
   label: string
   badge: string
+  disabled?: boolean
 }
 
 export type SharedPropertyCardProps = {
@@ -226,8 +227,7 @@ function UnitStatusControl(props: SharedPropertyCardProps) {
     )
   }
 
-  const selectValue =
-    currentSt === "incomplete" ? "pending" : currentSt
+  const selectValue = currentSt === "incomplete" ? "pending" : currentSt
 
   return (
     <select
@@ -249,7 +249,8 @@ function UnitStatusControl(props: SharedPropertyCardProps) {
         <option
           key={opt.value}
           value={opt.value}
-          className="bg-white text-xs text-[#0f1d40]"
+          disabled={opt.disabled}
+          className="bg-white text-xs text-[#0f1d40] disabled:text-slate-400"
         >
           {opt.label}
         </option>
@@ -1410,7 +1411,6 @@ export function PropertyDocsQuickDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {/* شريط توثيق المستندات عبر واتساب من الأدمن */}
         <div
           className={`mt-2 flex flex-wrap items-center justify-between gap-2.5 rounded-xl border p-3 text-xs ${
             waDocsVerified
@@ -1466,7 +1466,6 @@ export function PropertyDocsQuickDialog({
           </div>
         </div>
 
-        {/* شبكة المستندات الـ 4 مع إمكانية الرفع أو الاستبدال من الأدمن */}
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {REAL_UNIT_DOC_KEYS.map((docKey) => {
             const docItem = existingByKey.get(docKey)

@@ -12,6 +12,10 @@ import {
   type Dictionary,
   type LocaleCode,
 } from '@/lib/i18n'
+import {
+  getUnifiedUnitCode,
+  getUnifiedUnitHeadline,
+} from '@/lib/unit-display-helpers'
 
 export type OpportunityCountryCode = 'ALL' | 'EG' | 'AE' | 'RU' | 'GE'
 
@@ -109,14 +113,16 @@ export function calcMonthlyEquivalent(amount: number, freq: string): number {
 export function mapDbRowToProperty(
   row: any,
   locale: LocaleCode,
-  t: Dictionary['opportunitiesPage']
+  t: Dictionary['opportunitiesPage'],
+  commissionRate = 0.0125
 ): MappedProperty {
   const activeLocale: LocaleCode = ['ar', 'en', 'ru', 'ka'].includes(locale)
     ? locale
     : 'ar'
   const fullDict = DICTIONARIES[activeLocale] || enDict
   const readyWord = fullDict.common.delivery.ready
-  const defaultMonthly = t.card.defaultFreq || fullDict.common.frequencies.monthly
+  const defaultMonthly =
+    t.card.defaultFreq || fullDict.common.frequencies.monthly
   const defaultProject = t.card.defaultProject
   const defaultArea = t.card.defaultArea
   const defaultType = t.card.defaultType
@@ -124,9 +130,11 @@ export function mapDbRowToProperty(
   const country = 'GE'
   const currency = '$'
   const meta =
-    row.documents && typeof row.documents === 'object'
-      ? row.documents.__unit_meta || {}
-      : {}
+    row.unit_meta && typeof row.unit_meta === 'object'
+      ? row.unit_meta
+      : row.documents && typeof row.documents === 'object'
+        ? row.documents.__unit_meta || {}
+        : {}
 
   const paid = Number(row.paid_amount) || 0
   const requiredCash = Math.max(0, paid)
@@ -136,16 +144,14 @@ export function mapDbRowToProperty(
   const installmentNum =
     Number(row.installment_amount ?? meta.installment_amount) || 0
   const installmentFreq =
-    row.installment_frequency ||
-    meta.installment_frequency ||
-    defaultMonthly
+    row.installment_frequency || meta.installment_frequency || defaultMonthly
 
   let gainStr: string | undefined = undefined
   let gainNum = 0
   let marketPriceStr: string | undefined = undefined
 
   if (marketPriceNum > 0 && marketPriceNum > contractPrice) {
-    const commission = Math.round(contractPrice * 0.0125)
+    const commission = Math.round(contractPrice * commissionRate)
     gainNum = Math.max(0, marketPriceNum - contractPrice - commission)
     if (gainNum > 0) {
       gainStr = `+ ${gainNum.toLocaleString('en-US')}`
@@ -180,16 +186,8 @@ export function mapDbRowToProperty(
         ? readyWord
         : rawDelStatus || '2026'
 
-  const numericCode = String(row.id || '')
-    .replace(/\D/g, '')
-    .slice(0, 5)
-  const fallbackCode = String(row.id || '')
-    .slice(0, 5)
-    .toUpperCase()
-  const code =
-    row.code ||
-    meta.code ||
-    `U-${numericCode.length >= 4 ? numericCode : fallbackCode}`
+  const code = getUnifiedUnitCode(row.id, row.code || meta.code)
+  const projectHeadline = getUnifiedUnitHeadline(row, defaultProject)
 
   const rawArea = row.area || meta.area || ''
   const localizedArea = rawArea
@@ -232,6 +230,12 @@ export function mapDbRowToProperty(
       ? Number(row.floor_number)
       : undefined
 
+  const totalFloorsRaw = Number(row.total_floors ?? meta.total_floors)
+  const totalFloorsVal =
+    Number.isFinite(totalFloorsRaw) && totalFloorsRaw > 0
+      ? totalFloorsRaw
+      : undefined
+
   const roomsVal = Number(row.rooms ?? meta.rooms) || 2
   const bedroomsVal =
     Number(row.bedrooms ?? meta.bedrooms) || Math.max(1, roomsVal - 1)
@@ -244,7 +248,7 @@ export function mapDbRowToProperty(
     code,
     country,
     currency,
-    project: row.project_name || defaultProject,
+    project: projectHeadline,
     developer: devName,
     rawDeveloperName: devName,
     area: localizedArea,
@@ -257,7 +261,7 @@ export function mapDbRowToProperty(
     baths: Number(row.bathrooms ?? meta.bathrooms) || 1,
     size: Number(row.size ?? meta.size) || 75,
     floor: floorNum,
-    totalFloors: Number(row.total_floors ?? meta.total_floors) || 16,
+    totalFloors: totalFloorsVal,
     cash: requiredCash.toLocaleString('en-US'),
     cashNum: requiredCash,
     negotiable: Boolean(row.willing_to_discount),
@@ -318,13 +322,12 @@ export function OpportunityCard({
     bedrooms: property.bedrooms,
     bathrooms: property.baths,
     floor: property.floor,
-    totalFloors: property.totalFloors || 16,
+    totalFloors: property.totalFloors,
     image: property.image,
     images: property.images,
     imagesCount: property.images.length,
     isFeatured: property.featured,
-    boostTier:
-      property.boostTier || (property.featured ? 'super_vip' : null),
+    boostTier: property.boostTier || (property.featured ? 'super_vip' : null),
     docsVerified: true,
     viewsCount: property.viewsCount,
     createdAt: property.createdAt,

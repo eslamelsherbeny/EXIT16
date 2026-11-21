@@ -2387,7 +2387,11 @@
       "waConfirmIntro": "Здравствуйте, DualDealz! Подтверждаю мое предложение",
       "waConfirmUnitWord": "по объекту",
       "waConfirmAmountWord": "на сумму",
-      "waConfirmLinkLabel": "Ссылка для подтверждения:"
+      "waConfirmLinkLabel": "Ссылка для подтверждения:",
+      "negotiatePlaceholder": "Введите сумму предложения...",
+      "emailFieldLabel": "Электронная почта (Email)",
+      "salesCallExpectText": "Ожидайте звонка или сообщения от нашего менеджера в ближайшее время для подтверждения оффера.",
+      "accountCreatedNote": "Мы также автоматически создали ваш личный кабинет и отправили письмо на почту, чтобы вы могли задать пароль в любое удобное время."
     },
     "uiLabels": {
       "descriptionTitle": "Описание объекта",

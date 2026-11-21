@@ -2387,7 +2387,11 @@
       "waConfirmIntro": "Hello DualDealz, I confirm my purchase offer",
       "waConfirmUnitWord": "for unit",
       "waConfirmAmountWord": "with amount",
-      "waConfirmLinkLabel": "Verification Link:"
+      "waConfirmLinkLabel": "Verification Link:",
+      "negotiatePlaceholder": "Enter your offer amount...",
+      "emailFieldLabel": "Email Address",
+      "salesCallExpectText": "Expect a call or message from our sales advisor shortly to confirm your offer and coordinate with the owner.",
+      "accountCreatedNote": "We also created your personal account automatically and sent an email so you can set your password whenever you like."
     },
     "uiLabels": {
       "descriptionTitle": "Property Description",

@@ -2387,7 +2387,11 @@
       "waConfirmIntro": "أهلاً إدارة DualDealz، أؤكد جديتي في عرض الشراء رقم",
       "waConfirmUnitWord": "على وحدة",
       "waConfirmAmountWord": "بمبلغ",
-      "waConfirmLinkLabel": "رابط مراجعة وتفعيل العرض:"
+      "waConfirmLinkLabel": "رابط مراجعة وتفعيل العرض:",
+      "negotiatePlaceholder": "أدخل مبلغ العرض...",
+      "emailFieldLabel": "البريد الإلكتروني",
+      "salesCallExpectText": "انتظر مكالمة أو رسالة من مسؤول المبيعات قريباً لتأكيد عرضك والتنسيق مع مالك الوحدة.",
+      "accountCreatedNote": "كما أنشأنا لك حساباً شخصياً تلقائياً وأرسلنا رسالة إلى بريدك الإلكتروني لتعيين كلمة مرور وقتما تشاء."
     },
     "uiLabels": {
       "descriptionTitle": "وصف الوحدة والتفاصيل",

@@ -165,31 +165,11 @@ export function UnitDetailsHeader({
   const [sharedCopied, setSharedCopied] = useState(false)
   const uiL = dict.unitDetailsPage.uiLabels
 
-  const exactStreet =
-    computedUnit.exactStreet ||
-    computedUnit.exact_street ||
-    computedUnit.raw?.exact_street ||
-    computedUnit.raw?.documents?.__unit_meta?.exact_street ||
-    ''
-  const houseNumber =
-    computedUnit.houseNumber ||
-    computedUnit.house_number ||
-    computedUnit.raw?.house_number ||
-    computedUnit.raw?.documents?.__unit_meta?.house_number ||
-    ''
-  const cadastralCode =
-    computedUnit.cadastralCode ||
-    computedUnit.cadastral_code ||
-    computedUnit.raw?.cadastral_code ||
-    computedUnit.raw?.documents?.__unit_meta?.cadastral_code ||
-    ''
-  const allowOnlineViewing = Boolean(
-    computedUnit.allowOnlineViewing ??
-      computedUnit.allow_online_viewing ??
-      computedUnit.raw?.allow_online_viewing ??
-      computedUnit.raw?.documents?.__unit_meta?.allow_online_viewing ??
-      false
-  )
+  const exactStreet = computedUnit.exactStreet || ''
+  const houseNumber = computedUnit.houseNumber || ''
+  // قراءة الرقم العقاري حصراً من القيمة المفلترة لحماية خصوصية البائع عند تفعيل hide_cadastral
+  const cadastralCode = computedUnit.cadastralCode || ''
+  const allowOnlineViewing = Boolean(computedUnit.allowOnlineViewing)
 
   const handleShareClick = async () => {
     const shareUrl = typeof window !== 'undefined' ? window.location.href : ''
@@ -243,7 +223,7 @@ export function UnitDetailsHeader({
               title={t.copyCodeTitle}
               className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2.5 py-1 font-mono text-[11px] text-gray-500 transition hover:border-gray-300 hover:text-[var(--brand-navy,#0a1122)]"
             >
-              <span>{computedUnit.code}</span>
+              <span dir="ltr">{computedUnit.code}</span>
               <Copy className="size-3 text-gray-400" />
               {copied && (
                 <span className="font-sans text-[10px] text-[var(--brand-primary,#007a5a)]">
@@ -409,9 +389,7 @@ export function UnitSpecsAndDescription({
     ? computedUnit.features
     : Array.isArray(computedUnit.tags)
       ? computedUnit.tags
-      : Array.isArray(computedUnit.raw?.features)
-        ? computedUnit.raw.features
-        : []
+      : []
 
   const normalizedSet = new Set(
     rawFeatures.map((f) => String(f || '').trim().toLowerCase()).filter(Boolean)
@@ -468,18 +446,8 @@ export function UnitSpecsAndDescription({
     })
   }
 
-  const videoUrl =
-    computedUnit.videoUrl ||
-    computedUnit.video_url ||
-    computedUnit.raw?.video_url ||
-    computedUnit.raw?.documents?.__unit_meta?.video_url ||
-    ''
-  const tour3dUrl =
-    computedUnit.tour3dUrl ||
-    computedUnit.tour_3d_url ||
-    computedUnit.raw?.tour_3d_url ||
-    computedUnit.raw?.documents?.__unit_meta?.tour_3d_url ||
-    ''
+  const videoUrl = computedUnit.videoUrl || ''
+  const tour3dUrl = computedUnit.tour3dUrl || ''
   const embedVideoUrl = getYoutubeEmbedUrl(videoUrl)
 
   return (
@@ -679,10 +647,7 @@ export function UnitSpecsAndDescription({
   )
 }
 
-export function UnitFinancialsCard({
-  computedUnit,
-  onMakeOffer,
-}: any) {
+export function UnitFinancialsCard({ computedUnit, onMakeOffer }: any) {
   const { t: dict, siteSettings } = useTranslation()
   const uiL = dict.unitDetailsPage.uiLabels
   const oT = (dict.accountPages?.offers as Record<string, any>) || {}
@@ -870,7 +835,15 @@ export function SimilarUnitsSection({ similarDbUnits, t }: any) {
                 {item.featured && (
                   <span className="absolute top-2 left-2 inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-0.5 text-[9px] font-bold text-amber-700 shadow-sm">
                     <Star className="size-2.5 fill-amber-400 text-amber-500" />
-                    <span>{t?.featuredBadge || 'VIP'}</span>
+                    <span>{t?.featuredBadge}</span>
+                  </span>
+                )}
+                {item.code && (
+                  <span
+                    dir="ltr"
+                    className="absolute bottom-2 start-2 rounded-md bg-black/65 px-1.5 py-0.5 font-mono text-[9.5px] font-bold text-white backdrop-blur-xs"
+                  >
+                    {item.code}
                   </span>
                 )}
               </div>

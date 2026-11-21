@@ -32,11 +32,15 @@ const PAGE_SIZE = 9
 const FAVORITES_STORAGE_KEY = 'darak_favorites'
 
 export default function OpportunitiesPage() {
-  const { t: dict, locale, dir } = useTranslation()
+  const { t: dict, locale, dir, siteSettings } = useTranslation()
   const activeLocale = (locale as LocaleCode) || 'ar'
   const isAr = activeLocale === 'ar'
   const t = dict.opportunitiesPage
   const uT = t.ui
+
+  const rawCommPct = Number(siteSettings?.buyerCommission)
+  const commissionRate =
+    Number.isFinite(rawCommPct) && rawCommPct >= 0 ? rawCommPct / 100 : 0.0125
 
   const localizedTypes = useMemo(
     () => getLocalizedUnitTypes(dict, activeLocale),
@@ -294,19 +298,22 @@ export default function OpportunitiesPage() {
       const mapped = mapDbRowToProperty(
         row,
         activeLocale,
-        dict.opportunitiesPage
+        dict.opportunitiesPage,
+        commissionRate
       )
-      const metaFeatures = row?.documents?.__unit_meta?.features
+      const meta =
+        row?.unit_meta && typeof row.unit_meta === 'object'
+          ? row.unit_meta
+          : row?.documents?.__unit_meta || {}
+      const metaFeatures = meta?.features
       const rowFeatures = Array.isArray(row?.features)
         ? row.features
         : Array.isArray(metaFeatures)
           ? metaFeatures
           : []
-      const rawFinishing = String(
-        row?.finishing || row?.documents?.__unit_meta?.finishing || ''
-      )
+      const rawFinishing = String(row?.finishing || meta?.finishing || '')
       const rawUnitType = String(
-        row?.unit_type || row?.documents?.__unit_meta?.unit_type || mapped.type
+        row?.unit_type || meta?.unit_type || mapped.type
       )
 
       return {
@@ -320,7 +327,7 @@ export default function OpportunitiesPage() {
         rawFinishing,
       }
     })
-  }, [rawDbRows, activeLocale, dict.opportunitiesPage])
+  }, [rawDbRows, activeLocale, dict.opportunitiesPage, commissionRate])
 
   useEffect(() => {
     setCurrentPage(1)

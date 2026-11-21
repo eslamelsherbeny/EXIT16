@@ -15,6 +15,10 @@ import {
 import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
 import { useTranslation } from '@/lib/i18n'
 import { isNonGeorgianLegacyArea } from '@/lib/smart-matcher'
+import {
+  getUnifiedUnitCode,
+  getUnifiedUnitHeadline,
+} from '@/lib/unit-display-helpers'
 
 import {
   SimilarUnitsSection,
@@ -35,11 +39,12 @@ const FAVORITES_STORAGE_KEY = 'darak_favorites'
 const RECENTLY_VIEWED_STORAGE_KEY = 'aqar_recently_viewed'
 const DEVICE_VIEWER_KEY_STORAGE = 'aqar_device_viewer_fingerprint'
 
+// سحب __unit_meta فقط بدون تعريض روابط العقود أو جوازات السفر داخل عمود documents
 const PUBLIC_UNIT_DETAIL_COLUMNS =
-  'id, code, user_id, project_name, developer_name, area, exact_street, house_number, cadastral_code, unit_type, size, kitchen_area, balcony_area, loggia_area, terrace_area, garden_size, rooms, bedrooms, bathrooms, floor_number, total_floors, finishing, building_status, heating_type, year_built, delivery_status, delivery_month, delivery_year, features, video_url, tour_3d_url, allow_online_viewing, description, contract_price, paid_amount, market_price, price_per_sqm, installment_amount, installment_frequency, contract_month, contract_year, years_left, willing_to_discount, discount_amount, images, status, is_featured, boost_tier, featured_until, docs_verified, views_count, approved_at, created_at, documents'
+  'id, code, user_id, project_name, developer_name, area, exact_street, house_number, cadastral_code, unit_type, size, kitchen_area, balcony_area, loggia_area, terrace_area, garden_size, rooms, bedrooms, bathrooms, floor_number, total_floors, finishing, building_status, heating_type, year_built, delivery_status, delivery_month, delivery_year, features, video_url, tour_3d_url, allow_online_viewing, description, contract_price, paid_amount, market_price, price_per_sqm, installment_amount, installment_frequency, contract_month, contract_year, years_left, willing_to_discount, discount_amount, images, status, is_featured, boost_tier, featured_until, docs_verified, views_count, approved_at, created_at, unit_meta:documents->__unit_meta'
 
 const CORE_UNIT_DETAIL_COLUMNS =
-  'id, user_id, project_name, developer_name, area, unit_type, size, rooms, bathrooms, finishing, delivery_status, features, description, contract_price, paid_amount, market_price, installment_amount, installment_frequency, contract_year, years_left, willing_to_discount, discount_amount, images, status, created_at, documents'
+  'id, user_id, project_name, developer_name, area, unit_type, size, rooms, bathrooms, finishing, delivery_status, features, description, contract_price, paid_amount, market_price, installment_amount, installment_frequency, contract_year, years_left, willing_to_discount, discount_amount, images, status, created_at'
 
 function parseSafeNumber(val: unknown, fallback = 0): number {
   if (typeof val === 'number' && Number.isFinite(val) && val > 0) return val
@@ -385,6 +390,8 @@ export default function PropertyDetailsPage() {
 
   const similarDbUnits = useMemo(() => {
     return rawSimilarRows.map((u) => {
+      const meta =
+        u.unit_meta && typeof u.unit_meta === 'object' ? u.unit_meta : {}
       const uCurrency = '$'
       const reqCash = parseSafeNumber(u.paid_amount)
       const rawDel = String(u.delivery_status || '').trim()
@@ -414,18 +421,22 @@ export default function PropertyDetailsPage() {
         Boolean(u.is_featured) &&
         (!u.featured_until || new Date(u.featured_until) > new Date())
 
-      const rawArea = u.area
+      const rawArea = u.area || meta.area
       const localizedArea = rawArea
         ? getLocalizedGeorgiaAreaName(rawArea, locale)
         : c.defaultArea
 
-      const localizedType = translateStoredPropertyKind(u.unit_type, locale)
-      const roomsCount = parseSafeNumber(u.rooms, 2)
-      const sizeVal = parseSafeNumber(u.size, 75)
+      const localizedType = translateStoredPropertyKind(
+        u.unit_type || meta.unit_type,
+        locale
+      )
+      const roomsCount = parseSafeNumber(u.rooms ?? meta.rooms, 2)
+      const sizeVal = parseSafeNumber(u.size ?? meta.size, 75)
 
       return {
         id: u.id,
-        name: u.project_name || c.defaultProject,
+        code: getUnifiedUnitCode(u.id, u.code || meta.code),
+        name: getUnifiedUnitHeadline(u, c.defaultProject),
         area: localizedArea,
         specs: `${localizedType} · ${roomsCount} ${c.roomsWord} · ${sizeVal} ${c.sqmUnit} · ${t.similarSection.deliveryPrefix} ${delivDisplay}`,
         cash: reqCash.toLocaleString('en-US'),
@@ -444,12 +455,10 @@ export default function PropertyDetailsPage() {
 
     const row = unitRow
     const meta =
-      row.documents && typeof row.documents === 'object'
-        ? row.documents.__unit_meta || {}
-        : {}
+      row.unit_meta && typeof row.unit_meta === 'object' ? row.unit_meta : {}
 
     const currency = '$'
-    const projectName = row.project_name || c.defaultProject
+    const projectName = getUnifiedUnitHeadline(row, c.defaultProject)
     const rawArea = row.area || meta.area || ''
     const locationDisplay = meta.location_display || ''
     const areaName =
@@ -469,17 +478,7 @@ export default function PropertyDetailsPage() {
         : ''
 
     const subtitle = developerName ? `${developerName} · ${areaName}` : areaName
-
-    const numericId = String(row.id || '')
-      .replace(/\D/g, '')
-      .slice(0, 5)
-    const fallbackId = String(row.id || '')
-      .slice(0, 5)
-      .toUpperCase()
-    const code =
-      row.code ||
-      meta.code ||
-      `U-${numericId.length >= 4 ? numericId : fallbackId || '1001'}`
+    const code = getUnifiedUnitCode(row.id, row.code || meta.code)
 
     const rawUnitType = row.unit_type || meta.unit_type || c.defaultType
     const unitType = translateStoredPropertyKind(rawUnitType, locale)
@@ -614,7 +613,7 @@ export default function PropertyDetailsPage() {
         value:
           pricePerMeter > 0
             ? `${pricePerMeter.toLocaleString('en-US')} ${currency}`
-            : `${Math.round((paidAmount || 35000) / size).toLocaleString('en-US')} ${currency}`,
+            : '—',
       },
     ]
 
@@ -661,7 +660,6 @@ export default function PropertyDetailsPage() {
 
     return {
       id: String(row.id),
-      raw: row,
       isOwner,
       hasActiveOffer,
       isUnderContractDeal,

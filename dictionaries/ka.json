@@ -2387,7 +2387,11 @@
       "waConfirmIntro": "გამარჯობა DualDealz, ვადასტურებ შეთავაზებას",
       "waConfirmUnitWord": "ობიექტზე",
       "waConfirmAmountWord": "თანხით",
-      "waConfirmLinkLabel": "დადასტურების ბმული:"
+      "waConfirmLinkLabel": "დადასტურების ბმული:",
+      "negotiatePlaceholder": "შეიყვანეთ შეთავაზების თანხა...",
+      "emailFieldLabel": "ელ-ფოსტა",
+      "salesCallExpectText": "მალე დაგიკავშირდებათ ჩვენი გაყიდვების კონსულტანტი შეთავაზების დასადასტურებლად.",
+      "accountCreatedNote": "ასევე ავტომატურად შევქმენით თქვენი პირადი კაბინეტი და გამოგიგზავნეთ ბმული ელ-ფოსტაზე პაროლის დასაყენებლად."
     },
     "uiLabels": {
       "descriptionTitle": "ქონების აღწერა",

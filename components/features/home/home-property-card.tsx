@@ -17,6 +17,7 @@ import {
 import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
 import enDict from '@/dictionaries/en.json'
 import { DICTIONARIES, useTranslation, type LocaleCode } from '@/lib/i18n'
+import { getUnifiedUnitCode } from '@/lib/unit-display-helpers'
 import {
   cleanPureLocaleText,
   getLocalizedUnitTitle,
@@ -339,10 +340,14 @@ export function HomePropertyCard({
   onToggleFav: (id: string) => void
   fullWidthOnGrid?: boolean
 }) {
-  const { t: dict, locale, dir } = useTranslation()
+  const { t: dict, locale, dir, siteSettings } = useTranslation()
   const activeLocale = (locale as LocaleCode) || 'ar'
   const cT = dict.home.cards
   const USD = '$'
+
+  const rawCommPct = Number(siteSettings?.buyerCommission)
+  const commissionRate =
+    Number.isFinite(rawCommPct) && rawCommPct >= 0 ? rawCommPct / 100 : 0.0125
 
   const gallery =
     unit.images && unit.images.length >= 1
@@ -369,15 +374,17 @@ export function HomePropertyCard({
         ? Math.max(
             0,
             Math.round(
-              marketPriceVal - contractPriceVal - contractPriceVal * 0.0125
+              marketPriceVal -
+                contractPriceVal -
+                contractPriceVal * commissionRate
             )
           )
         : 0
 
   const sqmPrice =
-    unit.size > 0
+    unit.size > 0 && contractPriceVal > 0
       ? Math.round(contractPriceVal / unit.size).toLocaleString('en-US')
-      : '1,350'
+      : null
 
   const rawLocalizedArea = getLocalizedGeorgiaAreaName(unit.area, activeLocale)
   const cleanArea = cleanPureLocaleText(rawLocalizedArea, activeLocale)
@@ -393,15 +400,12 @@ export function HomePropertyCard({
   const detailHref = `/opportunities/${unit.id}`
 
   const views = Math.max(1, Number(unit.viewsCount) || 1)
-  const rawCode =
-    unit.code ||
-    `U-${String(unit.id || '').replace(/[^0-9]/g, '').slice(0, 5) || '10901'}`
+  const rawCode = getUnifiedUnitCode(unit.id, unit.code)
   const displayCode = rawCode.startsWith('#') ? rawCode : `#${rawCode}`
   const publishedAgo = formatRelativePublishTime(unit.createdAt, activeLocale)
   const totalCount = gallery.length
 
-  const activeTier =
-    unit.boostTier || (unit.isFeatured ? 'super_vip' : null)
+  const activeTier = unit.boostTier || (unit.isFeatured ? 'super_vip' : null)
 
   const unitTypeWord = translateUnitTypeWord(unit.unitTypeLabel, activeLocale)
   const localizedFreq = translateInstallmentFreq(
@@ -548,13 +552,15 @@ export function HomePropertyCard({
               <span>{cT.docsVerified}</span>
             </span>
 
-            <span
-              dir="ltr"
-              className="text-xs font-bold text-slate-400 tabular-nums"
-            >
-              {USD}
-              {sqmPrice}/{cT.sqmUnit}
-            </span>
+            {sqmPrice && (
+              <span
+                dir="ltr"
+                className="text-xs font-bold text-slate-400 tabular-nums"
+              >
+                {USD}
+                {sqmPrice}/{cT.sqmUnit}
+              </span>
+            )}
           </div>
 
           <p className="mt-2 flex flex-wrap items-center gap-1.5 text-xs font-bold text-[#1e293b]">
@@ -567,8 +573,8 @@ export function HomePropertyCard({
                 dir="ltr"
                 className="inline-flex items-center gap-0.5 text-slate-500"
               >
-                · <Layers className="size-3.5 text-slate-400" /> {unit.floor}/
-                {unit.totalFloors || 16}
+                · <Layers className="size-3.5 text-slate-400" /> {unit.floor}
+                {unit.totalFloors ? `/${unit.totalFloors}` : ''}
               </span>
             )}
           </p>

@@ -254,7 +254,7 @@ export function UnitGalleryWithLightbox({
               title={t.copyCodeTitle}
               className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1 font-mono text-[11px] font-extrabold text-[#0a1122] transition hover:border-[#007a5a] hover:bg-[#eaf8f2]"
             >
-              <span>ID: {unitCode}</span>
+              <span dir="ltr">ID: {unitCode}</span>
               {copied ? (
                 <Check className="size-3.5 text-[#007a5a]" />
               ) : (
@@ -432,8 +432,8 @@ export function UnitInterestForm({
     ? params.id[0]
     : (params?.id as string) || ''
 
-  const { t: dict, locale, siteSettings } = useTranslation()
-  const f = dict.unitDetailsPage.interestForm
+  const { t: dict, siteSettings } = useTranslation()
+  const f = dict.unitDetailsPage.interestForm as Record<string, string>
   const oT = dict.accountPages.offers as Record<string, any>
   const cur = '$'
   const supportWhatsApp = String(
@@ -479,36 +479,10 @@ export function UnitInterestForm({
     numericCash > 0 &&
     numericCash < sanityMinFloor
 
-  const negotiatePlaceholder =
-    locale === 'en'
-      ? 'Enter your offer amount...'
-      : locale === 'ru'
-        ? 'Введите сумму предложения...'
-        : locale === 'ka'
-          ? 'შეიყვანეთ შეთავაზების თანხა...'
-          : 'أدخل مبلغ العرض...'
-
   const emailFieldLabel =
+    f.emailFieldLabel ||
     dict.buy?.stepThree?.emailLabel?.replace('*', '').trim() ||
-    (locale === 'en' ? 'Email Address' : 'البريد الإلكتروني')
-
-  const salesCallExpectText =
-    locale === 'en'
-      ? 'Expect a call or message from our sales advisor shortly to confirm your offer and coordinate with the owner.'
-      : locale === 'ru'
-        ? 'Ожидайте звонка или сообщения от нашего менеджера в ближайшее время для подтверждения оффера.'
-        : locale === 'ka'
-          ? 'მალე დაგიკავშირდებათ ჩვენი გაყიდვების კონსულტანტი შეთავაზების დასადასტურებლად.'
-          : 'انتظر مكالمة أو رسالة من مسؤول المبيعات قريباً لتأكيد عرضك والتنسيق مع مالك الوحدة.'
-
-  const accountCreatedNote =
-    locale === 'en'
-      ? 'We also created your personal account automatically and sent an email so you can set your password whenever you like.'
-      : locale === 'ru'
-        ? 'Мы также автоматически создали ваш личный кабинет и отправили письмо на почту, чтобы вы могли задать пароль в любое удобное время.'
-        : locale === 'ka'
-          ? 'ასევე ავტომატურად შევქმენით თქვენი პირადი კაბინეტი და გამოგიგზავნეთ ბმული ელ-ფოსტაზე პაროლის დასაყენებლად.'
-          : 'كما أنشأنا لك حساباً شخصياً تلقائياً وأرسلنا رسالة إلى بريدك الإلكتروني لتعيين كلمة مرور وقتما تشاء.'
+    ''
 
   const handleInterestSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -582,7 +556,7 @@ export function UnitInterestForm({
   const siteOrigin =
     typeof window !== 'undefined'
       ? window.location.origin
-      : 'https://exit-16.vercel.app'
+      : 'https://dualdealz.com'
 
   const whatsappConfirmMsg = submittedOfferData
     ? `${f.waConfirmIntro} (${submittedOfferData.offerRef}) ${f.waConfirmUnitWord} (${projectName} - ${unitCode}) ${f.waConfirmAmountWord} ($${submittedOfferData.amount.toLocaleString('en-US')}).\n${f.waConfirmLinkLabel}\n${siteOrigin}/api/verify-contact?offerId=${encodeURIComponent(submittedOfferData.offerId)}`
@@ -626,13 +600,13 @@ export function UnitInterestForm({
           <p className="mx-auto mt-2.5 max-w-md text-xs leading-relaxed font-bold text-[#0a1122]">
             {submittedOfferData.isBackupWaitlist
               ? oT.waitlistBuyerCardNote
-              : salesCallExpectText}
+              : f.salesCallExpectText}
           </p>
 
           {submittedOfferData.accountCreated && (
             <div className="mx-auto mt-3 flex max-w-md items-start gap-2 rounded-xl border border-emerald-200 bg-white px-3.5 py-2.5 text-start text-[11.5px] font-semibold leading-relaxed text-slate-700">
               <Mail className="mt-0.5 size-4 shrink-0 text-[#007a5a]" />
-              <span>{accountCreatedNote}</span>
+              <span>{f.accountCreatedNote}</span>
             </div>
           )}
 
@@ -745,7 +719,7 @@ export function UnitInterestForm({
                 dir="ltr"
                 required
                 placeholder={
-                  offerMode === 'negotiate' ? negotiatePlaceholder : ''
+                  offerMode === 'negotiate' ? f.negotiatePlaceholder : ''
                 }
                 readOnly={!allowNegotiation || offerMode === 'full'}
                 value={offeredCashStr}

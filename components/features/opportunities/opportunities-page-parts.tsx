@@ -49,11 +49,12 @@ import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
 import enDict from '@/dictionaries/en.json'
 import { DICTIONARIES, type LocaleCode } from '@/lib/i18n'
 
+// سحب __unit_meta فقط بدون تعريض روابط العقود أو جوازات السفر داخل عمود documents
 export const PUBLIC_SAFE_UNIT_COLUMNS =
-  'id, code, project_name, developer_name, area, exact_street, house_number, cadastral_code, unit_type, size, garden_size, rooms, bedrooms, bathrooms, floor_number, total_floors, finishing, delivery_status, delivery_month, delivery_year, features, video_url, tour_3d_url, allow_online_viewing, description, contract_price, paid_amount, market_price, price_per_sqm, installment_amount, installment_frequency, contract_month, contract_year, years_left, willing_to_discount, discount_amount, images, status, is_featured, boost_tier, featured_until, docs_verified, views_count, approved_at, created_at, documents'
+  'id, code, project_name, developer_name, area, exact_street, house_number, cadastral_code, unit_type, size, garden_size, rooms, bedrooms, bathrooms, floor_number, total_floors, finishing, delivery_status, delivery_month, delivery_year, features, video_url, tour_3d_url, allow_online_viewing, description, contract_price, paid_amount, market_price, price_per_sqm, installment_amount, installment_frequency, contract_month, contract_year, years_left, willing_to_discount, discount_amount, images, status, is_featured, boost_tier, featured_until, docs_verified, views_count, approved_at, created_at, unit_meta:documents->__unit_meta'
 
 export const CORE_SAFE_UNIT_COLUMNS =
-  'id, project_name, developer_name, area, unit_type, size, rooms, bathrooms, finishing, delivery_status, features, description, contract_price, paid_amount, market_price, installment_amount, installment_frequency, contract_year, years_left, willing_to_discount, discount_amount, images, status, created_at, documents'
+  'id, project_name, developer_name, area, unit_type, size, rooms, bathrooms, finishing, delivery_status, features, description, contract_price, paid_amount, market_price, installment_amount, installment_frequency, contract_year, years_left, willing_to_discount, discount_amount, images, status, created_at'
 
 export function localizePropertyTypeLabel(
   rawType: string,

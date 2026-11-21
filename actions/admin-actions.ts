@@ -1794,6 +1794,7 @@ export async function managePropertyPromotionAction(
     orderRef?: string | null
     amountGel?: number | null
     boostRequestId?: string | null
+    paymentMethod?: "flitt" | "cash_manual" | string | null
   }
 ) {
   const { t: msg } = await getAdminActionsDict()
@@ -1803,7 +1804,7 @@ export async function managePropertyPromotionAction(
     const { data: prop } = await supabase
       .from("sell_requests")
       .select(
-        "id, user_id, status, project_name, name, is_featured, featured_days, featured_price, featured_until, boost_tier, views_count, documents"
+        "id, code, user_id, status, project_name, name, is_featured, featured_days, featured_price, featured_until, boost_tier, views_count, documents"
       )
       .eq("id", propertyId)
       .maybeSingle()
@@ -1843,7 +1844,6 @@ export async function managePropertyPromotionAction(
       const isExtendingActive =
         Boolean(prop.is_featured) && existingUntilMs > nowMs
 
-      // في حالة التمديد أثناء نشاط الإعلان: تُضاف الأيام الجديدة فوق تاريخ الانتهاء الحالي
       const baseMs = isExtendingActive ? existingUntilMs : nowMs
       const untilIso = new Date(
         baseMs + addDays * 24 * 60 * 60 * 1000
@@ -1852,7 +1852,6 @@ export async function managePropertyPromotionAction(
       const requestedTier: "super_vip" | "vip_plus" =
         tier || (prop.boost_tier === "vip_plus" ? "vip_plus" : "super_vip")
 
-      // لا يتم تخفيض باقة SUPER VIP نشطة عند التمديد؛ نحتفظ دائماً بالأعلى
       const resolvedTier: "super_vip" | "vip_plus" =
         isExtendingActive && prop.boost_tier === "super_vip"
           ? "super_vip"
@@ -1868,6 +1867,23 @@ export async function managePropertyPromotionAction(
           : null
 
       const currentViews = Math.max(0, Number(prop.views_count) || 0)
+      const unitCode = getUnifiedUnitCode(prop.id, prop.code)
+      const isManualActivation = !options?.boostRequestId
+      const resolvedPaymentMethod =
+        options?.paymentMethod ||
+        (isManualActivation ? "cash_manual" : "flitt")
+
+      const generatedManualRef = `MN-${Date.now().toString(36).toUpperCase().slice(-5)}-${String(prop.id).slice(0, 4).toUpperCase()}`
+      const resolvedOrderRef =
+        options?.orderRef ||
+        currentMeta.boost_pending?.order_ref ||
+        (isManualActivation ? generatedManualRef : existingActiveMeta?.order_ref) ||
+        generatedManualRef
+
+      const resolvedAmountGel =
+        options?.amountGel !== undefined && options?.amountGel !== null
+          ? Math.max(0, Number(options.amountGel) || 0)
+          : currentMeta.boost_pending?.amount_gel ?? prop.featured_price ?? 0
 
       currentDocs.__unit_meta = {
         ...currentMeta,
@@ -1888,16 +1904,9 @@ export async function managePropertyPromotionAction(
             typeof existingActiveMeta?.views_baseline === "number"
               ? existingActiveMeta.views_baseline
               : currentViews,
-          order_ref:
-            options?.orderRef ||
-            currentMeta.boost_pending?.order_ref ||
-            existingActiveMeta?.order_ref ||
-            null,
-          amount_gel:
-            options?.amountGel ??
-            currentMeta.boost_pending?.amount_gel ??
-            prop.featured_price ??
-            null,
+          order_ref: resolvedOrderRef,
+          amount_gel: resolvedAmountGel,
+          payment_method: resolvedPaymentMethod,
         },
       }
 
@@ -1907,8 +1916,8 @@ export async function managePropertyPromotionAction(
           is_featured: true,
           boost_tier: resolvedTier,
           featured_days: totalDays,
-          featured_price:
-            options?.amountGel ?? prop.featured_price ?? undefined,
+          featured_price: resolvedAmountGel,
+          featured_fawry_code: resolvedOrderRef,
           featured_status: "active",
           featured_until: untilIso,
           documents: currentDocs,
@@ -1932,7 +1941,7 @@ export async function managePropertyPromotionAction(
             })
             .eq("id", options.boostRequestId)
         } else {
-          await supabase
+          const { data: updatedPending } = await supabase
             .from("boost_requests")
             .update({
               status: "approved",
@@ -1940,6 +1949,24 @@ export async function managePropertyPromotionAction(
             })
             .eq("unit_id", propertyId)
             .in("status", ["pending_admin_approval", "paid_pending_approval"])
+            .select("id")
+
+          // في حال التفعيل اليدوي (كاش أو هدية) بدون طلب مسبق: ننشئ سجل رسمي في boost_requests للمتابعة المالية
+          if (!updatedPending || updatedPending.length === 0) {
+            await supabase.from("boost_requests").insert({
+              unit_id: prop.id,
+              unit_code: unitCode,
+              user_id: prop.user_id || null,
+              package_tier:
+                resolvedTier === "vip_plus" ? "VIP+" : "SUPER VIP",
+              duration_days: addDays,
+              amount_gel: resolvedAmountGel,
+              payment_method: resolvedPaymentMethod,
+              status: "approved",
+              order_ref: resolvedOrderRef,
+              approved_at: nowIso,
+            })
+          }
         }
       } catch {}
 

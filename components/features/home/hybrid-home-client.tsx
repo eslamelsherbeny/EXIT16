@@ -19,6 +19,10 @@ import {
   SponsoredRightAlignedBanner,
   TopUpBalanceGelSection,
 } from './home-market-sections'
+import {
+  ActiveBoostFloatingWidget,
+  type MyActiveBoostItem,
+} from './active-boost-floating-widget'
 
 export type { HomeUnitCardItem }
 
@@ -30,11 +34,13 @@ export function HybridHomeClient({
   realUnitCount,
   formattedValue,
   valueUnitLabel,
+  myActiveBoosts = [],
 }: {
   dbUnits: HomeUnitCardItem[]
   realUnitCount: number
   formattedValue: string
   valueUnitLabel: string
+  myActiveBoosts?: MyActiveBoostItem[]
 }) {
   const { t: dict, locale, dir } = useTranslation()
   const activeLocale = (locale as LocaleCode) || 'ar'
@@ -123,6 +129,9 @@ export function HybridHomeClient({
       dir={dir}
       className="min-h-screen overflow-x-hidden bg-[#f6f8fc] text-[#0f1d40]"
     >
+      {/* الويدجت العائم لصاحب الإعلان النشط فقط */}
+      <ActiveBoostFloatingWidget items={myActiveBoosts} />
+
       {/* 1. الهيرو */}
       <section className="aqar-animated-hero relative flex min-h-[640px] items-center overflow-hidden border-b border-slate-200/80 py-10 lg:min-h-[700px] lg:py-16">
         <div
@@ -481,7 +490,7 @@ export function HybridHomeClient({
         <Home3DMapSection />
       </div>
 
-      {/* 12. سيكشن باقات الإعلانات وشحن الرصيد */}
+      {/* 12. سيكشن باقات الإعلانات */}
       <TopUpBalanceGelSection />
 
       {/* 13. شريط الإحصائيات الموثقة بالدولار ($) */}

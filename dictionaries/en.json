@@ -349,6 +349,18 @@
       "recentTitle": "Recently Added",
       "recentSub": "Fresh installment exit units sorted by date — newest first",
       "recentAllBtn": "All New →"
+    },
+    "activeBoostWidget": {
+      "activeLabel": "Your Boost Is Live",
+      "pendingLabel": "Boost Pending Activation",
+      "remainingPrefix": "Left",
+      "dayWord": "d",
+      "hourWord": "h",
+      "viewsWord": "views",
+      "viewStatsBtn": "View Ad Stats",
+      "minimizeAria": "Minimize",
+      "expandAria": "Show active boost status",
+      "moreUnitsSuffix": "more"
     }
   },
   "footer": {
@@ -1454,7 +1466,9 @@
       "newSectionHeader": "New",
       "olderSectionHeader": "Earlier",
       "emptyTitle": "No notifications yet",
-      "emptySubtitle": "All updates regarding your purchase offers and listed units will appear here."
+      "emptySubtitle": "All updates regarding your purchase offers and listed units will appear here.",
+      "loadingMore": "Loading more notifications...",
+      "loadMoreBtn": "Load more"
     }
   },
   "accountComponents": {
@@ -1727,7 +1741,9 @@
       "boostRejectedBannerTitle": "Last Boost Request Could Not Be Activated",
       "boostRejectedRefundHint": "If you paid by card, contact our team via WhatsApp for assistance or a refund.",
       "waSpeedUpMsgPrefix": "Hello DualDealz team, I paid for a boost package via Flitt and would like to speed up activation",
-      "waRefundMsgPrefix": "Hello DualDealz team, I need assistance regarding boost request ref"
+      "waRefundMsgPrefix": "Hello DualDealz team, I need assistance regarding boost request ref",
+      "boostViewPackagesBtn": "View Packages / Add Days",
+      "boostWaitingStackNote": "Note: You have a paid request awaiting activation. You can preview packages below or add more days and they will stack upon activation."
     },
     "buyer": {
       "popularAreas": [
@@ -4279,7 +4295,8 @@
         "negotiable": "Negotiable",
         "adCodeLabel": "Ad Code:",
         "waDocsVerifiedShort": "WhatsApp ✓",
-        "pausedByAdmin": "Paused by Admin"
+        "pausedByAdmin": "Paused by Admin",
+        "selectedUnitBadge": "Selected Unit"
       },
       "header": {
         "promoAllTitle": "Ad & Promotion Requests in All Countries 🌍",
@@ -4520,6 +4537,22 @@
         "excPausedSeller": "Unit is temporarily paused at the owner's request.",
         "excRejected": "Unit was rejected and the owner was notified with the reason.",
         "excDeleted": "Unit was deleted by the owner (trash bin for 7 days)."
+      },
+      "statusMenu": {
+        "pipelineGroupLabel": "Unit Stages (1 – 6)",
+        "otherGroupLabel": "Other Statuses",
+        "autoBadge": "Auto",
+        "currentBadge": "Current",
+        "lockedInDealTitle": "Unit Is In an Active Deal",
+        "lockedInDealDesc": "Status cannot be changed manually during an active transfer deal. Manage it from the Deals page.",
+        "lockedHasOffersTitle": "Active Offers / Negotiation",
+        "lockedHasOffersDesc": "Status cannot be changed manually while active offers exist. Review or withdraw them from Offers.",
+        "lockedSoldTitle": "Unit Sold & Closed",
+        "lockedSoldDesc": "This unit is permanently marked as sold and cannot be changed.",
+        "goToDealsBtn": "Manage in Deals",
+        "goToOffersBtn": "View Unit Offers",
+        "incompleteBannerTitle": "0. Unit Is Incomplete",
+        "incompleteBannerDesc": "Missing photos or documents from the seller. You can publish after WhatsApp doc verification or move to review."
       }
     },
     "contactVerification": {
@@ -4660,7 +4693,12 @@
       "justNowWord": "Just now",
       "minsAgoSuffix": "m",
       "hoursAgoSuffix": "h",
-      "daysAgoSuffix": "d"
+      "daysAgoSuffix": "d",
+      "manualBadge": "Manual / Cash Boost",
+      "cashAmountLabel": "Cash Amount Received (Optional — ₾)",
+      "cashAmountPlaceholder": "Leave 0 for complimentary or enter GEL amount",
+      "cashNoteHint": "Manual boosts are logged automatically in History with a reference code for accounting.",
+      "copiedRefToast": "Copied ✓"
     }
   },
   "smartMatcher": {

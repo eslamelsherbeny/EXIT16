@@ -4,23 +4,14 @@ import {
   HybridHomeClient,
   type HomeUnitCardItem,
 } from '@/components/features/home/hybrid-home-client'
+import type { MyActiveBoostItem } from '@/components/features/home/active-boost-floating-widget'
 import { getServerI18n } from '@/lib/get-server-dictionary'
 import { sanitizeGeorgiaProjectTitle } from '@/lib/offer-helpers'
+import { extractUserIdFromCookie } from '@/lib/session-security'
 import { isNonGeorgianLegacyArea } from '@/lib/smart-matcher'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
-
-async function getSupabase() {
-  const cookieStore = await cookies()
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} },
-    }
-  )
-}
 
 const DEFAULT_FALLBACK_IMG =
   'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1000&q=80'
@@ -41,12 +32,25 @@ export default async function HomePage() {
     dict.common?.frequencies?.monthly ||
     ''
 
+  const cookieStore = await cookies()
+  const sessionUserId = extractUserIdFromCookie(
+    cookieStore.get('user_session')?.value
+  )
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} },
+    }
+  )
+
   let realUnitCount = 0
   let totalMarketValue = 0
   const dbUnits: HomeUnitCardItem[] = []
+  const myActiveBoosts: MyActiveBoostItem[] = []
 
   try {
-    const supabase = await getSupabase()
     const [{ data: units }, { data: acceptedOffers }] = await Promise.all([
       supabase
         .from('sell_requests')
@@ -156,8 +160,13 @@ export default async function HomePage() {
           u.featured_status !== 'cancelled_by_seller' &&
           (!u.featured_until || new Date(u.featured_until) > new Date())
 
+        const isPendingBoost =
+          !isFeat &&
+          (u.featured_status === 'pending_payment' ||
+            Boolean(meta.boost_pending))
+
         const rawTier = String(
-          u.boost_tier || meta.boost_tier || ''
+          u.boost_tier || meta.boost_tier || meta.boost_pending?.tier || ''
         ).toLowerCase()
 
         const resolvedBoostTier: 'super_vip' | 'vip_plus' | null = isFeat
@@ -165,6 +174,29 @@ export default async function HomePage() {
             ? 'vip_plus'
             : 'super_vip'
           : null
+
+        const cleanTitle = sanitizeGeorgiaProjectTitle(u.project_name)
+        const viewsCount = Math.max(1, Number(u.views_count) || 1)
+
+        // جمع إعلانات المستخدم المسجل حالياً (النشطة أو بانتظار التفعيل) لعرض الويدجت العائم له وحده
+        if (
+          sessionUserId &&
+          String(u.user_id || '') === String(sessionUserId) &&
+          (isFeat || isPendingBoost)
+        ) {
+          myActiveBoosts.push({
+            unitId: String(u.id),
+            unitCode: code,
+            headline: cleanTitle || code,
+            tier:
+              rawTier === 'vip_plus' || rawTier === '+vip'
+                ? 'vip_plus'
+                : 'super_vip',
+            isPendingActivation: isPendingBoost,
+            featuredUntil: u.featured_until || null,
+            viewsCount,
+          })
+        }
 
         const unifiedPublishedAt =
           u.approved_at || meta.approved_at || u.created_at
@@ -176,7 +208,7 @@ export default async function HomePage() {
         dbUnits.push({
           id: String(u.id),
           code,
-          title: sanitizeGeorgiaProjectTitle(u.project_name),
+          title: cleanTitle,
           developer: u.developer_name || meta.developer_name || '',
           area: u.area || meta.area || 'Tbilisi - Saburtalo',
           unitTypeLabel: u.unit_type || meta.unit_type || 'Apartment',
@@ -211,7 +243,7 @@ export default async function HomePage() {
           isFeatured: isFeat,
           boostTier: resolvedBoostTier,
           docsVerified: u.docs_verified ?? true,
-          viewsCount: Math.max(1, Number(u.views_count) || 1),
+          viewsCount,
           createdAt: unifiedPublishedAt,
           features: Array.isArray(u.features)
             ? u.features
@@ -252,6 +284,7 @@ export default async function HomePage() {
       realUnitCount={realUnitCount}
       formattedValue={formattedValue}
       valueUnitLabel={valueUnitLabel}
+      myActiveBoosts={myActiveBoosts}
     />
   )
 }

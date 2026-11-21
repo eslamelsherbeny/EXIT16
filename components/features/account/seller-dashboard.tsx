@@ -577,7 +577,7 @@ export function SellerDashboard({
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span
                             dir="ltr"
-                            className="rounded-md bg-slate-900/90 px-1.5 py-0.5 font-mono text-[10px] font-bold text-white"
+                            className="inline-block rounded-md bg-slate-900/90 px-1.5 py-0.5 font-mono text-[10px] font-bold text-white"
                           >
                             {itemCode}
                           </span>
@@ -692,7 +692,9 @@ export function SellerDashboard({
                     title={t.copyUnitCodeTitle}
                     className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-100 px-2 py-0.5 font-mono text-[11px] font-black text-[#0f1d40] transition hover:border-[#007a5a] hover:bg-[#eaf8f2] hover:text-[#007a5a]"
                   >
-                    <span dir="ltr">{activeUnitCode}</span>
+                    <span dir="ltr" className="inline-block">
+                      {activeUnitCode}
+                    </span>
                     {copiedUnitCode ? (
                       <Check className="size-3 text-[#007a5a]" />
                     ) : (
@@ -916,11 +918,10 @@ export function SellerDashboard({
               <span className="font-bold text-gray-600">
                 {t.completionLabel} ({comp.completedCount}/{comp.total})
               </span>
-              <strong
-                dir="ltr"
-                className="font-extrabold text-[var(--brand-primary,#007a5a)]"
-              >
-                {comp.percentage}%
+              <strong className="font-extrabold text-[var(--brand-primary,#007a5a)]">
+                <span dir="ltr" className="inline-block tabular-nums">
+                  {comp.percentage}%
+                </span>
               </strong>
             </div>
             <div className="h-2.5 w-full overflow-hidden rounded-full bg-gray-200">
@@ -931,27 +932,25 @@ export function SellerDashboard({
             </div>
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl border border-gray-100 bg-[#f8faf9] p-3.5">
+          <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl border border-gray-100 bg-[#f8faf9] p-3.5 text-start">
             <div>
               <p className="text-[11px] font-semibold text-gray-500">
                 {t.contractPriceLabel}
               </p>
-              <strong
-                dir="ltr"
-                className="mt-0.5 block text-base font-black text-[var(--brand-navy,#0a1122)] tabular-nums sm:text-lg"
-              >
-                {money(activeUnit.contract_price)}
+              <strong className="mt-0.5 block text-base font-black text-[var(--brand-navy,#0a1122)] sm:text-lg">
+                <span dir="ltr" className="inline-block tabular-nums">
+                  {money(activeUnit.contract_price)}
+                </span>
               </strong>
             </div>
             <div className="border-s border-gray-200/80 ps-3">
               <p className="text-[11px] font-semibold text-gray-500">
                 {t.paidAmountLabel}
               </p>
-              <strong
-                dir="ltr"
-                className="mt-0.5 block text-base font-black text-[var(--brand-primary,#007a5a)] tabular-nums sm:text-lg"
-              >
-                {money(activeUnit.paid_amount)}
+              <strong className="mt-0.5 block text-base font-black text-[var(--brand-primary,#007a5a)] sm:text-lg">
+                <span dir="ltr" className="inline-block tabular-nums">
+                  {money(activeUnit.paid_amount)}
+                </span>
               </strong>
             </div>
           </div>

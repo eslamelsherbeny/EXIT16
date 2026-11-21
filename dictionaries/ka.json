@@ -349,6 +349,18 @@
       "recentTitle": "ახალი დამატებული",
       "recentSub": "ახალი განცხადებები თარიღის მიხედვით — უახლესი პირველ ადგილზე",
       "recentAllBtn": "ყველა ახალი →"
+    },
+    "activeBoostWidget": {
+      "activeLabel": "თქვენი VIP აქტიურია",
+      "pendingLabel": "VIP ელოდება გააქტიურებას",
+      "remainingPrefix": "დარჩა",
+      "dayWord": "დღე",
+      "hourWord": "სთ",
+      "viewsWord": "ნახვა",
+      "viewStatsBtn": "განცხადების სტატისტიკა",
+      "minimizeAria": "ჩაკეცვა",
+      "expandAria": "VIP სტატუსის ნახვა",
+      "moreUnitsSuffix": "სხვა"
     }
   },
   "footer": {
@@ -1454,7 +1466,9 @@
       "newSectionHeader": "ახალი",
       "olderSectionHeader": "უფრო ძველი",
       "emptyTitle": "შეტყობინებები ჯერ არ არის",
-      "emptySubtitle": "აქ გამოჩნდება ყველა განახლება თქვენს შეთავაზებებსა და ობიექტებზე."
+      "emptySubtitle": "აქ გამოჩნდება ყველა განახლება თქვენს შეთავაზებებსა და ობიექტებზე.",
+      "loadingMore": "იტვირთება შემდეგი შეტყობინებები...",
+      "loadMoreBtn": "მეტის ჩატვირთვა"
     }
   },
   "accountComponents": {
@@ -1727,7 +1741,9 @@
       "boostRejectedBannerTitle": "ბოლო VIP მოთხოვნა ვერ გააქტიურდა",
       "boostRejectedRefundHint": "ბარათით გადახდის შემთხვევაში, დაგვიკავშირდით WhatsApp-ზე დასაბრუნებლად.",
       "waSpeedUpMsgPrefix": "გამარჯობა DualDealz, გადავიხადე VIP პაკეტი Flitt-ით და მსურს გააქტიურების დაჩქარება",
-      "waRefundMsgPrefix": "გამარჯობა DualDealz, მჭირდება დახმარება VIP მოთხოვნაზე"
+      "waRefundMsgPrefix": "გამარჯობა DualDealz, მჭირდება დახმარება VIP მოთხოვნაზე",
+      "boostViewPackagesBtn": "პაკეტების ნახვა / დღეების დამატება",
+      "boostWaitingStackNote": "შენიშვნა: გაქვთ გადახდილი მოთხოვნა გააქტიურების მოლოდინში. შეგიძლიათ ნახოთ პაკეტები ქვემოთ ან დაამატოთ დღეები — ისინი დაჯამდება."
     },
     "buyer": {
       "popularAreas": [
@@ -4279,7 +4295,8 @@
         "negotiable": "ფასდაკლებით",
         "adCodeLabel": "VIP კოდი:",
         "waDocsVerifiedShort": "WhatsApp ✓",
-        "pausedByAdmin": "შეჩერებულია ადმინის მიერ"
+        "pausedByAdmin": "შეჩერებულია ადმინის მიერ",
+        "selectedUnitBadge": "არჩეული ობიექტი"
       },
       "header": {
         "promoAllTitle": "VIP რეკლამის მოთხოვნები — ყველა ქვეყანა 🌍",
@@ -4520,6 +4537,22 @@
         "excPausedSeller": "ობიექტი დროებით შეჩერებულია მესაკუთრის მიერ.",
         "excRejected": "ობიექტი უარყოფილია და მესაკუთრეს ეცნობა მიზეზი.",
         "excDeleted": "ობიექტი წაშლილია მესაკუთრის მიერ (7 დღიანი არქივი)."
+      },
+      "statusMenu": {
+        "pipelineGroupLabel": "ობიექტის ეტაპები (1 – 6)",
+        "otherGroupLabel": "სხვა სტატუსები",
+        "autoBadge": "ავტო",
+        "currentBadge": "მიმდინარე",
+        "lockedInDealTitle": "ობიექტი აქტიურ გარიგებაშია",
+        "lockedInDealDesc": "სტატუსის ხელით შეცვლა შეუძლებელია მიმდინარე გარიგებისას. მართეთ «გარიგებების» გვერდიდან.",
+        "lockedHasOffersTitle": "აქტიური შეთავაზებები / მოლაპარაკება",
+        "lockedHasOffersDesc": "აქტიური შეთავაზებების დროს სტატუსი ხელით არ იცვლება. მართეთ «შეთავაზებებიდან».",
+        "lockedSoldTitle": "ობიექტი გაყიდულია",
+        "lockedSoldDesc": "გარიგება საბოლოოდ დახურულია და სტატუსი არ იცვლება.",
+        "goToDealsBtn": "გარიგებებში გადასვლა",
+        "goToOffersBtn": "ობიექტის შეთავაზებები",
+        "incompleteBannerTitle": "0. ობიექტი არასრულია",
+        "incompleteBannerDesc": "აკლია ფოტოები ან დოკუმენტები. შეგიძლიათ გამოაქვეყნოთ WhatsApp-ით დადასტურების შემდეგ ან გადაიტანოთ შემოწმებაზე."
       }
     },
     "contactVerification": {
@@ -4660,7 +4693,12 @@
       "justNowWord": "ახლახანს",
       "minsAgoSuffix": "წთ",
       "hoursAgoSuffix": "სთ",
-      "daysAgoSuffix": "დღე"
+      "daysAgoSuffix": "დღე",
+      "manualBadge": "ხელით / ნაღდი",
+      "cashAmountLabel": "მიღებული თანხა ნაღდად (არასავალდებულო — ₾)",
+      "cashAmountPlaceholder": "0 უფასოსთვის ან შეიყვანეთ თანხა ₾-ში",
+      "cashNoteHint": "ხელით გააქტიურება ავტომატურად აისახება ისტორიაში აღრიცხვის კოდით.",
+      "copiedRefToast": "დაკოპირდა ✓"
     }
   },
   "smartMatcher": {

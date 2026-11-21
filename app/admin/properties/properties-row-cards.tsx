@@ -7,6 +7,7 @@ import {
   BarChart3,
   Check,
   CheckCircle2,
+  ChevronDown,
   ClipboardList,
   Crown,
   Download,
@@ -18,7 +19,6 @@ import {
   FileText,
   Flame,
   Handshake,
-  Info,
   Loader2,
   Lock,
   MessageCircle,
@@ -142,6 +142,8 @@ export type SharedPropertyCardProps = {
   verificationMap: Record<string, UserVerificationBadgeInfo>
   openMenuId: string | null
   setOpenMenuId: (id: string | null) => void
+  openStatusMenuId: string | null
+  setOpenStatusMenuId: (id: string | null) => void
   onConfirmAction: (action: ConfirmPropertyAction) => void
   onOpenDetails: (property: SellRequest) => void
   onOpenEdit: (property: SellRequest) => void
@@ -153,50 +155,32 @@ export type SharedPropertyCardProps = {
     offer: any,
     waitlistCount: number
   ) => void
-  onOpenBlockedStage: (
-    property: SellRequest,
-    stage: string,
-    offerId?: string
-  ) => void
   onExportSingle: (property: SellRequest, format: "excel" | "pdf") => void
   matchedBuyersCount: number
   validOffers: any[]
   docsCount: number
 }
 
+// قائمة مراحل موحدة لكل الوحدات (نفس الشكل في الموبايل والكمبيوتر، مع تنبيه «غير مكتملة» وتنبيهات المراحل المحمية)
 function UnitStatusControl(props: SharedPropertyCardProps) {
   const {
     property,
     currentSt,
     isAutoLockedStage,
     stObj,
-    manualStatusOptions,
     pending,
     validOffers,
+    t,
+    openStatusMenuId,
+    setOpenStatusMenuId,
+    setOpenMenuId,
     onConfirmAction,
-    onOpenBlockedStage,
+    onOpenOffersLog,
   } = props
 
-  if (currentSt === "sold") {
-    const acceptedOffer = validOffers.find((o) => o.status === "accepted")
-    return (
-      <button
-        type="button"
-        onClick={() =>
-          onOpenBlockedStage(
-            property,
-            "sold",
-            acceptedOffer ? String(acceptedOffer.id) : undefined
-          )
-        }
-        className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-xl border border-[#007a5a] bg-[#007a5a] px-3 text-center text-[11px] font-extrabold text-white transition hover:bg-[#006248]"
-      >
-        <Lock className="size-3.5 shrink-0 opacity-85" />
-        <span className="truncate">{stObj.label}</span>
-        <Info className="size-3.5 shrink-0 opacity-85" />
-      </button>
-    )
-  }
+  const sMenu = (t.statusMenu as Record<string, string>) || {}
+  const statuses = (t.statuses as Record<string, string>) || {}
+  const isOpen = openStatusMenuId === property.id
 
   if (currentSt === "deleted_by_seller") {
     return (
@@ -207,55 +191,284 @@ function UnitStatusControl(props: SharedPropertyCardProps) {
     )
   }
 
-  if (isAutoLockedStage) {
-    const acceptedOffer = validOffers.find((o) => o.status === "accepted")
-    return (
-      <button
-        type="button"
-        onClick={() =>
-          onOpenBlockedStage(
-            property,
-            currentSt,
-            acceptedOffer ? String(acceptedOffer.id) : undefined
-          )
-        }
-        className={`inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-xl border px-3 text-center text-[11px] font-extrabold transition ${stObj.badge}`}
-      >
-        <span className="truncate">{stObj.label}</span>
-        <Info className="size-3.5 shrink-0 opacity-80" />
-      </button>
-    )
-  }
+  const isLocked = isAutoLockedStage || currentSt === "sold"
+  const acceptedOffer = validOffers.find((o) => o.status === "accepted")
 
-  const selectValue = currentSt === "incomplete" ? "pending" : currentSt
+  const pipelineItems: Array<{
+    value: string
+    label: string
+    isAuto: boolean
+    isCurrent: boolean
+  }> = [
+    {
+      value: "pending",
+      label: statuses.pending,
+      isAuto: false,
+      isCurrent: currentSt === "pending",
+    },
+    {
+      value: "under_review",
+      label: statuses.under_review,
+      isAuto: false,
+      isCurrent: currentSt === "under_review",
+    },
+    {
+      value: "active",
+      label: statuses.active,
+      isAuto: false,
+      isCurrent: currentSt === "active",
+    },
+    {
+      value: "offer_received",
+      label: statuses.offer_received,
+      isAuto: true,
+      isCurrent: currentSt === "has_offers" || currentSt === "negotiating",
+    },
+    {
+      value: "transferring",
+      label: statuses.transferring,
+      isAuto: true,
+      isCurrent: currentSt === "in_deal",
+    },
+    {
+      value: "sold",
+      label: statuses.sold,
+      isAuto: true,
+      isCurrent: currentSt === "sold",
+    },
+  ]
+
+  const extraItems: Array<{
+    value: string
+    label: string
+    isCurrent: boolean
+  }> = [
+    {
+      value: "paused_by_admin",
+      label: statuses.paused_by_admin,
+      isCurrent: currentSt === "paused_by_admin",
+    },
+    {
+      value: "paused_by_seller",
+      label: statuses.paused_by_seller,
+      isCurrent: currentSt === "paused_by_seller",
+    },
+    {
+      value: "rejected",
+      label: statuses.rejected,
+      isCurrent: currentSt === "rejected",
+    },
+  ]
+
+  const lockBanner =
+    currentSt === "in_deal"
+      ? {
+          title: sMenu.lockedInDealTitle,
+          desc: sMenu.lockedInDealDesc,
+          tone: "border-emerald-200 bg-[#eaf8f2] text-[#0f1d40]",
+          btnKind: "deals" as const,
+        }
+      : currentSt === "has_offers" || currentSt === "negotiating"
+        ? {
+            title: sMenu.lockedHasOffersTitle,
+            desc: sMenu.lockedHasOffersDesc,
+            tone: "border-amber-200 bg-amber-50 text-amber-950",
+            btnKind: "offers" as const,
+          }
+        : currentSt === "sold"
+          ? {
+              title: sMenu.lockedSoldTitle,
+              desc: sMenu.lockedSoldDesc,
+              tone: "border-slate-200 bg-slate-50 text-[#0f1d40]",
+              btnKind: acceptedOffer ? ("deals" as const) : null,
+            }
+          : null
 
   return (
-    <select
-      disabled={pending}
-      value={selectValue}
-      onChange={(e) => {
-        const nextSt = e.target.value
-        if (nextSt !== selectValue) {
-          onConfirmAction({
-            type: "status",
-            property,
-            newStatus: nextSt,
-          })
-        }
-      }}
-      className={`h-9 w-full cursor-pointer rounded-xl border px-2 text-center text-[11px] font-extrabold transition focus:outline-none [text-align-last:center] ${stObj.badge}`}
-    >
-      {manualStatusOptions.map((opt) => (
-        <option
-          key={opt.value}
-          value={opt.value}
-          disabled={opt.disabled}
-          className="bg-white text-xs text-[#0f1d40] disabled:text-slate-400"
+    <div className="relative w-full" onClick={(e) => e.stopPropagation()}>
+      <button
+        type="button"
+        disabled={pending}
+        onClick={(e) => {
+          e.stopPropagation()
+          setOpenMenuId(null)
+          setOpenStatusMenuId(isOpen ? null : property.id)
+        }}
+        className={`inline-flex h-9 w-full items-center justify-between gap-1.5 rounded-xl border px-3 text-[11px] font-extrabold transition focus:outline-none disabled:opacity-50 ${stObj.badge}`}
+      >
+        <span className="flex min-w-0 items-center gap-1.5 truncate">
+          {isLocked && <Lock className="size-3 shrink-0 opacity-85" />}
+          <span className="truncate">{stObj.label}</span>
+        </span>
+        <ChevronDown
+          className={`size-3.5 shrink-0 opacity-80 transition-transform duration-150 ${
+            isOpen ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+
+      {isOpen && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="absolute end-0 top-10 z-50 w-full min-w-[260px] overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 text-start shadow-2xl sm:w-[295px]"
         >
-          {opt.label}
-        </option>
-      ))}
-    </select>
+          {/* تنبيه علوي يشرح السبب عند وجود صفقة أو عروض نشطة أو بيع */}
+          {lockBanner && (
+            <div
+              className={`mb-2 rounded-xl border p-2.5 text-[11px] ${lockBanner.tone}`}
+            >
+              <div className="flex items-start gap-1.5">
+                <Lock className="mt-0.5 size-3.5 shrink-0 text-[#007a5a]" />
+                <div className="min-w-0 flex-1">
+                  <strong className="block font-black">
+                    {lockBanner.title}
+                  </strong>
+                  <p className="mt-0.5 text-[10.5px] leading-relaxed opacity-85">
+                    {lockBanner.desc}
+                  </p>
+                </div>
+              </div>
+
+              {lockBanner.btnKind === "deals" && (
+                <Link
+                  href={
+                    acceptedOffer
+                      ? `/admin/deals?offerId=${acceptedOffer.id}`
+                      : "/admin/deals"
+                  }
+                  onClick={() => setOpenStatusMenuId(null)}
+                  className="mt-2 flex h-7.5 w-full items-center justify-center gap-1.5 rounded-lg bg-[#007a5a] px-2.5 text-[11px] font-extrabold text-white transition hover:bg-[#006248]"
+                >
+                  <Handshake className="size-3.5" />
+                  <span>{sMenu.goToDealsBtn}</span>
+                </Link>
+              )}
+
+              {lockBanner.btnKind === "offers" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpenStatusMenuId(null)
+                    onOpenOffersLog(property)
+                  }}
+                  className="mt-2 flex h-7.5 w-full items-center justify-center gap-1.5 rounded-lg bg-[#0f1d40] px-2.5 text-[11px] font-extrabold text-white transition hover:bg-[#1e293b]"
+                >
+                  <ClipboardList className="size-3.5 text-emerald-300" />
+                  <span>{sMenu.goToOffersBtn}</span>
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* تنبيه واضح للوحدات غير المكتملة قبل المرحلة ١ */}
+          {currentSt === "incomplete" && (
+            <div className="mb-2 rounded-xl border border-amber-300 bg-amber-50 p-2.5 text-[11px] text-amber-950">
+              <strong className="block font-black">
+                {sMenu.incompleteBannerTitle}
+              </strong>
+              <p className="mt-0.5 text-[10.5px] leading-relaxed opacity-90">
+                {sMenu.incompleteBannerDesc}
+              </p>
+            </div>
+          )}
+
+          {/* مجموعة المراحل الأساسية 1 - 6 */}
+          <div className="px-2 pt-0.5 pb-1 text-[10px] font-extrabold text-slate-400">
+            {sMenu.pipelineGroupLabel}
+          </div>
+
+          <div className="space-y-0.5">
+            {pipelineItems.map((item) => {
+              const isDisabled = isLocked || item.isAuto || item.isCurrent
+              return (
+                <button
+                  key={item.value}
+                  type="button"
+                  disabled={isDisabled}
+                  onClick={() => {
+                    setOpenStatusMenuId(null)
+                    onConfirmAction({
+                      type: "status",
+                      property,
+                      newStatus: item.value,
+                    })
+                  }}
+                  className={`flex w-full items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-start text-[11.5px] transition ${
+                    item.isCurrent
+                      ? "bg-[#eaf8f2] font-black text-[#007a5a] ring-1 ring-emerald-200"
+                      : isLocked || item.isAuto
+                        ? "cursor-not-allowed font-semibold text-slate-400 opacity-60"
+                        : "cursor-pointer font-bold text-[#0f1d40] hover:bg-slate-100"
+                  }`}
+                >
+                  <span className="flex min-w-0 items-center gap-1.5 truncate">
+                    {item.isCurrent ? (
+                      <Check className="size-3.5 shrink-0 text-[#007a5a]" />
+                    ) : item.isAuto ? (
+                      <Lock className="size-3 shrink-0 text-slate-400" />
+                    ) : (
+                      <span className="size-1.5 shrink-0 rounded-full bg-slate-300" />
+                    )}
+                    <span className="truncate">{item.label}</span>
+                  </span>
+
+                  {item.isCurrent ? (
+                    <span className="shrink-0 rounded-full bg-[#007a5a] px-2 py-0.5 text-[9px] font-extrabold text-white">
+                      {sMenu.currentBadge}
+                    </span>
+                  ) : item.isAuto ? (
+                    <span className="shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-500">
+                      {sMenu.autoBadge}
+                    </span>
+                  ) : null}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* مجموعة الحالات الإضافية */}
+          <div className="my-1.5 border-t border-slate-100" />
+          <div className="px-2 pb-1 text-[10px] font-extrabold text-slate-400">
+            {sMenu.otherGroupLabel}
+          </div>
+
+          <div className="space-y-0.5">
+            {extraItems.map((item) => {
+              const isDisabled = isLocked || item.isCurrent
+              return (
+                <button
+                  key={item.value}
+                  type="button"
+                  disabled={isDisabled}
+                  onClick={() => {
+                    setOpenStatusMenuId(null)
+                    onConfirmAction({
+                      type: "status",
+                      property,
+                      newStatus: item.value,
+                    })
+                  }}
+                  className={`flex w-full items-center justify-between gap-2 rounded-xl px-2.5 py-1.5 text-start text-[11.5px] transition ${
+                    item.isCurrent
+                      ? "bg-rose-50 font-black text-rose-800 ring-1 ring-rose-200"
+                      : isLocked
+                        ? "cursor-not-allowed font-semibold text-slate-400 opacity-55"
+                        : "cursor-pointer font-bold text-slate-700 hover:bg-slate-100"
+                  }`}
+                >
+                  <span className="truncate">{item.label}</span>
+                  {item.isCurrent && (
+                    <span className="shrink-0 rounded-full bg-rose-600 px-2 py-0.5 text-[9px] font-extrabold text-white">
+                      {sMenu.currentBadge}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -356,7 +569,7 @@ export function PropertyActivityBadges({
           <span>{propBadges.waDocsVerifiedShort}</span>
         ) : (
           <>
-            <span dir="ltr" className="tabular-nums">
+            <span dir="ltr" className="inline-block tabular-nums">
               {docsCount}/4
             </span>
             <span>{propBadges.docWord}</span>
@@ -502,6 +715,7 @@ function PropertyThreeDotsMenu(props: SharedPropertyCardProps) {
     isFeaturedActive,
     openMenuId,
     setOpenMenuId,
+    setOpenStatusMenuId,
     docsCount,
     matchedBuyersCount,
     validOffers,
@@ -534,6 +748,7 @@ function PropertyThreeDotsMenu(props: SharedPropertyCardProps) {
         aria-label={expL.moreActionsAria}
         onClick={(e) => {
           e.stopPropagation()
+          setOpenStatusMenuId(null)
           setOpenMenuId(isMenuOpen ? null : property.id)
         }}
         className="flex size-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-[#007a5a] hover:bg-slate-50 hover:text-[#0f1d40]"
@@ -561,7 +776,7 @@ function PropertyThreeDotsMenu(props: SharedPropertyCardProps) {
             </span>
             <span
               dir="ltr"
-              className="rounded-md bg-[#eaf8f2] px-1.5 py-0.5 font-mono text-[10px] font-black text-[#007a5a]"
+              className="inline-block rounded-md bg-[#eaf8f2] px-1.5 py-0.5 font-mono text-[10px] font-black text-[#007a5a]"
             >
               {docsCount}/4
             </span>
@@ -812,10 +1027,14 @@ export function PropertyMobileCard(props: SharedPropertyCardProps) {
     leadsPrompts,
     pending,
     verificationMap,
+    openMenuId,
+    openStatusMenuId,
     onConfirmAction,
     onOpenDetails,
   } = props
 
+  const isAnyMenuOpen =
+    openMenuId === property.id || openStatusMenuId === property.id
   const isVipPlus = property.boost_tier === "vip_plus"
   const remainingDays = computeRemainingBoostDays(property)
   const waText = buildSellerWhatsAppMessage({
@@ -831,12 +1050,14 @@ export function PropertyMobileCard(props: SharedPropertyCardProps) {
 
   return (
     <div
-      id={`prop-row-${property.id}`}
-      className={`relative overflow-visible rounded-2xl border bg-white shadow-xs transition ${
+      data-prop-row-id={property.id}
+      className={`relative scroll-mt-24 overflow-visible rounded-2xl border bg-white shadow-xs transition ${
+        isAnyMenuOpen ? "z-30" : "z-0"
+      } ${
         isLoading
           ? "border-[#007a5a] opacity-75"
           : isHighlighted
-            ? "border-2 border-[#007a5a] ring-2 ring-[#007a5a]/25"
+            ? "border-2 border-[#007a5a] bg-[#eaf8f2]/35 ring-4 ring-[#007a5a]/20"
             : currentSt === "sold"
               ? "border-emerald-200/90 bg-slate-50/40 border-s-4 border-s-[#0f1d40]"
               : currentSt === "deleted_by_seller"
@@ -848,6 +1069,13 @@ export function PropertyMobileCard(props: SharedPropertyCardProps) {
                     : "border-slate-200/90"
       }`}
     >
+      {isHighlighted && propBadges.selectedUnitBadge && (
+        <div className="flex items-center gap-1.5 rounded-t-2xl border-b border-emerald-200 bg-[#007a5a] px-4 py-1.5 text-[11px] font-extrabold text-white">
+          <span className="size-2 animate-pulse rounded-full bg-emerald-200" />
+          <span>{propBadges.selectedUnitBadge}</span>
+        </div>
+      )}
+
       {isLoading && (
         <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-white/65 backdrop-blur-[1px]">
           <div className="flex items-center gap-2 rounded-full bg-[#0f1d40] px-3.5 py-1.5 text-xs font-bold text-white shadow-md">
@@ -857,11 +1085,14 @@ export function PropertyMobileCard(props: SharedPropertyCardProps) {
         </div>
       )}
 
-      <div className="p-4">
+      <div className="p-4 text-start">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-1.5">
-              <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[10px] font-black text-[#0f1d40]">
+              <span
+                dir="ltr"
+                className="inline-block rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[10px] font-black text-[#0f1d40]"
+              >
                 {deriveShortUnitCode(property.id, property.code)}
               </span>
               <h3 className="truncate text-sm font-black text-[#0f1d40]">
@@ -893,62 +1124,63 @@ export function PropertyMobileCard(props: SharedPropertyCardProps) {
           <PropertyThreeDotsMenu {...props} />
         </div>
 
-        <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl border border-slate-100 bg-slate-50/80 p-2.5 text-xs">
+        <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl border border-slate-100 bg-slate-50/80 p-2.5 text-start text-xs">
           <div>
             <span className="block text-[10px] font-bold text-slate-400">
               {t.table.colCash}
             </span>
-            <strong
-              dir="ltr"
-              className="mt-0.5 block text-sm font-black text-[#007a5a] tabular-nums"
-            >
-              {property.paid_amount
-                ? `${unitCur}${Number(property.paid_amount).toLocaleString("en-US")}`
-                : "—"}
+            <strong className="mt-0.5 block text-sm font-black text-[#007a5a]">
+              <span dir="ltr" className="inline-block tabular-nums">
+                {property.paid_amount
+                  ? `${unitCur}${Number(property.paid_amount).toLocaleString("en-US")}`
+                  : "—"}
+              </span>
             </strong>
           </div>
 
           <div className="border-s border-slate-200/70 ps-2.5 text-[11px]">
             <div className="flex items-center justify-between gap-1">
               <span className="text-slate-400">{t.table.contractShort}</span>
-              <strong dir="ltr" className="text-[#0f1d40] tabular-nums">
-                {property.contract_price
-                  ? `${unitCur}${Number(property.contract_price).toLocaleString("en-US")}`
-                  : "—"}
+              <strong className="text-[#0f1d40]">
+                <span dir="ltr" className="inline-block tabular-nums">
+                  {property.contract_price
+                    ? `${unitCur}${Number(property.contract_price).toLocaleString("en-US")}`
+                    : "—"}
+                </span>
               </strong>
             </div>
             <div className="mt-0.5 flex items-center justify-between gap-1">
               <span className="text-slate-400">{t.table.marketShort}</span>
-              <strong dir="ltr" className="text-slate-600 tabular-nums">
-                {property.market_price
-                  ? `${unitCur}${Number(property.market_price).toLocaleString("en-US")}`
-                  : "—"}
+              <strong className="text-slate-600">
+                <span dir="ltr" className="inline-block tabular-nums">
+                  {property.market_price
+                    ? `${unitCur}${Number(property.market_price).toLocaleString("en-US")}`
+                    : "—"}
+                </span>
               </strong>
             </div>
           </div>
         </div>
 
-        <div className="mt-2.5 rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2 text-xs">
-          <div className="flex items-center justify-between gap-2">
+        <div className="mt-2.5 rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2 text-start text-xs">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-1.5 font-extrabold text-[#0f1d40]">
               <User className="size-3.5 shrink-0 text-slate-400" />
               <span className="truncate">{property.name}</span>
             </div>
-            <div
-              dir="ltr"
-              className="flex shrink-0 items-center gap-1 font-mono text-[11.5px] font-bold text-slate-700"
-            >
+            <div className="flex shrink-0 items-center gap-1 text-[11.5px] font-bold text-slate-700">
               <Phone className="size-3 text-slate-400" />
-              <span>{property.phone}</span>
+              <span dir="ltr" className="inline-block font-mono">
+                {property.phone}
+              </span>
               {phoneOk && <CheckCircle2 className="size-3.5 text-[#007a5a]" />}
             </div>
           </div>
           {property.email && (
-            <div
-              dir="ltr"
-              className="mt-1 flex items-center justify-start gap-1 text-[10.5px] text-slate-500"
-            >
-              <span className="break-all">{property.email}</span>
+            <div className="mt-1 flex items-center gap-1 text-[10.5px] text-slate-500">
+              <span dir="ltr" className="inline-block break-all">
+                {property.email}
+              </span>
               {emailOk && (
                 <CheckCircle2 className="size-3 shrink-0 text-[#007a5a]" />
               )}
@@ -1018,10 +1250,14 @@ export function PropertyDesktopRow(props: SharedPropertyCardProps) {
     leadsPrompts,
     pending,
     verificationMap,
+    openMenuId,
+    openStatusMenuId,
     onConfirmAction,
     onOpenDetails,
   } = props
 
+  const isAnyMenuOpen =
+    openMenuId === property.id || openStatusMenuId === property.id
   const isVipPlus = property.boost_tier === "vip_plus"
   const remainingDays = computeRemainingBoostDays(property)
   const waText = buildSellerWhatsAppMessage({
@@ -1037,12 +1273,14 @@ export function PropertyDesktopRow(props: SharedPropertyCardProps) {
 
   return (
     <div
-      id={`prop-row-${property.id}`}
-      className={`overflow-visible rounded-2xl border bg-white shadow-2xs transition-all hover:shadow-md ${
+      data-prop-row-id={property.id}
+      className={`relative scroll-mt-24 overflow-visible rounded-2xl border bg-white shadow-2xs transition-all hover:shadow-md ${
+        isAnyMenuOpen ? "z-30" : "z-0"
+      } ${
         isLoading
           ? "border-[#007a5a] bg-[#eaf8f2]/30 opacity-60"
           : isHighlighted
-            ? "border-2 border-[#007a5a] bg-[#eaf8f2]/30 ring-2 ring-[#007a5a]/20"
+            ? "border-2 border-[#007a5a] bg-[#eaf8f2]/35 ring-4 ring-[#007a5a]/20"
             : currentSt === "sold"
               ? "border-emerald-200/90 bg-slate-50/40 border-s-4 border-s-[#0f1d40]"
               : currentSt === "in_deal"
@@ -1064,13 +1302,23 @@ export function PropertyDesktopRow(props: SharedPropertyCardProps) {
                             : "border-slate-200/90"
       }`}
     >
-      <div className="grid grid-cols-[minmax(0,3.5fr)_minmax(0,2.5fr)_minmax(0,3fr)_215px] items-center gap-4 px-5 py-4">
+      {isHighlighted && propBadges.selectedUnitBadge && (
+        <div className="flex items-center gap-2 rounded-t-2xl border-b border-emerald-200 bg-[#007a5a] px-5 py-1.5 text-[11px] font-extrabold text-white">
+          <span className="size-2 animate-pulse rounded-full bg-emerald-200" />
+          <span>{propBadges.selectedUnitBadge}</span>
+        </div>
+      )}
+
+      <div className="grid grid-cols-[minmax(0,3.5fr)_minmax(0,2.5fr)_minmax(0,3fr)_225px] items-center gap-4 px-5 py-4 text-start">
         <div className="min-w-0 pe-2">
           <div className="flex flex-wrap items-center gap-2">
             <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[11px] font-black text-slate-600">
               {index + 1}
             </span>
-            <span className="shrink-0 rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[10.5px] font-black text-[#0f1d40]">
+            <span
+              dir="ltr"
+              className="inline-block shrink-0 rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[10.5px] font-black text-[#0f1d40]"
+            >
               {deriveShortUnitCode(property.id, property.code)}
             </span>
             <Link
@@ -1129,52 +1377,48 @@ export function PropertyDesktopRow(props: SharedPropertyCardProps) {
             <span className="text-[11px] font-bold text-slate-400">
               {t.table.colCash}
             </span>
-            <span
-              dir="ltr"
-              className="text-base font-black text-[#007a5a] tabular-nums"
-            >
-              {property.paid_amount
-                ? `${unitCur}${Number(property.paid_amount).toLocaleString("en-US")}`
-                : "—"}
+            <span className="text-base font-black text-[#007a5a]">
+              <span dir="ltr" className="inline-block tabular-nums">
+                {property.paid_amount
+                  ? `${unitCur}${Number(property.paid_amount).toLocaleString("en-US")}`
+                  : "—"}
+              </span>
             </span>
           </div>
 
           <div className="mt-1.5 flex items-center justify-between gap-2 border-t border-slate-100 pt-1.5 text-[11px]">
             <div className="flex items-center gap-1">
               <span className="text-slate-400">{t.table.contractShort}</span>
-              <strong
-                dir="ltr"
-                className="font-extrabold text-[#0f1d40] tabular-nums"
-              >
-                {property.contract_price
-                  ? `${unitCur}${Number(property.contract_price).toLocaleString("en-US")}`
-                  : "—"}
+              <strong className="font-extrabold text-[#0f1d40]">
+                <span dir="ltr" className="inline-block tabular-nums">
+                  {property.contract_price
+                    ? `${unitCur}${Number(property.contract_price).toLocaleString("en-US")}`
+                    : "—"}
+                </span>
               </strong>
             </div>
             <div className="flex items-center gap-1">
               <span className="text-slate-400">{t.table.marketShort}</span>
-              <span
-                dir="ltr"
-                className="font-bold text-slate-600 tabular-nums"
-              >
-                {property.market_price
-                  ? `${unitCur}${Number(property.market_price).toLocaleString("en-US")}`
-                  : "—"}
+              <span className="font-bold text-slate-600">
+                <span dir="ltr" className="inline-block tabular-nums">
+                  {property.market_price
+                    ? `${unitCur}${Number(property.market_price).toLocaleString("en-US")}`
+                    : "—"}
+                </span>
               </span>
             </div>
           </div>
         </div>
 
-        <div className="min-w-0 border-s border-slate-100 ps-4">
+        <div className="min-w-0 border-s border-slate-100 ps-4 text-start">
           <div className="flex items-center gap-1.5 text-xs font-black text-[#0f1d40]">
             <User className="size-3.5 shrink-0 text-slate-400" />
             <span className="truncate">{property.name}</span>
           </div>
-          <div
-            dir="ltr"
-            className="mt-1 flex items-center justify-start gap-1.5 font-mono text-[11.5px] font-bold text-slate-700"
-          >
-            <span>{property.phone}</span>
+          <div className="mt-1 flex items-center gap-1.5 text-[11.5px] font-bold text-slate-700">
+            <span dir="ltr" className="inline-block font-mono">
+              {property.phone}
+            </span>
             {phoneOk && (
               <span
                 title={propBadges.phoneVerifiedBadge}
@@ -1185,11 +1429,10 @@ export function PropertyDesktopRow(props: SharedPropertyCardProps) {
             )}
           </div>
           {property.email && (
-            <div
-              dir="ltr"
-              className="mt-0.5 flex items-center justify-start gap-1 text-[11px] font-medium text-slate-500"
-            >
-              <span className="break-all">{property.email}</span>
+            <div className="mt-0.5 flex items-center gap-1 text-[11px] font-medium text-slate-500">
+              <span dir="ltr" className="inline-block break-all">
+                {property.email}
+              </span>
               {emailOk && (
                 <span
                   title={propBadges.emailVerifiedBadge}
@@ -1401,7 +1644,10 @@ export function PropertyDocsQuickDialog({
           <DialogTitle className="flex items-center gap-2 text-sm font-black text-[#0f1d40] sm:text-base">
             <FileCheck2 className="size-5 text-[#007a5a]" />
             <span>{t.modals.uploadedDocsTitle}</span>
-            <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs font-bold text-[#0f1d40]">
+            <span
+              dir="ltr"
+              className="inline-block rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs font-bold text-[#0f1d40]"
+            >
               {deriveShortUnitCode(docsProperty.id, docsProperty.code)}
             </span>
           </DialogTitle>

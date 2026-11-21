@@ -55,7 +55,6 @@ import {
   PropertyDetailsDialog,
   PropertyEditDataDialog,
   PropertyOffersLogDialog,
-  PropertyStageTimelineDialog,
 } from "./properties-modals"
 import {
   PropertyActivityBadges,
@@ -103,7 +102,6 @@ export default function PropertiesTable({
   const t = dict.admin.propertiesAdmin as Record<string, any>
   const propBadges = (t.badges as Record<string, string>) || {}
   const propNotices = (t.notices as Record<string, string>) || {}
-  const blockedDict = (t.blocked as Record<string, string>) || {}
   const leadsPrompts = dict.admin.leads
   const leadsAdminDict = (dict.admin as Record<string, any>).leadsAdmin || {}
   const sm = (dict.admin as Record<string, any>).smartMatch || {}
@@ -292,6 +290,7 @@ export default function PropertiesTable({
   >("all_promo")
 
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  const [openStatusMenuId, setOpenStatusMenuId] = useState<string | null>(null)
   const [highlightedUnitId, setHighlightedUnitId] = useState<string | null>(
     null
   )
@@ -309,11 +308,6 @@ export default function PropertiesTable({
     offer: any
     waitlistCount: number
   } | null>(null)
-  const [blockedStageModal, setBlockedStageModal] = useState<{
-    property: SellRequest
-    stage: string
-    offerId?: string
-  } | null>(null)
   const [confirmAction, setConfirmAction] =
     useState<ConfirmPropertyAction | null>(null)
   const [activePropertyId, setActivePropertyId] = useState<string | null>(null)
@@ -325,9 +319,12 @@ export default function PropertiesTable({
   const [pending, startTransition] = useTransition()
 
   useEffect(() => {
-    const closeMenu = () => setOpenMenuId(null)
-    window.addEventListener("click", closeMenu)
-    return () => window.removeEventListener("click", closeMenu)
+    const closeAllMenus = () => {
+      setOpenMenuId(null)
+      setOpenStatusMenuId(null)
+    }
+    window.addEventListener("click", closeAllMenus)
+    return () => window.removeEventListener("click", closeAllMenus)
   }, [])
 
   useEffect(() => {
@@ -352,11 +349,14 @@ export default function PropertiesTable({
       setHighlightedUnitId(unitIdParam)
       const targetProp = properties.find((p) => p.id === unitIdParam)
       if (targetProp) {
-        if (
-          !isPromotionsPage &&
-          normalizeRowStatus(targetProp.status) === "deleted_by_seller"
-        ) {
-          setStatusFilter("deleted")
+        if (!qParam) setSearch("")
+        setAreaFilter("ALL")
+        if (!isPromotionsPage) {
+          if (normalizeRowStatus(targetProp.status) === "deleted_by_seller") {
+            setStatusFilter("deleted")
+          } else if (!tabParam) {
+            setStatusFilter("all")
+          }
         }
         if (actionParam === "promote") {
           setConfirmAction({
@@ -368,11 +368,26 @@ export default function PropertiesTable({
               targetProp.boost_tier === "vip_plus" ? "vip_plus" : "super_vip",
           })
         }
-        setTimeout(() => {
-          document
-            .getElementById(`prop-row-${unitIdParam}`)
-            ?.scrollIntoView({ behavior: "smooth", block: "center" })
-        }, 250)
+
+        const scrollToVisibleUnit = () => {
+          const candidates = document.querySelectorAll<HTMLElement>(
+            `[data-prop-row-id="${unitIdParam}"]`
+          )
+          const visibleTarget = Array.from(candidates).find(
+            (el) => el.offsetParent !== null
+          )
+          ;(visibleTarget || candidates[0])?.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          })
+        }
+
+        const timer1 = setTimeout(scrollToVisibleUnit, 180)
+        const timer2 = setTimeout(scrollToVisibleUnit, 550)
+        return () => {
+          clearTimeout(timer1)
+          clearTimeout(timer2)
+        }
       }
     }
   }, [searchParams, properties, isPromotionsPage])
@@ -600,14 +615,17 @@ export default function PropertiesTable({
     .sort((a, b) => {
       const stA = getEffectiveUnitStage(a)
       const stB = getEffectiveUnitStage(b)
+      // الترتيب حسب أولوية التدخل والشغل: المراجعة أولاً ← الصفقات ← العروض ← المعروض ← غير مكتملة ← المتوقفة ← المباعة ← المرفوضة
       const rank = (s: string) => {
-        if (s === "rejected") return 7
-        if (s === "sold") return 6
-        if (s === "paused_by_seller" || s === "paused_by_admin") return 5
-        if (s === "incomplete") return 4
-        if (s === "in_deal") return 1
-        if (s === "negotiating" || s === "has_offers") return 2
-        return 3
+        if (s === "pending" || s === "under_review") return 1
+        if (s === "in_deal") return 2
+        if (s === "negotiating" || s === "has_offers") return 3
+        if (s === "active") return 4
+        if (s === "incomplete") return 5
+        if (s === "paused_by_admin" || s === "paused_by_seller") return 6
+        if (s === "sold") return 7
+        if (s === "rejected") return 8
+        return 9
       }
       const diff = rank(stA) - rank(stB)
       if (diff !== 0) return diff
@@ -791,6 +809,8 @@ export default function PropertiesTable({
       verificationMap,
       openMenuId,
       setOpenMenuId,
+      openStatusMenuId,
+      setOpenStatusMenuId,
       onConfirmAction: setConfirmAction,
       onOpenDetails: setDetailsProperty,
       onOpenEdit: setEditProperty,
@@ -802,11 +822,6 @@ export default function PropertiesTable({
         offer: any,
         waitlistCount: number
       ) => setDealSummaryData({ property: prop, offer, waitlistCount }),
-      onOpenBlockedStage: (
-        prop: SellRequest,
-        stage: string,
-        offerId?: string
-      ) => setBlockedStageModal({ property: prop, stage, offerId }),
       onExportSingle: handleExportSingle,
       matchedBuyersCount,
       validOffers,
@@ -961,28 +976,24 @@ export default function PropertiesTable({
               {[
                 { id: "all", label: `${t.filters.allTab} (${activeCount})` },
                 {
-                  id: "incomplete",
-                  label: `${t.filters.incompleteTab} (${tabCounts.incomplete})`,
-                },
-                {
                   id: "pending",
                   label: `${t.filters.pendingReviewTab} (${tabCounts.pending})`,
-                },
-                {
-                  id: "active",
-                  label: `${t.filters.activeMarketTab} (${tabCounts.active})`,
-                },
-                {
-                  id: "offers_group",
-                  label: `${t.filters.offerReceivedTab} (${tabCounts.offers_group})`,
                 },
                 {
                   id: "in_deal",
                   label: `${t.filters.inDealTab} (${tabCounts.in_deal})`,
                 },
                 {
-                  id: "sold",
-                  label: `${t.filters.soldTab} (${tabCounts.sold})`,
+                  id: "offers_group",
+                  label: `${t.filters.offerReceivedTab} (${tabCounts.offers_group})`,
+                },
+                {
+                  id: "active",
+                  label: `${t.filters.activeMarketTab} (${tabCounts.active})`,
+                },
+                {
+                  id: "incomplete",
+                  label: `${t.filters.incompleteTab} (${tabCounts.incomplete})`,
                 },
                 {
                   id: "paused_by_admin",
@@ -991,6 +1002,10 @@ export default function PropertiesTable({
                 {
                   id: "seller_actions",
                   label: `${t.filters.editedPausedTab} (${sellerActionsList.length})`,
+                },
+                {
+                  id: "sold",
+                  label: `${t.filters.soldTab} (${tabCounts.sold})`,
                 },
                 {
                   id: "rejected",
@@ -1098,7 +1113,7 @@ export default function PropertiesTable({
           </div>
         </div>
 
-        <div className="mb-2.5 grid grid-cols-[minmax(0,3.5fr)_minmax(0,2.5fr)_minmax(0,3fr)_215px] items-center gap-4 rounded-xl border border-slate-200/90 bg-slate-100/80 px-5 py-2.5 text-[11px] font-extrabold text-slate-600">
+        <div className="mb-2.5 grid grid-cols-[minmax(0,3.5fr)_minmax(0,2.5fr)_minmax(0,3fr)_225px] items-center gap-4 rounded-xl border border-slate-200/90 bg-slate-100/80 px-5 py-2.5 text-[11px] font-extrabold text-slate-600">
           <div>{t.table.colProject}</div>
           <div>{t.table.colCash}</div>
           <div>{t.table.colClient}</div>
@@ -1120,15 +1135,6 @@ export default function PropertiesTable({
           </div>
         )}
       </div>
-
-      <PropertyStageTimelineDialog
-        dir={dir}
-        t={t}
-        blockedDict={blockedDict}
-        data={blockedStageModal}
-        onClose={() => setBlockedStageModal(null)}
-        onOpenOffersLog={(prop) => setOffersLogProperty(prop)}
-      />
 
       <PropertyEditDataDialog
         dir={dir}

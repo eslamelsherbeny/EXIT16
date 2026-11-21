@@ -304,13 +304,29 @@ export default async function AdminPage() {
     return !hasAnyOffer
   })
 
-  // دمج طلبات الإعلان المدفوعة عبر Flitt (التي لها وحدة صالحة) مع أي طلبات قديمة
-  const validPendingBoostAlerts = pendingBoostRowsData
+  // منع تكرار نفس الوحدة في تنبيهات طلبات الإعلان بالصفحة الرئيسية + إعطاء أولوية لمدفوعات Flitt
+  const seenBoostUnitIds = new Set<string>()
+  const validPendingBoostAlerts = [...pendingBoostRowsData]
+    .sort((a: any, b: any) => {
+      const aFlitt = a.status === "paid_pending_approval" ? 0 : 1
+      const bFlitt = b.status === "paid_pending_approval" ? 0 : 1
+      if (aFlitt !== bFlitt) return aFlitt - bFlitt
+      return (
+        new Date(b.created_at || 0).getTime() -
+        new Date(a.created_at || 0).getTime()
+      )
+    })
     .map((b: any) => ({
       boost: b,
       unit: b.unit_id ? propsMap.get(String(b.unit_id)) : null,
     }))
-    .filter((item) => Boolean(item.unit))
+    .filter((item) => {
+      if (!item.unit) return false
+      const uid = String(item.unit.id)
+      if (seenBoostUnitIds.has(uid)) return false
+      seenBoostUnitIds.add(uid)
+      return true
+    })
 
   const boostUnitIdsSet = new Set(
     validPendingBoostAlerts.map((item) => String(item.unit.id))
@@ -389,7 +405,7 @@ export default async function AdminPage() {
 
   return (
     <div dir={dir} className="mx-auto max-w-7xl space-y-4 text-start sm:space-y-5">
-      {/* 1. صف الإحصائيات السريعة (متجاوب تماماً على الموبايل) */}
+      {/* 1. صف الإحصائيات السريعة (بدون أي قص للعناوين على الموبايل) */}
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 xl:grid-cols-5">
         {kpis.map(
           (
@@ -405,27 +421,26 @@ export default async function AdminPage() {
             >
               <Card className="h-full rounded-2xl border border-slate-200/90 bg-white shadow-2xs transition-all hover:border-[#007a5a]/40 hover:shadow-sm">
                 <CardContent className="flex h-full flex-col justify-between p-3 sm:p-4">
-                  <div className="flex items-center justify-between gap-1.5">
-                    <p className="truncate text-[11px] font-extrabold text-slate-700 group-hover:text-[#0f1d40] sm:text-xs">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-[11.5px] leading-snug font-extrabold text-slate-700 group-hover:text-[#0f1d40] sm:text-xs">
                       {label}
                     </p>
                     <span
-                      className={`flex size-7 shrink-0 items-center justify-center rounded-xl sm:size-9 ${iconWrap}`}
+                      className={`flex size-7.5 shrink-0 items-center justify-center rounded-xl sm:size-9 ${iconWrap}`}
                     >
                       <Icon className="size-3.5 shrink-0 sm:size-4" />
                     </span>
                   </div>
 
-                  <div
-                    dir="ltr"
-                    className="my-2 text-center text-2xl font-black tracking-tight text-[#0f1d40] tabular-nums sm:my-3 sm:text-3xl"
-                  >
-                    {value}
+                  <div className="my-2 text-center text-2xl font-black tracking-tight text-[#0f1d40] sm:my-3 sm:text-3xl">
+                    <span dir="ltr" className="inline-block tabular-nums">
+                      {value}
+                    </span>
                   </div>
 
-                  <div className="flex items-center justify-between gap-1 border-t border-slate-100 pt-2">
+                  <div className="flex items-center justify-between gap-1.5 border-t border-slate-100 pt-2">
                     <span
-                      className={`truncate text-[10px] font-bold sm:text-[11px] ${noteClass}`}
+                      className={`text-[10.5px] leading-snug font-bold sm:text-[11px] ${noteClass}`}
                     >
                       {note}
                     </span>
@@ -438,25 +453,25 @@ export default async function AdminPage() {
         )}
       </div>
 
-      {/* 1.5. تنبيه بارز لطلبات الإعلان المدفوعة عبر Flitt وبانتظار التفعيل */}
+      {/* 1.5. تنبيه طلبات الإعلان بانتظار التفعيل (أحدث طلبين فقط في الرئيسية لتجنب الزحمة) */}
       {validPendingBoostAlerts.length > 0 && (
         <details
           open
           className="group overflow-hidden rounded-2xl border-2 border-amber-300 bg-white shadow-2xs"
         >
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 bg-amber-50/70 px-3.5 py-3 select-none sm:px-5 sm:py-3.5 [&::-webkit-details-marker]:hidden">
-            <div className="flex min-w-0 items-center gap-2.5">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-2.5 bg-amber-50/75 px-3.5 py-3 select-none sm:px-5 sm:py-3.5 [&::-webkit-details-marker]:hidden">
+            <div className="flex min-w-0 flex-1 items-center gap-2.5">
               <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white shadow-2xs sm:size-9">
                 <Star className="size-4 fill-white" />
               </span>
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <span className="truncate text-xs font-black text-[#0f1d40] sm:text-sm">
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-xs leading-snug font-black text-[#0f1d40] sm:text-sm">
                     {L.secBoostTitle}
                   </span>
                   <span
                     dir="ltr"
-                    className="shrink-0 rounded-full bg-amber-500 px-2 py-0.5 text-[10.5px] font-black text-white"
+                    className="inline-block shrink-0 rounded-full bg-amber-500 px-2 py-0.5 text-[10.5px] font-black text-white"
                   >
                     {validPendingBoostAlerts.length}
                   </span>
@@ -467,10 +482,10 @@ export default async function AdminPage() {
               </div>
             </div>
 
-            <div className="flex shrink-0 items-center gap-1.5">
+            <div className="flex shrink-0 items-center gap-2">
               <Link
                 href="/admin/promotions"
-                className="inline-flex h-8 items-center gap-1 rounded-xl bg-[#007a5a] px-2.5 text-[11px] font-extrabold text-white hover:bg-[#006248] sm:px-3.5 sm:text-xs"
+                className="hidden h-8 items-center gap-1 rounded-xl bg-[#007a5a] px-3.5 text-xs font-extrabold text-white hover:bg-[#006248] sm:inline-flex"
               >
                 <span>{L.secBoostBtn}</span>
                 <ArrowLeft className="size-3 rtl:rotate-0 ltr:rotate-180" />
@@ -482,7 +497,7 @@ export default async function AdminPage() {
           </summary>
 
           <div className="divide-y divide-slate-100">
-            {validPendingBoostAlerts.slice(0, 5).map(({ boost, unit }) => {
+            {validPendingBoostAlerts.slice(0, 2).map(({ boost, unit }) => {
               const uCode = deriveUnitCode(unit.id, unit.code)
               const isFlittPaid = boost.status === "paid_pending_approval"
 
@@ -491,17 +506,28 @@ export default async function AdminPage() {
                   key={boost.id}
                   className="flex flex-col gap-2.5 px-3.5 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5"
                 >
-                  <div className="min-w-0 space-y-1">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span
-                        dir="ltr"
-                        className="rounded-md bg-[#0f1d40] px-1.5 py-0.5 font-mono text-[10px] font-bold text-white"
-                      >
-                        {uCode}
-                      </span>
-                      <span className="truncate text-xs font-extrabold text-[#0f1d40]">
-                        {unit.project_name || t.defaultUnit}
-                      </span>
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <div className="flex items-start justify-between gap-2 sm:justify-start">
+                      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                        <span
+                          dir="ltr"
+                          className="inline-block rounded-md bg-[#0f1d40] px-1.5 py-0.5 font-mono text-[10px] font-bold text-white"
+                        >
+                          {uCode}
+                        </span>
+                        <span className="truncate text-xs font-extrabold text-[#0f1d40]">
+                          {unit.project_name || t.defaultUnit}
+                        </span>
+                      </div>
+
+                      <strong className="shrink-0 text-xs font-black text-[#007a5a] sm:hidden">
+                        <span dir="ltr" className="inline-block tabular-nums">
+                          {boost.amount_gel} ₾
+                        </span>
+                      </strong>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
                       <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-900">
                         <Sparkles className="size-3" />
                         <span>
@@ -514,40 +540,33 @@ export default async function AdminPage() {
                           <span>{pm.paidFlittBadge}</span>
                         </span>
                       )}
-                    </div>
-
-                    <p className="text-[11px] font-semibold text-slate-500">
-                      {unit.name} ·{" "}
-                      <strong dir="ltr" className="text-[#007a5a]">
-                        {boost.amount_gel} ₾
+                      <span className="font-semibold text-slate-500">
+                        {unit.name}
+                      </span>
+                      <strong className="hidden font-black text-[#007a5a] sm:inline">
+                        ·{" "}
+                        <span dir="ltr" className="inline-block tabular-nums">
+                          {boost.amount_gel} ₾
+                        </span>
                       </strong>
-                      {boost.order_ref ? (
-                        <>
-                          {" "}
-                          ·{" "}
-                          <span dir="ltr" className="font-mono text-[10px]">
-                            {boost.order_ref}
-                          </span>
-                        </>
-                      ) : null}
-                    </p>
+                    </div>
                   </div>
 
-                  <div className="flex shrink-0 items-center justify-end gap-1.5">
+                  <div className="flex items-center gap-2">
                     {unit.phone && (
                       <a
                         data-admin-client-wa="true"
                         href={`https://wa.me/${String(unit.phone).replace(/\D/g, "")}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex size-8 items-center justify-center rounded-xl bg-[#25D366] text-white shadow-2xs"
+                        className="inline-flex size-8.5 shrink-0 items-center justify-center rounded-xl bg-[#25D366] text-white shadow-2xs"
                       >
                         <WhatsAppOfficialIcon className="size-4" />
                       </a>
                     )}
                     <Link
                       href="/admin/promotions"
-                      className="inline-flex h-8 items-center gap-1 rounded-xl bg-[#007a5a] px-3 text-[11px] font-extrabold text-white hover:bg-[#006248]"
+                      className="inline-flex h-8.5 flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-3.5 text-[11px] font-extrabold text-white hover:bg-[#006248] sm:flex-none"
                     >
                       <span>{L.secBoostActionBtn}</span>
                       <ArrowLeft className="size-3 rtl:rotate-0 ltr:rotate-180" />
@@ -556,6 +575,18 @@ export default async function AdminPage() {
                 </div>
               )
             })}
+
+            <div className="bg-amber-50/40 px-3.5 py-2 text-center sm:hidden">
+              <Link
+                href="/admin/promotions"
+                className="inline-flex items-center gap-1 text-xs font-extrabold text-[#007a5a]"
+              >
+                <span>
+                  {L.secBoostBtn} ({validPendingBoostAlerts.length})
+                </span>
+                <ArrowLeft className="size-3 rtl:rotate-0 ltr:rotate-180" />
+              </Link>
+            </div>
           </div>
         </details>
       )}
@@ -570,13 +601,13 @@ export default async function AdminPage() {
         }`}
       >
         <summary
-          className={`flex cursor-pointer list-none items-center justify-between gap-2 px-3.5 py-3 transition select-none sm:px-5 sm:py-3.5 [&::-webkit-details-marker]:hidden ${
+          className={`flex cursor-pointer list-none items-center justify-between gap-2.5 px-3.5 py-3 transition select-none sm:px-5 sm:py-3.5 [&::-webkit-details-marker]:hidden ${
             readyDeals.length > 0
               ? "bg-[#eaf8f2]/65 group-open:border-b group-open:border-emerald-100"
               : "bg-white hover:bg-slate-50/70 group-open:border-b group-open:border-slate-100"
           }`}
         >
-          <div className="flex min-w-0 items-center gap-2.5">
+          <div className="flex min-w-0 flex-1 items-center gap-2.5">
             <span
               className={`flex size-8 shrink-0 items-center justify-center rounded-xl text-white shadow-2xs sm:size-9 ${
                 readyDeals.length > 0 ? "bg-[#007a5a]" : "bg-slate-400"
@@ -586,12 +617,12 @@ export default async function AdminPage() {
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="truncate text-xs font-black text-[#0f1d40] sm:text-sm">
+                <span className="text-xs leading-snug font-black text-[#0f1d40] sm:text-sm">
                   {L.sec1Title}
                 </span>
                 <span
                   dir="ltr"
-                  className={`shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-black text-white ${
+                  className={`inline-block shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-black text-white ${
                     readyDeals.length > 0 ? "bg-[#007a5a]" : "bg-slate-400"
                   }`}
                 >
@@ -606,17 +637,16 @@ export default async function AdminPage() {
             </div>
           </div>
 
-          <div className="flex shrink-0 items-center gap-1.5">
+          <div className="flex shrink-0 items-center gap-2">
             <Link
               href="/admin/deals"
-              className={`inline-flex h-8 items-center gap-1 rounded-xl px-2.5 text-[11px] font-extrabold transition sm:px-3.5 sm:text-xs ${
+              className={`hidden h-8 items-center gap-1 rounded-xl px-3.5 text-xs font-extrabold transition sm:inline-flex ${
                 readyDeals.length > 0
                   ? "bg-[#007a5a] text-white hover:bg-[#006248]"
                   : "border border-slate-200 bg-white text-[#0f1d40] hover:border-[#007a5a] hover:text-[#007a5a]"
               }`}
             >
-              <span className="hidden sm:inline">{L.sec1Btn}</span>
-              <span className="sm:hidden">{t.allShort}</span>
+              <span>{L.sec1Btn}</span>
               <ArrowLeft className="size-3 rtl:rotate-0 ltr:rotate-180" />
             </Link>
             <span className="flex size-8 shrink-0 items-center justify-center rounded-xl border border-slate-200/80 bg-white text-slate-500">
@@ -655,7 +685,7 @@ export default async function AdminPage() {
                           <div className="flex flex-wrap items-center gap-1.5">
                             <span
                               dir="ltr"
-                              className="rounded-md bg-[#eaf8f2] px-1.5 py-0.5 font-mono text-[10px] font-black text-[#007a5a]"
+                              className="inline-block rounded-md bg-[#eaf8f2] px-1.5 py-0.5 font-mono text-[10px] font-black text-[#007a5a]"
                             >
                               {uCode}
                             </span>
@@ -669,18 +699,19 @@ export default async function AdminPage() {
                         </div>
 
                         <div className="shrink-0 text-end">
-                          <strong
-                            dir="ltr"
-                            className="block text-sm font-black text-[#007a5a] tabular-nums"
-                          >
-                            {cur}
-                            {agreedCash.toLocaleString("en-US")}
+                          <strong className="block text-sm font-black text-[#007a5a]">
+                            <span dir="ltr" className="inline-block tabular-nums">
+                              {cur}
+                              {agreedCash.toLocaleString("en-US")}
+                            </span>
                           </strong>
                           <span className="text-[10px] font-bold text-slate-400">
                             {L.colCommission}:{" "}
-                            <strong dir="ltr" className="text-[#0f1d40]">
-                              {cur}
-                              {platformCommission.toLocaleString("en-US")}
+                            <strong className="text-[#0f1d40]">
+                              <span dir="ltr" className="inline-block tabular-nums">
+                                {cur}
+                                {platformCommission.toLocaleString("en-US")}
+                              </span>
                             </strong>
                           </span>
                         </div>
@@ -689,10 +720,10 @@ export default async function AdminPage() {
                       <div className="grid grid-cols-2 gap-2">
                         <div className="flex items-center justify-between gap-1.5 rounded-xl border border-slate-100 bg-slate-50/80 px-2.5 py-2">
                           <div className="min-w-0">
-                            <span className="block text-[9.5px] font-bold text-slate-400">
+                            <span className="block text-[9.5px] leading-tight font-bold text-slate-400">
                               {L.colSeller}
                             </span>
-                            <p className="truncate text-[11px] font-extrabold text-[#0f1d40]">
+                            <p className="mt-0.5 truncate text-[11px] font-extrabold text-[#0f1d40]">
                               {unit.name || "—"}
                             </p>
                           </div>
@@ -709,10 +740,10 @@ export default async function AdminPage() {
 
                         <div className="flex items-center justify-between gap-1.5 rounded-xl border border-slate-100 bg-slate-50/80 px-2.5 py-2">
                           <div className="min-w-0">
-                            <span className="block text-[9.5px] font-bold text-slate-400">
+                            <span className="block text-[9.5px] leading-tight font-bold text-slate-400">
                               {L.colBuyer}
                             </span>
-                            <p className="truncate text-[11px] font-extrabold text-[#0f1d40]">
+                            <p className="mt-0.5 truncate text-[11px] font-extrabold text-[#0f1d40]">
                               {offer.buyer_name || "—"}
                             </p>
                           </div>
@@ -778,7 +809,7 @@ export default async function AdminPage() {
                             <div className="flex items-center gap-2">
                               <span
                                 dir="ltr"
-                                className="rounded-md bg-[#eaf8f2] px-2 py-0.5 font-mono text-[10.5px] font-black text-[#007a5a]"
+                                className="inline-block rounded-md bg-[#eaf8f2] px-2 py-0.5 font-mono text-[10.5px] font-black text-[#007a5a]"
                               >
                                 {uCode}
                               </span>
@@ -807,11 +838,10 @@ export default async function AdminPage() {
                                 <p className="truncate font-extrabold text-[#0f1d40]">
                                   {unit.name || "—"}
                                 </p>
-                                <p
-                                  dir="ltr"
-                                  className="text-start font-mono text-[11px] text-slate-400"
-                                >
-                                  {unit.phone || "—"}
+                                <p className="text-[11px] text-slate-400">
+                                  <span dir="ltr" className="inline-block font-mono">
+                                    {unit.phone || "—"}
+                                  </span>
                                 </p>
                               </div>
                             </div>
@@ -833,33 +863,30 @@ export default async function AdminPage() {
                                 <p className="truncate font-extrabold text-[#0f1d40]">
                                   {offer.buyer_name || "—"}
                                 </p>
-                                <p
-                                  dir="ltr"
-                                  className="text-start font-mono text-[11px] text-slate-400"
-                                >
-                                  {offer.buyer_phone || "—"}
+                                <p className="text-[11px] text-slate-400">
+                                  <span dir="ltr" className="inline-block font-mono">
+                                    {offer.buyer_phone || "—"}
+                                  </span>
                                 </p>
                               </div>
                             </div>
                           </td>
 
                           <td className="px-3 py-3.5">
-                            <strong
-                              dir="ltr"
-                              className="text-sm font-black text-[#007a5a] tabular-nums"
-                            >
-                              {cur}
-                              {agreedCash.toLocaleString("en-US")}
+                            <strong className="text-sm font-black text-[#007a5a]">
+                              <span dir="ltr" className="inline-block tabular-nums">
+                                {cur}
+                                {agreedCash.toLocaleString("en-US")}
+                              </span>
                             </strong>
                           </td>
 
                           <td className="px-3 py-3.5">
-                            <strong
-                              dir="ltr"
-                              className="rounded-md bg-[#eaf8f2] px-2.5 py-1 text-xs font-black text-[#007a5a] tabular-nums"
-                            >
-                              {cur}
-                              {platformCommission.toLocaleString("en-US")}
+                            <strong className="inline-block rounded-md bg-[#eaf8f2] px-2.5 py-1 text-xs font-black text-[#007a5a]">
+                              <span dir="ltr" className="inline-block tabular-nums">
+                                {cur}
+                                {platformCommission.toLocaleString("en-US")}
+                              </span>
                             </strong>
                           </td>
 
@@ -893,13 +920,13 @@ export default async function AdminPage() {
         }`}
       >
         <summary
-          className={`flex cursor-pointer list-none items-center justify-between gap-2 px-3.5 py-3 transition select-none sm:px-5 sm:py-3.5 [&::-webkit-details-marker]:hidden ${
+          className={`flex cursor-pointer list-none items-center justify-between gap-2.5 px-3.5 py-3 transition select-none sm:px-5 sm:py-3.5 [&::-webkit-details-marker]:hidden ${
             actionableOffers.length > 0
               ? "bg-amber-50/60 group-open:border-b group-open:border-amber-100"
               : "bg-white hover:bg-slate-50/70 group-open:border-b group-open:border-slate-100"
           }`}
         >
-          <div className="flex min-w-0 items-center gap-2.5">
+          <div className="flex min-w-0 flex-1 items-center gap-2.5">
             <span
               className={`flex size-8 shrink-0 items-center justify-center rounded-xl text-white shadow-2xs sm:size-9 ${
                 actionableOffers.length > 0 ? "bg-amber-500" : "bg-slate-400"
@@ -909,12 +936,12 @@ export default async function AdminPage() {
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="truncate text-xs font-black text-[#0f1d40] sm:text-sm">
+                <span className="text-xs leading-snug font-black text-[#0f1d40] sm:text-sm">
                   {L.sec2Title}
                 </span>
                 <span
                   dir="ltr"
-                  className={`shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-black text-white ${
+                  className={`inline-block shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-black text-white ${
                     actionableOffers.length > 0
                       ? "bg-amber-500"
                       : "bg-slate-400"
@@ -931,13 +958,12 @@ export default async function AdminPage() {
             </div>
           </div>
 
-          <div className="flex shrink-0 items-center gap-1.5">
+          <div className="flex shrink-0 items-center gap-2">
             <Link
               href="/admin/offers"
-              className="inline-flex h-8 items-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5 text-[11px] font-extrabold text-[#0f1d40] transition hover:border-[#007a5a] hover:text-[#007a5a] sm:px-3.5 sm:text-xs"
+              className="hidden h-8 items-center gap-1 rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-extrabold text-[#0f1d40] transition hover:border-[#007a5a] hover:text-[#007a5a] sm:inline-flex"
             >
-              <span className="hidden sm:inline">{L.sec2Btn}</span>
-              <span className="sm:hidden">{t.allShort}</span>
+              <span>{L.sec2Btn}</span>
               <ArrowLeft className="size-3 rtl:rotate-0 ltr:rotate-180" />
             </Link>
             <span className="flex size-8 shrink-0 items-center justify-center rounded-xl border border-slate-200/80 bg-white text-slate-500">
@@ -978,7 +1004,7 @@ export default async function AdminPage() {
                           <div className="flex flex-wrap items-center gap-1.5">
                             <span
                               dir="ltr"
-                              className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-black text-[#0f1d40]"
+                              className="inline-block rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-black text-[#0f1d40]"
                             >
                               {uCode}
                             </span>
@@ -992,17 +1018,16 @@ export default async function AdminPage() {
                         </div>
 
                         <div className="shrink-0 text-end">
-                          <strong
-                            dir="ltr"
-                            className="block text-sm font-black text-[#007a5a] tabular-nums"
-                          >
-                            {cur}
-                            {offeredCash.toLocaleString("en-US")}
+                          <strong className="block text-sm font-black text-[#007a5a]">
+                            <span dir="ltr" className="inline-block tabular-nums">
+                              {cur}
+                              {offeredCash.toLocaleString("en-US")}
+                            </span>
                           </strong>
                           {isCounter && counterCash > 0 && (
                             <span className="text-[10px] font-extrabold text-purple-800">
                               →{" "}
-                              <span dir="ltr">
+                              <span dir="ltr" className="inline-block tabular-nums">
                                 {cur}
                                 {counterCash.toLocaleString("en-US")}
                               </span>
@@ -1014,10 +1039,10 @@ export default async function AdminPage() {
                       <div className="grid grid-cols-2 gap-2">
                         <div className="flex items-center justify-between gap-1.5 rounded-xl border border-slate-200/80 bg-white px-2.5 py-2">
                           <div className="min-w-0">
-                            <span className="block text-[9.5px] font-bold text-slate-400">
+                            <span className="block text-[9.5px] leading-tight font-bold text-slate-400">
                               {L.colBuyer}
                             </span>
-                            <p className="truncate text-[11px] font-extrabold text-[#0f1d40]">
+                            <p className="mt-0.5 truncate text-[11px] font-extrabold text-[#0f1d40]">
                               {offer.buyer_name || "—"}
                             </p>
                           </div>
@@ -1034,10 +1059,10 @@ export default async function AdminPage() {
 
                         <div className="flex items-center justify-between gap-1.5 rounded-xl border border-slate-200/80 bg-white px-2.5 py-2">
                           <div className="min-w-0">
-                            <span className="block text-[9.5px] font-bold text-slate-400">
+                            <span className="block text-[9.5px] leading-tight font-bold text-slate-400">
                               {L.colSeller}
                             </span>
-                            <p className="truncate text-[11px] font-extrabold text-[#0f1d40]">
+                            <p className="mt-0.5 truncate text-[11px] font-extrabold text-[#0f1d40]">
                               {unit.name || "—"}
                             </p>
                           </div>
@@ -1114,7 +1139,7 @@ export default async function AdminPage() {
                               <div className="flex items-center gap-2">
                                 <span
                                   dir="ltr"
-                                  className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[10px] font-black text-[#0f1d40]"
+                                  className="inline-block rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[10px] font-black text-[#0f1d40]"
                                 >
                                   {uCode}
                                 </span>
@@ -1144,11 +1169,10 @@ export default async function AdminPage() {
                                 <p className="truncate font-extrabold text-[#0f1d40]">
                                   {offer.buyer_name || "—"}
                                 </p>
-                                <p
-                                  dir="ltr"
-                                  className="text-start font-mono text-[11px] text-slate-400"
-                                >
-                                  {offer.buyer_phone || "—"}
+                                <p className="text-[11px] text-slate-400">
+                                  <span dir="ltr" className="inline-block font-mono">
+                                    {offer.buyer_phone || "—"}
+                                  </span>
                                 </p>
                               </div>
                             </div>
@@ -1170,28 +1194,26 @@ export default async function AdminPage() {
                                 <p className="truncate font-bold text-slate-700">
                                   {unit.name || "—"}
                                 </p>
-                                <p
-                                  dir="ltr"
-                                  className="text-start font-mono text-[11px] text-slate-400"
-                                >
-                                  {unit.phone || "—"}
+                                <p className="text-[11px] text-slate-400">
+                                  <span dir="ltr" className="inline-block font-mono">
+                                    {unit.phone || "—"}
+                                  </span>
                                 </p>
                               </div>
                             </div>
                           </td>
 
                           <td className="px-3 py-3.5">
-                            <strong
-                              dir="ltr"
-                              className="text-sm font-black text-[#007a5a] tabular-nums"
-                            >
-                              {cur}
-                              {offeredCash.toLocaleString("en-US")}
+                            <strong className="text-sm font-black text-[#007a5a]">
+                              <span dir="ltr" className="inline-block tabular-nums">
+                                {cur}
+                                {offeredCash.toLocaleString("en-US")}
+                              </span>
                             </strong>
                             {isCounter && counterCash > 0 && (
                               <p className="mt-0.5 text-[10.5px] font-extrabold text-purple-800">
                                 →{" "}
-                                <span dir="ltr">
+                                <span dir="ltr" className="inline-block tabular-nums">
                                   {cur}
                                   {counterCash.toLocaleString("en-US")}
                                 </span>
@@ -1249,7 +1271,7 @@ export default async function AdminPage() {
               <span className="flex size-7.5 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600 sm:size-8">
                 <Clock3 className="size-4" />
               </span>
-              <CardTitle className="truncate text-xs font-black text-[#0f1d40] sm:text-sm">
+              <CardTitle className="text-xs leading-snug font-black text-[#0f1d40] sm:text-sm">
                 {L.pendingUnitsTitle} ({pendingReviewProperties.length})
               </CardTitle>
             </div>
@@ -1292,7 +1314,7 @@ export default async function AdminPage() {
                             <div className="flex flex-wrap items-center gap-1.5">
                               <span
                                 dir="ltr"
-                                className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-black text-[#0f1d40]"
+                                className="inline-block rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-black text-[#0f1d40]"
                               >
                                 {uCode}
                               </span>
@@ -1313,13 +1335,12 @@ export default async function AdminPage() {
                         </div>
 
                         <div className="flex items-center justify-between border-t border-slate-100 pt-2">
-                          <span
-                            dir="ltr"
-                            className="text-xs font-black text-[#007a5a] tabular-nums sm:text-sm"
-                          >
-                            {prop.paid_amount
-                              ? `$${Number(prop.paid_amount).toLocaleString("en-US")}`
-                              : "—"}
+                          <span className="text-xs font-black text-[#007a5a] sm:text-sm">
+                            <span dir="ltr" className="inline-block tabular-nums">
+                              {prop.paid_amount
+                                ? `$${Number(prop.paid_amount).toLocaleString("en-US")}`
+                                : "—"}
+                            </span>
                           </span>
 
                           <div className="flex items-center gap-1.5">
@@ -1390,7 +1411,7 @@ export default async function AdminPage() {
                                 <div className="flex items-center gap-2">
                                   <span
                                     dir="ltr"
-                                    className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[10px] font-black text-[#0f1d40]"
+                                    className="inline-block rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[10px] font-black text-[#0f1d40]"
                                   >
                                     {uCode}
                                   </span>
@@ -1408,22 +1429,20 @@ export default async function AdminPage() {
                               <p className="font-bold text-slate-700">
                                 {prop.name || "—"}
                               </p>
-                              <p
-                                dir="ltr"
-                                className="text-start font-mono text-[11px] text-slate-400"
-                              >
-                                {prop.phone || "—"}
+                              <p className="text-[11px] text-slate-400">
+                                <span dir="ltr" className="inline-block font-mono">
+                                  {prop.phone || "—"}
+                                </span>
                               </p>
                             </td>
 
                             <td className="px-3 py-3.5">
-                              <span
-                                dir="ltr"
-                                className="font-black text-[#007a5a] tabular-nums"
-                              >
-                                {prop.paid_amount
-                                  ? `$${Number(prop.paid_amount).toLocaleString("en-US")}`
-                                  : "—"}
+                              <span className="font-black text-[#007a5a]">
+                                <span dir="ltr" className="inline-block tabular-nums">
+                                  {prop.paid_amount
+                                    ? `$${Number(prop.paid_amount).toLocaleString("en-US")}`
+                                    : "—"}
+                                </span>
                               </span>
                             </td>
 
@@ -1471,7 +1490,7 @@ export default async function AdminPage() {
               <span className="flex size-7.5 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700 sm:size-8">
                 <FileText className="size-4" />
               </span>
-              <CardTitle className="truncate text-xs font-black text-[#0f1d40] sm:text-sm">
+              <CardTitle className="text-xs leading-snug font-black text-[#0f1d40] sm:text-sm">
                 {L.newLeadsTitle} ({newUncontactedLeads.length})
               </CardTitle>
             </div>
@@ -1533,11 +1552,10 @@ export default async function AdminPage() {
                             {lead.name}
                           </p>
                           <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                            <span
-                              dir="ltr"
-                              className="rounded-md bg-[#eaf8f2] px-2 py-0.5 text-[10px] font-black text-[#007a5a] tabular-nums"
-                            >
-                              ${cashFormatted}
+                            <span className="inline-block rounded-md bg-[#eaf8f2] px-2 py-0.5 text-[10px] font-black text-[#007a5a]">
+                              <span dir="ltr" className="inline-block tabular-nums">
+                                ${cashFormatted}
+                              </span>
                             </span>
                           </div>
                           <p className="mt-1 truncate text-[10.5px] font-medium text-slate-400">

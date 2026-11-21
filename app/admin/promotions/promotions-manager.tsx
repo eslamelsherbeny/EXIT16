@@ -5,10 +5,12 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
   AlertTriangle,
+  Banknote,
   CalendarClock,
   Check,
   CheckCircle2,
   Clock,
+  Copy,
   CreditCard,
   Crown,
   ExternalLink,
@@ -143,6 +145,7 @@ export function PromotionsManager({
     "pending"
   )
   const [search, setSearch] = useState("")
+  const [copiedRef, setCopiedRef] = useState<string | null>(null)
   const [notice, setNotice] = useState<{
     text: string
     isError?: boolean
@@ -162,6 +165,7 @@ export function PromotionsManager({
     "super_vip"
   )
   const [manualDays, setManualDays] = useState<number>(7)
+  const [manualCashGel, setManualCashGel] = useState<string>("0")
   const [busyId, setBusyId] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -169,6 +173,17 @@ export function PromotionsManager({
     () => new Map(properties.map((p) => [String(p.id), p])),
     [properties]
   )
+
+  // ربط كل وحدة بأحدث سجل approved من جدول boost_requests لضمان عرض تاريخ التفعيل والمرجع حتى للطلبات القديمة
+  const latestApprovedByUnitMap = useMemo(() => {
+    const map = new Map<string, BoostRequestRow>()
+    for (const row of boostRequests) {
+      if (row.status === "approved" && row.unit_id && !map.has(row.unit_id)) {
+        map.set(row.unit_id, row)
+      }
+    }
+    return map
+  }, [boostRequests])
 
   const pendingBoostRows = useMemo(
     () =>
@@ -230,6 +245,13 @@ export function PromotionsManager({
     !q || haystack.toLowerCase().includes(q)
 
   const pendingTotalCount = pendingBoostRows.length + legacyPendingUnits.length
+
+  function handleCopyRef(code: string) {
+    if (!code) return
+    navigator.clipboard?.writeText(code)
+    setCopiedRef(code)
+    setTimeout(() => setCopiedRef(null), 1800)
+  }
 
   function renderUnitStatusBadge(unit?: SellRequest | null) {
     if (!unit) return null
@@ -359,17 +381,23 @@ export function PromotionsManager({
     if (!manualModalUnit) return
     setBusyId(manualModalUnit.id)
     setNotice(null)
+    const cashVal = Math.max(0, Math.round(Number(manualCashGel) || 0))
     startTransition(async () => {
       try {
         const res = await managePropertyPromotionAction(
           manualModalUnit.id,
           "activate",
           manualDays,
-          manualTier
+          manualTier,
+          {
+            amountGel: cashVal,
+            paymentMethod: "cash_manual",
+          }
         )
         if (res.success) {
           setNotice({ text: pm.activatedSuccess })
           setManualModalUnit(null)
+          setManualCashGel("0")
           router.refresh()
         } else {
           setNotice({ text: res.error || propDict.loadError, isError: true })
@@ -382,7 +410,6 @@ export function PromotionsManager({
 
   return (
     <div dir={dir} className="space-y-3.5 text-start sm:space-y-4">
-      {/* الهيدر المتجاوب */}
       <div className="rounded-2xl border border-slate-200/90 bg-white px-4 py-3.5 shadow-2xs sm:px-5 sm:py-4">
         <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-[10.5px] font-extrabold text-amber-800 sm:text-[11px]">
           <Star className="size-3 fill-amber-400 text-amber-600" />
@@ -422,7 +449,6 @@ export function PromotionsManager({
         </div>
       )}
 
-      {/* شريط البحث والتبويبات المتجاوب */}
       <div className="flex flex-col gap-2.5 rounded-2xl border border-slate-200/90 bg-white p-3 shadow-2xs sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:p-3.5">
         <div className="relative w-full sm:max-w-xs sm:flex-1">
           <Search className="pointer-events-none absolute top-1/2 end-3 size-4 -translate-y-1/2 text-slate-400" />
@@ -516,7 +542,10 @@ export function PromotionsManager({
                       >
                         <div className="min-w-0 flex-1">
                           <span className="font-black text-slate-700">
-                            {req.package_tier} · {req.amount_gel} ₾
+                            {req.package_tier} ·{" "}
+                            <span dir="ltr" className="inline-block">
+                              {req.amount_gel} ₾
+                            </span>
                           </span>
                           <p className="mt-0.5 text-[11px] font-medium text-slate-500">
                             {pm.orphanUnitNotice}
@@ -554,13 +583,12 @@ export function PromotionsManager({
                             : "border-amber-200"
                       }`}
                     >
-                      {/* السطر العلوي: العنوان + المبلغ وشارة الدفع */}
                       <div className="flex items-start justify-between gap-2.5">
                         <div className="min-w-0 flex-1 space-y-1.5">
                           <div className="flex flex-wrap items-center gap-1.5">
                             <span
                               dir="ltr"
-                              className="rounded-md bg-[#0f1d40] px-2 py-0.5 font-mono text-[10px] font-bold text-white"
+                              className="inline-block rounded-md bg-[#0f1d40] px-2 py-0.5 font-mono text-[10px] font-bold text-white"
                             >
                               {uCode}
                             </span>
@@ -588,19 +616,18 @@ export function PromotionsManager({
                         </div>
 
                         <div className="flex shrink-0 flex-col items-end gap-1">
-                          <strong
-                            dir="ltr"
-                            className="text-base font-black text-[#007a5a] tabular-nums sm:text-lg"
-                          >
-                            {req.amount_gel} ₾
+                          <strong className="text-base font-black text-[#007a5a] sm:text-lg">
+                            <span dir="ltr" className="inline-block tabular-nums">
+                              {req.amount_gel} ₾
+                            </span>
                           </strong>
                           {isFlittPaid ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-[#007a5a] px-2 py-0.5 text-[10px] font-extrabold text-white">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-[#007a5a] px-2.5 py-0.5 text-[10px] font-extrabold text-white">
                               <CreditCard className="size-2.5" />
                               <span>{pm.paidFlittBadge}</span>
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-extrabold text-amber-900">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-extrabold text-amber-900">
                               <Landmark className="size-2.5" />
                               <span>{pm.bankTransferPendingBadge}</span>
                             </span>
@@ -608,9 +635,8 @@ export function PromotionsManager({
                         </div>
                       </div>
 
-                      {/* شبكة تفاصيل الطلب (المالك، وقت الدفع، مدة الانتظار، المرجع) */}
-                      <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl border border-slate-100 bg-slate-50/75 p-2.5 text-[11px] sm:grid-cols-4">
-                        <div className="min-w-0">
+                      <div className="mt-3 grid grid-cols-2 gap-2 text-start text-[11px] sm:grid-cols-4">
+                        <div className="min-w-0 rounded-xl border border-slate-200/75 bg-slate-50/70 p-2.5">
                           <span className="block text-[9.5px] font-bold text-slate-400">
                             {pm.sellerLabel}
                           </span>
@@ -618,46 +644,59 @@ export function PromotionsManager({
                             {unit.name || "—"}
                           </strong>
                           {unit.phone && (
-                            <span
-                              dir="ltr"
-                              className="block truncate font-mono text-[10px] text-slate-500"
-                            >
-                              {unit.phone}
+                            <span className="mt-0.5 block truncate text-[10px] text-slate-500">
+                              <span dir="ltr" className="inline-block font-mono">
+                                {unit.phone}
+                              </span>
                             </span>
                           )}
                         </div>
 
-                        <div>
+                        <div className="rounded-xl border border-slate-200/75 bg-slate-50/70 p-2.5">
                           <span className="block text-[9.5px] font-bold text-slate-400">
                             {pm.paidAtLabel}
                           </span>
-                          <strong
-                            dir="ltr"
-                            className="mt-0.5 block font-mono text-[10.5px] text-[#0f1d40]"
-                          >
-                            {formatDateTimeCompact(req.created_at)}
+                          <strong className="mt-1 block text-[10.5px] text-[#0f1d40]">
+                            <span dir="ltr" className="inline-block font-mono">
+                              {formatDateTimeCompact(req.created_at)}
+                            </span>
                           </strong>
                         </div>
 
-                        <div>
+                        <div className="rounded-xl border border-slate-200/75 bg-slate-50/70 p-2.5">
                           <span className="block text-[9.5px] font-bold text-slate-400">
                             {pm.paidSinceLabel}
                           </span>
-                          <strong className="mt-0.5 block text-amber-700">
+                          <strong className="mt-1 block text-xs font-black text-amber-700">
                             {formatTimeWaiting(req.created_at, pm)}
                           </strong>
                         </div>
 
-                        <div className="min-w-0">
+                        <div className="min-w-0 rounded-xl border border-slate-200/75 bg-slate-50/70 p-2.5">
                           <span className="block text-[9.5px] font-bold text-slate-400">
                             {pm.refCodeLabel}
                           </span>
-                          <strong
-                            dir="ltr"
-                            className="mt-0.5 block truncate font-mono text-[10.5px] text-[#007a5a]"
-                          >
-                            {req.order_ref || "—"}
-                          </strong>
+                          {req.order_ref ? (
+                            <button
+                              type="button"
+                              onClick={() => handleCopyRef(req.order_ref!)}
+                              className="mt-1 inline-flex max-w-full items-center gap-1 text-[10.5px] font-black text-[#007a5a] hover:underline"
+                            >
+                              <span dir="ltr" className="truncate font-mono">
+                                {req.order_ref}
+                              </span>
+                              <Copy className="size-3 shrink-0" />
+                              {copiedRef === req.order_ref && (
+                                <span className="text-[9.5px]">
+                                  {pm.copiedRefToast}
+                                </span>
+                              )}
+                            </button>
+                          ) : (
+                            <strong className="mt-1 block text-[10.5px] text-slate-400">
+                              —
+                            </strong>
+                          )}
                         </div>
                       </div>
 
@@ -677,7 +716,6 @@ export function PromotionsManager({
                         </div>
                       )}
 
-                      {/* شريط الإجراءات المتجاوب */}
                       <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-100 pt-2.5 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
                         {unit.phone && (
                           <a
@@ -764,7 +802,7 @@ export function PromotionsManager({
                           <div className="flex flex-wrap items-center gap-1.5">
                             <span
                               dir="ltr"
-                              className="rounded-md bg-[#0f1d40] px-2 py-0.5 font-mono text-[10px] font-bold text-white"
+                              className="inline-block rounded-md bg-[#0f1d40] px-2 py-0.5 font-mono text-[10px] font-bold text-white"
                             >
                               {uCode}
                             </span>
@@ -793,7 +831,7 @@ export function PromotionsManager({
                       <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2.5">
                         <span className="text-[11px] font-semibold text-slate-500">
                           {unit.name} ·{" "}
-                          <span dir="ltr" className="font-mono">
+                          <span dir="ltr" className="inline-block font-mono">
                             {unit.phone}
                           </span>
                         </span>
@@ -840,7 +878,7 @@ export function PromotionsManager({
         </div>
       )}
 
-      {/* تبويب 2: الإعلانات النشطة حالياً */}
+      {/* تبويب 2: الإعلانات النشطة حالياً (مع الرقم المرجعي وطريقة الدفع وزر النسخ) */}
       {tab === "active" && (
         <div className="space-y-3">
           {activeFeaturedUnits.length === 0 ? (
@@ -849,17 +887,52 @@ export function PromotionsManager({
             </div>
           ) : (
             activeFeaturedUnits
-              .filter((u) =>
-                matchesQuery(
-                  `${deriveShortUnitCode(u.id, u.code)} ${u.project_name || ""} ${u.name || ""} ${u.phone || ""}`
+              .filter((u) => {
+                const approvedRow = latestApprovedByUnitMap.get(String(u.id))
+                const refStr =
+                  u.documents?.__unit_meta?.boost_active?.order_ref ||
+                  approvedRow?.order_ref ||
+                  u.featured_fawry_code ||
+                  ""
+                return matchesQuery(
+                  `${deriveShortUnitCode(u.id, u.code)} ${u.project_name || ""} ${u.name || ""} ${u.phone || ""} ${refStr}`
                 )
-              )
+              })
               .map((unit) => {
                 const uCode = deriveShortUnitCode(unit.id, unit.code)
                 const isVipPlus = unit.boost_tier === "vip_plus"
                 const isBusy = isPending && busyId === unit.id
                 const activeMeta = (unit.documents?.__unit_meta?.boost_active ||
                   {}) as Record<string, any>
+                const approvedRow = latestApprovedByUnitMap.get(String(unit.id))
+
+                const resolvedOrderRef: string =
+                  activeMeta.order_ref ||
+                  approvedRow?.order_ref ||
+                  unit.featured_fawry_code ||
+                  ""
+                const resolvedStartedAt: string | null =
+                  activeMeta.started_at ||
+                  approvedRow?.approved_at ||
+                  approvedRow?.created_at ||
+                  null
+                const resolvedPayMethod = String(
+                  activeMeta.payment_method ||
+                    approvedRow?.payment_method ||
+                    (resolvedOrderRef.startsWith("FL-")
+                      ? "flitt"
+                      : "cash_manual")
+                ).toLowerCase()
+                const isFlittSource =
+                  resolvedPayMethod.includes("flitt") ||
+                  resolvedOrderRef.startsWith("FL-")
+                const resolvedAmount = Number(
+                  activeMeta.amount_gel ??
+                    approvedRow?.amount_gel ??
+                    unit.featured_price ??
+                    0
+                )
+
                 const totalViews = Math.max(0, Number(unit.views_count) || 0)
                 const viewsGained =
                   typeof activeMeta.views_baseline === "number"
@@ -876,7 +949,7 @@ export function PromotionsManager({
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span
                             dir="ltr"
-                            className="rounded-md bg-[#0f1d40] px-2 py-0.5 font-mono text-[10px] font-bold text-white"
+                            className="inline-block rounded-md bg-[#0f1d40] px-2 py-0.5 font-mono text-[10px] font-bold text-white"
                           >
                             {uCode}
                           </span>
@@ -909,49 +982,88 @@ export function PromotionsManager({
                         <p className="text-[11px] font-semibold text-slate-500">
                           {cleanPropertyAreaDisplay(unit.area, locale)} ·{" "}
                           {unit.name} (
-                          <span dir="ltr" className="font-mono">
+                          <span dir="ltr" className="inline-block font-mono">
                             {unit.phone}
                           </span>
                           )
                         </p>
+
+                        {/* شارة طريقة الدفع والرقم المرجعي للتحقق والمطابقة */}
+                        <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                          {isFlittSource ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-[#007a5a] px-2.5 py-0.5 text-[10px] font-extrabold text-white">
+                              <CreditCard className="size-2.5" />
+                              <span>{pm.paidFlittBadge}</span>
+                              {resolvedAmount > 0 && (
+                                <span dir="ltr" className="inline-block">
+                                  · {resolvedAmount} ₾
+                                </span>
+                              )}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-[10px] font-extrabold text-slate-700">
+                              <Banknote className="size-3 text-[#007a5a]" />
+                              <span>{pm.manualBadge}</span>
+                              {resolvedAmount > 0 && (
+                                <span dir="ltr" className="inline-block">
+                                  · {resolvedAmount} ₾
+                                </span>
+                              )}
+                            </span>
+                          )}
+
+                          {resolvedOrderRef && (
+                            <button
+                              type="button"
+                              onClick={() => handleCopyRef(resolvedOrderRef)}
+                              className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-[#eaf8f2]/70 px-2.5 py-0.5 text-[10px] font-extrabold text-[#007a5a] transition hover:bg-[#eaf8f2]"
+                            >
+                              <span>{pm.refCodeLabel}:</span>
+                              <span dir="ltr" className="inline-block font-mono">
+                                {resolvedOrderRef}
+                              </span>
+                              <Copy className="size-2.5" />
+                              {copiedRef === resolvedOrderRef && (
+                                <span>{pm.copiedRefToast}</span>
+                              )}
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       {renderUnitStatusBadge(unit)}
                     </div>
 
-                    {/* شبكة بيانات الإعلان النشط */}
-                    <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl border border-slate-100 bg-slate-50/75 p-2.5 text-[11px] sm:grid-cols-4">
-                      <div>
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-start text-[11px] sm:grid-cols-4">
+                      <div className="rounded-xl border border-slate-200/75 bg-slate-50/70 p-2.5">
                         <span className="flex items-center gap-1 text-[9.5px] font-bold text-slate-400">
-                          <CalendarClock className="size-3 text-[#007a5a]" />
+                          <CalendarClock className="size-3 shrink-0 text-[#007a5a]" />
                           <span>{pm.startedAtLabel}</span>
                         </span>
-                        <strong
-                          dir="ltr"
-                          className="mt-0.5 block font-mono text-[10.5px] text-[#0f1d40]"
-                        >
-                          {formatDateTimeCompact(activeMeta.started_at)}
+                        <strong className="mt-1 block text-[10.5px] text-[#0f1d40]">
+                          <span dir="ltr" className="inline-block font-mono">
+                            {formatDateTimeCompact(resolvedStartedAt)}
+                          </span>
                         </strong>
                       </div>
 
-                      <div>
+                      <div className="rounded-xl border border-slate-200/75 bg-slate-50/70 p-2.5">
                         <span className="flex items-center gap-1 text-[9.5px] font-bold text-slate-400">
-                          <Clock className="size-3 text-amber-600" />
+                          <Clock className="size-3 shrink-0 text-amber-600" />
                           <span>{pm.endsAtLabel}</span>
                         </span>
-                        <strong
-                          dir="ltr"
-                          className="mt-0.5 block font-mono text-[10.5px] text-[#0f1d40]"
-                        >
-                          {formatDateTimeCompact(unit.featured_until)}
+                        <strong className="mt-1 block text-[10.5px] text-[#0f1d40]">
+                          <span dir="ltr" className="inline-block font-mono">
+                            {formatDateTimeCompact(unit.featured_until)}
+                          </span>
                         </strong>
                       </div>
 
-                      <div>
+                      <div className="rounded-xl border border-emerald-200/80 bg-[#eaf8f2]/60 p-2.5">
                         <span className="block text-[9.5px] font-bold text-[#007a5a]">
                           {pm.remainingTimeLabel}
                         </span>
-                        <strong className="mt-0.5 block text-[11px] font-black text-[#007a5a]">
+                        <strong className="mt-1 block text-[11px] font-black text-[#007a5a]">
                           {formatRemainingDetailed(
                             unit.featured_until,
                             pm,
@@ -960,18 +1072,17 @@ export function PromotionsManager({
                         </strong>
                       </div>
 
-                      <div>
+                      <div className="rounded-xl border border-blue-200/70 bg-blue-50/50 p-2.5">
                         <span className="flex items-center gap-1 text-[9.5px] font-bold text-[#2563eb]">
-                          <Eye className="size-3" />
+                          <Eye className="size-3 shrink-0" />
                           <span>{pm.viewsLabel}</span>
                         </span>
-                        <strong
-                          dir="ltr"
-                          className="mt-0.5 block text-[11px] font-black text-[#0f1d40]"
-                        >
-                          {totalViews.toLocaleString("en-US")}
+                        <strong className="mt-1 block text-[11px] font-black text-[#0f1d40]">
+                          <span dir="ltr" className="inline-block tabular-nums">
+                            {totalViews.toLocaleString("en-US")}
+                          </span>
                           {viewsGained !== null ? (
-                            <span className="ms-1 text-[10px] text-[#007a5a]">
+                            <span className="ms-1 text-[10px] font-extrabold text-[#007a5a]">
                               (+{viewsGained})
                             </span>
                           ) : null}
@@ -992,6 +1103,14 @@ export function PromotionsManager({
                         </a>
                       )}
 
+                      <Link
+                        href={`/admin/properties?unitId=${unit.id}`}
+                        className="inline-flex h-8.5 items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-[11px] font-bold text-[#0f1d40] hover:bg-slate-50"
+                      >
+                        <ExternalLink className="size-3.5 text-[#007a5a]" />
+                        <span>{propDict.actions?.detailsBtn}</span>
+                      </Link>
+
                       <button
                         type="button"
                         disabled={isBusy}
@@ -999,6 +1118,7 @@ export function PromotionsManager({
                           setManualModalUnit(unit)
                           setManualTier(isVipPlus ? "vip_plus" : "super_vip")
                           setManualDays(7)
+                          setManualCashGel("0")
                         }}
                         className="inline-flex h-8.5 items-center justify-center gap-1 rounded-xl border border-emerald-200 bg-[#eaf8f2] px-3 text-[11px] font-extrabold text-[#007a5a] hover:bg-emerald-100"
                       >
@@ -1010,7 +1130,7 @@ export function PromotionsManager({
                         type="button"
                         disabled={isBusy}
                         onClick={() => handleStopActivePromo(unit.id)}
-                        className="inline-flex h-8.5 items-center justify-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 text-[11px] font-extrabold text-red-700 hover:bg-red-100 disabled:opacity-50"
+                        className="col-span-3 inline-flex h-8.5 items-center justify-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 text-[11px] font-extrabold text-red-700 hover:bg-red-100 disabled:opacity-50 sm:col-span-1"
                       >
                         {isBusy ? (
                           <Loader2 className="size-3.5 animate-spin" />
@@ -1045,6 +1165,9 @@ export function PromotionsManager({
               .map((req) => {
                 const unit = req.unit_id ? propsMap.get(req.unit_id) : null
                 const isApproved = req.status === "approved"
+                const isManualCash =
+                  req.payment_method === "cash_manual" ||
+                  String(req.order_ref || "").startsWith("MN-")
                 return (
                   <div
                     key={req.id}
@@ -1054,7 +1177,7 @@ export function PromotionsManager({
                       <div className="flex flex-wrap items-center gap-1.5">
                         <span
                           dir="ltr"
-                          className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-[#0f1d40]"
+                          className="inline-block rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-[#0f1d40]"
                         >
                           {req.unit_code ||
                             (unit
@@ -1068,14 +1191,28 @@ export function PromotionsManager({
                           {req.package_tier} · {req.duration_days}{" "}
                           {propBadges.dayWord}
                         </span>
+                        {isManualCash && (
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[9.5px] font-extrabold text-slate-600">
+                            {pm.manualBadge}
+                          </span>
+                        )}
                       </div>
                       {req.order_ref && (
-                        <span
-                          dir="ltr"
-                          className="block font-mono text-[10px] text-slate-400"
+                        <button
+                          type="button"
+                          onClick={() => handleCopyRef(req.order_ref!)}
+                          className="inline-flex items-center gap-1 text-[10px] text-slate-400 hover:text-[#007a5a]"
                         >
-                          {req.order_ref}
-                        </span>
+                          <span dir="ltr" className="inline-block font-mono">
+                            {req.order_ref}
+                          </span>
+                          <Copy className="size-2.5" />
+                          {copiedRef === req.order_ref && (
+                            <span className="font-bold text-[#007a5a]">
+                              {pm.copiedRefToast}
+                            </span>
+                          )}
+                        </button>
                       )}
                       {req.admin_note && (
                         <p className="text-[11px] font-semibold text-red-600">
@@ -1085,11 +1222,10 @@ export function PromotionsManager({
                     </div>
 
                     <div className="flex items-center justify-between gap-2.5 border-t border-slate-100 pt-2 sm:justify-end sm:border-0 sm:pt-0">
-                      <strong
-                        dir="ltr"
-                        className="font-black text-[#0f1d40] tabular-nums"
-                      >
-                        {req.amount_gel} ₾
+                      <strong className="font-black text-[#0f1d40]">
+                        <span dir="ltr" className="inline-block tabular-nums">
+                          {req.amount_gel} ₾
+                        </span>
                       </strong>
                       <span
                         className={`rounded-full px-2.5 py-0.5 text-[10px] font-extrabold ${
@@ -1100,13 +1236,12 @@ export function PromotionsManager({
                       >
                         {isApproved ? pm.approvedBadge : pm.rejectedBadge}
                       </span>
-                      <span
-                        dir="ltr"
-                        className="font-mono text-[10px] text-slate-400"
-                      >
-                        {formatDateTimeCompact(
-                          req.approved_at || req.rejected_at || req.created_at
-                        )}
+                      <span className="text-[10px] text-slate-400">
+                        <span dir="ltr" className="inline-block font-mono">
+                          {formatDateTimeCompact(
+                            req.approved_at || req.rejected_at || req.created_at
+                          )}
+                        </span>
                       </span>
                     </div>
                   </div>
@@ -1116,7 +1251,7 @@ export function PromotionsManager({
         </div>
       )}
 
-      {/* تبويب 4: تمييز يدوي */}
+      {/* تبويب 4: تمييز يدوي / كاش */}
       {tab === "manual" && (
         <div className="space-y-2.5">
           <div className="rounded-xl border border-blue-100 bg-blue-50/70 px-3.5 py-2 text-[11px] font-semibold text-blue-950 sm:text-xs">
@@ -1139,7 +1274,7 @@ export function PromotionsManager({
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span
                         dir="ltr"
-                        className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-[#0f1d40]"
+                        className="inline-block rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-[#0f1d40]"
                       >
                         {uCode}
                       </span>
@@ -1162,6 +1297,7 @@ export function PromotionsManager({
                       setManualModalUnit(unit)
                       setManualTier("super_vip")
                       setManualDays(7)
+                      setManualCashGel("0")
                     }}
                     className="inline-flex h-8.5 shrink-0 items-center gap-1 rounded-xl border border-amber-300 bg-amber-50 px-3 text-[11px] font-extrabold text-amber-900 hover:bg-amber-100 sm:text-xs"
                   >
@@ -1174,7 +1310,7 @@ export function PromotionsManager({
         </div>
       )}
 
-      {/* نافذة تأكيد الرفض مع تنبيه الاسترداد المالي */}
+      {/* نافذة تأكيد الرفض */}
       <Dialog
         open={Boolean(rejectTarget)}
         onOpenChange={(o) => !o && setRejectTarget(null)}
@@ -1203,8 +1339,10 @@ export function PromotionsManager({
                   <div>
                     <p>{pm.flittRefundWarning}</p>
                     {rejectTarget.orderRef && (
-                      <p dir="ltr" className="mt-1 font-mono text-[#0f1d40]">
-                        Ref: {rejectTarget.orderRef}
+                      <p className="mt-1 text-[#0f1d40]">
+                        <span dir="ltr" className="inline-block font-mono">
+                          Ref: {rejectTarget.orderRef}
+                        </span>
                       </p>
                     )}
                   </div>
@@ -1246,7 +1384,7 @@ export function PromotionsManager({
         </DialogContent>
       </Dialog>
 
-      {/* نافذة التمييز / التمديد اليدوي */}
+      {/* نافذة التمييز / التمديد اليدوي (مع دعم تسجيل المبلغ الكاش في السجل) */}
       <Dialog
         open={Boolean(manualModalUnit)}
         onOpenChange={(o) => !o && setManualModalUnit(null)}
@@ -1308,6 +1446,24 @@ export function PromotionsManager({
                       {days} {propBadges.dayWord}
                     </button>
                   ))}
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-[11px] font-bold text-slate-600">
+                    {pm.cashAmountLabel}
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    dir="ltr"
+                    value={manualCashGel}
+                    onChange={(e) => setManualCashGel(e.target.value)}
+                    placeholder={pm.cashAmountPlaceholder}
+                    className="h-9.5 w-full rounded-xl border border-slate-200 bg-slate-50/60 px-3 text-xs font-black text-[#0f1d40] focus:border-[#007a5a] focus:bg-white focus:outline-none"
+                  />
+                  <p className="mt-1 text-[10.5px] font-medium text-slate-500">
+                    {pm.cashNoteHint}
+                  </p>
                 </div>
               </div>
 

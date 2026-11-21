@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState, useTransition } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -27,6 +27,8 @@ type AdminNotifItem = {
   created_at: string
 }
 
+const PAGE_BATCH = 12
+
 export default function AdminNotificationsPage() {
   const router = useRouter()
   const { t: dict, locale, dir, isRtl } = useTranslation()
@@ -34,14 +36,18 @@ export default function AdminNotificationsPage() {
   const d = (dict.admin?.dealsPage as Record<string, any>) || {}
 
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [items, setItems] = useState<AdminNotifItem[]>([])
+  const [visibleCount, setVisibleCount] = useState(PAGE_BATCH)
   const [filterTab, setFilterTab] = useState<'all' | 'unread'>('all')
   const [isPending, startTransition] = useTransition()
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   async function loadAdminNotifs() {
     setLoading(true)
     const res = await getUserNotificationsAction('admin', 120)
     setItems((res.notifications || []) as AdminNotifItem[])
+    setVisibleCount(PAGE_BATCH)
     setLoading(false)
   }
 
@@ -49,17 +55,44 @@ export default function AdminNotificationsPage() {
     loadAdminNotifs()
   }, [locale])
 
+  useEffect(() => {
+    setVisibleCount(PAGE_BATCH)
+  }, [filterTab])
+
   const unreadCount = useMemo(
     () => items.filter((i) => !i.is_read).length,
     [items]
   )
 
-  const displayedItems = useMemo(() => {
+  const filteredItems = useMemo(() => {
     if (filterTab === 'unread') {
       return items.filter((i) => !i.is_read)
     }
     return items
   }, [items, filterTab])
+
+  const displayedItems = useMemo(
+    () => filteredItems.slice(0, visibleCount),
+    [filteredItems, visibleCount]
+  )
+  const hasMore = visibleCount < filteredItems.length
+
+  const triggerLoadMore = useCallback(() => {
+    if (!hasMore || loadingMore) return
+    setLoadingMore(true)
+    setTimeout(() => {
+      setVisibleCount((prev) => prev + PAGE_BATCH)
+      setLoadingMore(false)
+    }, 320)
+  }, [hasMore, loadingMore])
+
+  const handleListScroll = () => {
+    const el = scrollContainerRef.current
+    if (!el || !hasMore || loadingMore) return
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 40) {
+      triggerLoadMore()
+    }
+  }
 
   const formatNotifDate = (iso: string) => {
     try {
@@ -105,12 +138,14 @@ export default function AdminNotificationsPage() {
 
   return (
     <div dir={dir} className="mx-auto max-w-4xl space-y-4 text-start">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/90 bg-white px-5 py-4 shadow-2xs">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/90 bg-white px-4 py-3.5 shadow-2xs sm:px-5 sm:py-4">
         <div>
-          <h1 className="text-lg font-black text-[#0f1d40] sm:text-xl">
+          <h1 className="text-base font-black text-[#0f1d40] sm:text-xl">
             {nT.title} ({items.length})
           </h1>
-          <p className="mt-0.5 text-xs text-slate-500">{nT.adminSubtitle}</p>
+          <p className="mt-0.5 text-[11px] text-slate-500 sm:text-xs">
+            {nT.adminSubtitle}
+          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -119,7 +154,7 @@ export default function AdminNotificationsPage() {
               type="button"
               disabled={isPending}
               onClick={handleMarkAllRead}
-              className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#eaf8f2] px-3.5 text-xs font-extrabold text-[#007a5a] transition hover:bg-[#007a5a] hover:text-white"
+              className="inline-flex h-8.5 items-center gap-1.5 rounded-xl bg-[#eaf8f2] px-3 text-xs font-extrabold text-[#007a5a] transition hover:bg-[#007a5a] hover:text-white"
             >
               <CheckCheck className="size-4" />
               <span>{nT.markAllReadBtn}</span>
@@ -128,7 +163,7 @@ export default function AdminNotificationsPage() {
 
           <Link
             href="/admin"
-            className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-extrabold text-[#0f1d40] hover:bg-slate-50"
+            className="inline-flex h-8.5 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-extrabold text-[#0f1d40] hover:bg-slate-50"
           >
             {isRtl ? (
               <ArrowRight className="size-3.5" />
@@ -166,7 +201,7 @@ export default function AdminNotificationsPage() {
       </div>
 
       {loading ? (
-        <div className="flex min-h-[40vh] items-center justify-center rounded-2xl border border-slate-200 bg-white p-10">
+        <div className="flex min-h-[35vh] items-center justify-center rounded-2xl border border-slate-200 bg-white p-10">
           <Loader2 className="size-5 animate-spin text-[#007a5a]" />
         </div>
       ) : displayedItems.length === 0 ? (
@@ -177,12 +212,16 @@ export default function AdminNotificationsPage() {
           </p>
         </div>
       ) : (
-        <div className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-2xs">
+        <div
+          ref={scrollContainerRef}
+          onScroll={handleListScroll}
+          className="max-h-[65vh] divide-y divide-slate-100 overflow-y-auto rounded-2xl border border-slate-200/90 bg-white shadow-2xs"
+        >
           {displayedItems.map((item) => (
             <div
               key={item.id}
               onClick={() => handleItemClick(item)}
-              className={`cursor-pointer p-4 text-start transition sm:p-5 ${
+              className={`cursor-pointer p-3.5 text-start transition sm:p-4 ${
                 !item.is_read
                   ? 'bg-[#f4fbf8] hover:bg-[#eaf8f2]/80'
                   : 'hover:bg-slate-50'
@@ -193,19 +232,38 @@ export default function AdminNotificationsPage() {
                   <span className="mt-1.5 size-2.5 shrink-0 rounded-full bg-[#007a5a]" />
                 )}
                 <div className="min-w-0 flex-1">
-                  <h3 className="text-sm font-black text-[#0f1d40]">
+                  <h3 className="text-xs font-black text-[#0f1d40] sm:text-sm">
                     {item.title}
                   </h3>
-                  <p className="mt-1 text-xs leading-relaxed font-semibold text-slate-600">
+                  <p className="mt-1 text-[11.5px] leading-relaxed font-semibold text-slate-600 sm:text-xs">
                     {item.message}
                   </p>
-                  <span className="mt-2 block text-[11px] font-semibold text-slate-400">
+                  <span className="mt-1.5 block text-[10.5px] font-semibold text-slate-400">
                     {formatNotifDate(item.created_at)}
                   </span>
                 </div>
               </div>
             </div>
           ))}
+
+          {loadingMore && (
+            <div className="flex items-center justify-center gap-2 py-3.5 text-xs font-bold text-[#007a5a]">
+              <Loader2 className="size-4 animate-spin" />
+              <span>{nT.loadingMore || nT.loading}</span>
+            </div>
+          )}
+
+          {hasMore && !loadingMore && (
+            <div className="p-2.5 text-center">
+              <button
+                type="button"
+                onClick={triggerLoadMore}
+                className="rounded-xl bg-slate-100 px-4 py-1.5 text-xs font-extrabold text-[#0f1d40] transition hover:bg-[#eaf8f2] hover:text-[#007a5a]"
+              >
+                {nT.loadMoreBtn || nT.viewAllBtn}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

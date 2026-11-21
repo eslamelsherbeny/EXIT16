@@ -349,6 +349,18 @@
       "recentTitle": "Недавно добавленные",
       "recentSub": "Новые объекты, отсортированные по дате — сначала новые",
       "recentAllBtn": "Все новые →"
+    },
+    "activeBoostWidget": {
+      "activeLabel": "Ваш VIP активен",
+      "pendingLabel": "VIP ожидает активации",
+      "remainingPrefix": "Осталось",
+      "dayWord": "дн",
+      "hourWord": "ч",
+      "viewsWord": "просм.",
+      "viewStatsBtn": "Статистика объявления",
+      "minimizeAria": "Свернуть",
+      "expandAria": "Показать статус VIP",
+      "moreUnitsSuffix": "ещё"
     }
   },
   "footer": {
@@ -1454,7 +1466,9 @@
       "newSectionHeader": "Новые",
       "olderSectionHeader": "Ранее",
       "emptyTitle": "Уведомлений пока нет",
-      "emptySubtitle": "Здесь будут появляться все обновления по вашим предложениям и объектам."
+      "emptySubtitle": "Здесь будут появляться все обновления по вашим предложениям и объектам.",
+      "loadingMore": "Загрузка следующих уведомлений...",
+      "loadMoreBtn": "Загрузить ещё"
     }
   },
   "accountComponents": {
@@ -1727,7 +1741,9 @@
       "boostRejectedBannerTitle": "Последняя заявка на VIP не активирована",
       "boostRejectedRefundHint": "Если вы оплатили картой, напишите нам в WhatsApp для возврата или помощи.",
       "waSpeedUpMsgPrefix": "Здравствуйте, DualDealz! Я оплатил VIP-пакет через Flitt и хочу ускорить активацию",
-      "waRefundMsgPrefix": "Здравствуйте, DualDealz! Мне нужна помощь по заявке VIP номер"
+      "waRefundMsgPrefix": "Здравствуйте, DualDealz! Мне нужна помощь по заявке VIP номер",
+      "boostViewPackagesBtn": "Посмотреть пакеты / Добавить дни",
+      "boostWaitingStackNote": "Примечание: у вас уже есть оплаченная заявка на активации. Вы можете посмотреть пакеты ниже или добавить ещё дни — они суммируются."
     },
     "buyer": {
       "popularAreas": [
@@ -4279,7 +4295,8 @@
         "negotiable": "Торг уместен",
         "adCodeLabel": "Код рекламы:",
         "waDocsVerifiedShort": "WhatsApp ✓",
-        "pausedByAdmin": "Приостановлено админом"
+        "pausedByAdmin": "Приостановлено админом",
+        "selectedUnitBadge": "Выбранный объект"
       },
       "header": {
         "promoAllTitle": "Заявки на рекламу и VIP-продвижение во всех странах 🌍",
@@ -4520,6 +4537,22 @@
         "excPausedSeller": "Объект временно приостановлен по запросу владельца.",
         "excRejected": "Объект отклонен, владелец уведомлен о причине.",
         "excDeleted": "Объект удален владельцем (корзина на 7 дней)."
+      },
+      "statusMenu": {
+        "pipelineGroupLabel": "Этапы объекта (1 – 6)",
+        "otherGroupLabel": "Другие статусы",
+        "autoBadge": "Авто",
+        "currentBadge": "Текущий",
+        "lockedInDealTitle": "Объект в активной сделке",
+        "lockedInDealDesc": "Статус нельзя менять вручную во время сделки. Управление выполняется в разделе «Сделки».",
+        "lockedHasOffersTitle": "Есть активные офферы / торг",
+        "lockedHasOffersDesc": "Нельзя менять статус вручную при наличии активных офферов. Управляйте ими в разделе «Офферы».",
+        "lockedSoldTitle": "Объект продан и закрыт",
+        "lockedSoldDesc": "Сделка завершена окончательно, статус изменить нельзя.",
+        "goToDealsBtn": "Перейти в Сделки",
+        "goToOffersBtn": "Офферы объекта",
+        "incompleteBannerTitle": "0. Объект не заполнен",
+        "incompleteBannerDesc": "Не хватает фото или документов от продавца. Можно опубликовать после проверки документов или перевести на проверку."
       }
     },
     "contactVerification": {
@@ -4660,7 +4693,12 @@
       "justNowWord": "Только что",
       "minsAgoSuffix": "мин",
       "hoursAgoSuffix": "ч",
-      "daysAgoSuffix": "дн"
+      "daysAgoSuffix": "дн",
+      "manualBadge": "Ручной / Наличные",
+      "cashAmountLabel": "Получено наличными (необязательно — ₾)",
+      "cashAmountPlaceholder": "0 — бесплатно или введите сумму в ₾",
+      "cashNoteHint": "Ручная активация автоматически сохраняется в истории с кодом для учёта.",
+      "copiedRefToast": "Скопировано ✓"
     }
   },
   "smartMatcher": {

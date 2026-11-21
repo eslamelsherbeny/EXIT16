@@ -180,7 +180,7 @@ export function SellerPromoSection({
     [5, 10, 20, 50, 100].includes(defaultAmt) ? defaultAmt : 'custom'
   )
   const [topUpAmount, setTopUpAmount] = useState<number>(defaultAmt)
-  const [showRenewalPicker, setShowRenewalPicker] = useState<boolean>(
+  const [showPackageDrawer, setShowPackageDrawer] = useState<boolean>(
     Boolean(initialAmount && initialAmount >= 5)
   )
   const [submittingPayment, setSubmittingPayment] = useState(false)
@@ -196,7 +196,7 @@ export function SellerPromoSection({
       setSelectedPreset(
         [5, 10, 20, 50, 100].includes(initialAmount) ? initialAmount : 'custom'
       )
-      setShowRenewalPicker(true)
+      setShowPackageDrawer(true)
     }
   }, [initialAmount])
 
@@ -368,10 +368,10 @@ export function SellerPromoSection({
   const waSpeedUpMsg = `${t.waSpeedUpMsgPrefix || t.whatsappPromoMsgPrefix} (${effectivePendingTierLabel} · ${effectivePendingDays} ${t.daysWord} · ${effectivePendingAmount} ${GEL}) — ${unitHeadline} (${unitCode}) · Ref: ${effectivePendingRef}`
   const waRefundMsg = `${t.waRefundMsgPrefix || t.whatsappPromoMsgPrefix} ${effectivePendingRef || boostLastRejected?.order_ref || unitCode} — ${unitHeadline} (${unitCode})`
 
+  // إظهار قائمة الباقات افتراضياً لو مفيش باقة نشطة/معلقة، أو لو العميل ضغط «استعراض الباقات / إضافة أيام»
   const showPackagePicker =
     boostState === 'active' &&
-    !isWaitingActivationOnly &&
-    (!isCurrentlyFeatured || showRenewalPicker)
+    ((!isCurrentlyFeatured && !isWaitingActivationOnly) || showPackageDrawer)
 
   return (
     <section
@@ -394,7 +394,8 @@ export function SellerPromoSection({
 
           {isWaitingActivationOnly && (
             <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-extrabold text-amber-900">
-              {t.promoPendingBadgePrefix} ({effectivePendingDays} {t.daysWord})
+              {t.promoPendingBadgePrefix} ({effectivePendingDays}{' '}
+              {effectivePendingDays === 1 ? t.dayWord : t.daysWord})
             </span>
           )}
         </div>
@@ -409,7 +410,7 @@ export function SellerPromoSection({
         </button>
       </div>
 
-      {/* حالة 1: الوحدة لم تُنشر بعد (قفل الدفع تماماً لحماية أموال البائع) */}
+      {/* حالة 1: الوحدة لم تُنشر بعد */}
       {boostState !== 'active' && (
         <div className="mt-4 rounded-2xl border-2 border-amber-200 bg-amber-50/75 p-4 text-xs">
           <div className="flex items-start gap-2.5">
@@ -450,17 +451,15 @@ export function SellerPromoSection({
 
       {/* حالة 2: طلب مدفوع بانتظار موافقة الإدارة */}
       {isWaitingActivationOnly && (
-        <div className="mt-4 space-y-3 rounded-2xl border-2 border-emerald-200 bg-[#f5fbf8] p-4 text-xs">
+        <div className="mt-4 space-y-3 rounded-2xl border-2 border-emerald-200 bg-[#f5fbf8] p-4 text-start text-xs">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-[#007a5a] text-white">
                 <CheckCircle2 className="size-4.5" />
               </span>
-              <div>
-                <h4 className="text-xs font-black text-[#0f1d40] sm:text-sm">
-                  {t.boostPaidWaitingTitle}
-                </h4>
-              </div>
+              <h4 className="text-xs font-black text-[#0f1d40] sm:text-sm">
+                {t.boostPaidWaitingTitle}
+              </h4>
             </div>
 
             <span className="inline-flex items-center gap-1 rounded-full bg-[#007a5a] px-2.5 py-1 text-[10.5px] font-extrabold text-white">
@@ -473,33 +472,41 @@ export function SellerPromoSection({
             ⏳ {t.boostDaysStartAfterApprovalNote}
           </div>
 
-          <div className="grid grid-cols-2 gap-2.5 rounded-xl border border-slate-200/80 bg-white p-3 text-[11px]">
-            <div>
+          {/* 4 مربعات بيانات متساوية ومحاذاتها سليمة 100% */}
+          <div className="grid grid-cols-2 gap-2.5 text-start text-[11px]">
+            <div className="rounded-xl border border-slate-200/80 bg-white p-3">
               <span className="block text-[10px] font-semibold text-slate-400">
                 {t.boostPackageLabel}
               </span>
-              <strong className="mt-0.5 block font-black text-[#0f1d40]">
+              <strong className="mt-1 block text-xs font-black text-[#0f1d40]">
                 {effectivePendingTierLabel} · {effectivePendingDays}{' '}
-                {t.daysWord}
+                {effectivePendingDays === 1 ? t.dayWord : t.daysWord}
               </strong>
             </div>
-            <div>
+
+            <div className="rounded-xl border border-slate-200/80 bg-white p-3">
               <span className="block text-[10px] font-semibold text-slate-400">
                 {t.boostAmountPaidLabel}
               </span>
-              <strong dir="ltr" className="mt-0.5 block font-black text-[#007a5a]">
-                {Number(effectivePendingAmount).toLocaleString('en-US')} {GEL}
+              <strong className="mt-1 block text-xs font-black text-[#007a5a]">
+                <span dir="ltr" className="inline-block tabular-nums">
+                  {Number(effectivePendingAmount).toLocaleString('en-US')} {GEL}
+                </span>
               </strong>
             </div>
-            <div>
+
+            <div className="rounded-xl border border-slate-200/80 bg-white p-3">
               <span className="block text-[10px] font-semibold text-slate-400">
                 {t.boostPaidAtLabel}
               </span>
-              <strong dir="ltr" className="mt-0.5 block font-bold text-slate-700">
-                {formatDateTimeShort(boostPendingMeta?.paid_at)}
+              <strong className="mt-1 block text-[11px] font-bold text-slate-700">
+                <span dir="ltr" className="inline-block font-mono">
+                  {formatDateTimeShort(boostPendingMeta?.paid_at)}
+                </span>
               </strong>
             </div>
-            <div>
+
+            <div className="rounded-xl border border-slate-200/80 bg-white p-3">
               <span className="block text-[10px] font-semibold text-slate-400">
                 {t.boostRefLabel}
               </span>
@@ -511,10 +518,12 @@ export function SellerPromoSection({
                   setCopiedAdRef(true)
                   setTimeout(() => setCopiedAdRef(false), 2000)
                 }}
-                className="mt-0.5 inline-flex items-center gap-1 font-mono text-[11px] font-black text-[#007a5a] hover:underline"
+                className="mt-1 inline-flex max-w-full items-center gap-1 font-mono text-[11px] font-black text-[#007a5a] hover:underline"
               >
-                <span dir="ltr">{effectivePendingRef || '—'}</span>
-                <Copy className="size-3" />
+                <span dir="ltr" className="truncate">
+                  {effectivePendingRef || '—'}
+                </span>
+                <Copy className="size-3 shrink-0" />
                 {copiedAdRef && (
                   <span className="font-sans text-[10px]">{t.copiedBtn}</span>
                 )}
@@ -522,15 +531,30 @@ export function SellerPromoSection({
             </div>
           </div>
 
-          <a
-            href={`https://wa.me/${supportWhatsApp}?text=${encodeURIComponent(waSpeedUpMsg)}`}
-            target="_blank"
-            rel="noreferrer"
-            className="flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 text-xs font-extrabold text-white shadow-2xs transition hover:opacity-95"
-          >
-            <MessageCircle className="size-4 shrink-0" />
-            <span>{t.boostSpeedUpWaBtn}</span>
-          </a>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <a
+              href={`https://wa.me/${supportWhatsApp}?text=${encodeURIComponent(waSpeedUpMsg)}`}
+              target="_blank"
+              rel="noreferrer"
+              className="flex h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 text-xs font-extrabold text-white shadow-2xs transition hover:opacity-95"
+            >
+              <MessageCircle className="size-4 shrink-0" />
+              <span>{t.boostSpeedUpWaBtn}</span>
+            </a>
+
+            <button
+              type="button"
+              onClick={() => setShowPackageDrawer((prev) => !prev)}
+              className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 text-xs font-extrabold text-[#0f1d40] transition hover:bg-slate-50"
+            >
+              <Sparkles className="size-3.5 text-[#2563eb]" />
+              <span>
+                {showPackageDrawer
+                  ? t.boostHidePickerBtn
+                  : t.boostViewPackagesBtn || t.boostChooseOtherBtn}
+              </span>
+            </button>
+          </div>
 
           <p className="text-center text-[11px] font-semibold text-slate-500">
             {t.boostRefundSupportNote}{' '}
@@ -546,9 +570,9 @@ export function SellerPromoSection({
         </div>
       )}
 
-      {/* حالة 3: إعلان نشط حالياً — لوحة متابعة مباشرة + خيارات التجديد والترقية */}
+      {/* حالة 3: إعلان نشط حالياً */}
       {isCurrentlyFeatured && (
-        <div className="mt-4 space-y-3 rounded-2xl border-2 border-amber-300/90 bg-gradient-to-b from-amber-50/40 to-white p-4 text-xs">
+        <div className="mt-4 space-y-3 rounded-2xl border-2 border-amber-300/90 bg-gradient-to-b from-amber-50/40 to-white p-4 text-start text-xs">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <span
@@ -578,46 +602,44 @@ export function SellerPromoSection({
             {boostActiveMeta?.order_ref && (
               <span
                 dir="ltr"
-                className="rounded-lg border border-slate-200 bg-white px-2 py-1 font-mono text-[10.5px] font-bold text-slate-600"
+                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 font-mono text-[10.5px] font-bold text-slate-600"
               >
                 {boostActiveMeta.order_ref}
               </span>
             )}
           </div>
 
-          {/* 4 بطاقات إحصائيات الإعلان النشط */}
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-            <div className="rounded-xl border border-slate-200/80 bg-white p-2.5">
+          {/* 4 بطاقات إحصائيات الإعلان النشط بمحاذاة منضبطة */}
+          <div className="grid grid-cols-2 gap-2.5 text-start sm:grid-cols-4">
+            <div className="rounded-xl border border-slate-200/80 bg-white p-3">
               <span className="flex items-center gap-1 text-[10px] font-bold text-slate-400">
-                <CalendarClock className="size-3 text-[#007a5a]" />
+                <CalendarClock className="size-3 shrink-0 text-[#007a5a]" />
                 <span>{t.boostStartedAtLabel}</span>
               </span>
-              <strong
-                dir="ltr"
-                className="mt-1 block text-[11px] font-black text-[#0f1d40]"
-              >
-                {formatDateTimeShort(activeStartedAtIso)}
+              <strong className="mt-1.5 block text-[11px] font-black text-[#0f1d40]">
+                <span dir="ltr" className="inline-block font-mono">
+                  {formatDateTimeShort(activeStartedAtIso)}
+                </span>
               </strong>
             </div>
 
-            <div className="rounded-xl border border-slate-200/80 bg-white p-2.5">
+            <div className="rounded-xl border border-slate-200/80 bg-white p-3">
               <span className="flex items-center gap-1 text-[10px] font-bold text-slate-400">
-                <Clock className="size-3 text-amber-600" />
+                <Clock className="size-3 shrink-0 text-amber-600" />
                 <span>{t.boostEndsAtLabel}</span>
               </span>
-              <strong
-                dir="ltr"
-                className="mt-1 block text-[11px] font-black text-[#0f1d40]"
-              >
-                {formatDateTimeShort(activeEndsAtIso)}
+              <strong className="mt-1.5 block text-[11px] font-black text-[#0f1d40]">
+                <span dir="ltr" className="inline-block font-mono">
+                  {formatDateTimeShort(activeEndsAtIso)}
+                </span>
               </strong>
             </div>
 
-            <div className="rounded-xl border border-emerald-200 bg-[#eaf8f2]/70 p-2.5">
+            <div className="rounded-xl border border-emerald-200 bg-[#eaf8f2]/70 p-3">
               <span className="block text-[10px] font-bold text-[#007a5a]">
                 {t.boostRemainingTimeLabel}
               </span>
-              <strong className="mt-1 block text-[11.5px] font-black text-[#0f1d40]">
+              <strong className="mt-1.5 block text-[11.5px] font-black text-[#0f1d40]">
                 {formatRemainingBreakdown(
                   activeEndsAtIso,
                   t.dayWord || '',
@@ -627,16 +649,15 @@ export function SellerPromoSection({
               </strong>
             </div>
 
-            <div className="rounded-xl border border-blue-200/80 bg-blue-50/50 p-2.5">
+            <div className="rounded-xl border border-blue-200/80 bg-blue-50/50 p-3">
               <span className="flex items-center gap-1 text-[10px] font-bold text-[#2563eb]">
-                <Eye className="size-3" />
+                <Eye className="size-3 shrink-0" />
                 <span>{t.boostViewsDuringLabel}</span>
               </span>
-              <strong
-                dir="ltr"
-                className="mt-1 block text-xs font-black text-[#0f1d40] tabular-nums"
-              >
-                {totalViews.toLocaleString('en-US')}
+              <strong className="mt-1.5 block text-xs font-black text-[#0f1d40]">
+                <span dir="ltr" className="inline-block tabular-nums">
+                  {totalViews.toLocaleString('en-US')}
+                </span>
               </strong>
               {viewsGainedSinceBoost !== null && (
                 <span className="block text-[9.5px] font-extrabold text-[#007a5a]">
@@ -647,7 +668,6 @@ export function SellerPromoSection({
             </div>
           </div>
 
-          {/* تنبيه إذا كان هناك طلب تمديد مدفوع بالفعل بانتظار موافقة الإدارة */}
           {boostPendingMeta?.is_renewal && (
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-300 bg-[#eaf8f2] p-3 text-xs">
               <div className="flex-1">
@@ -673,7 +693,6 @@ export function SellerPromoSection({
             </div>
           )}
 
-          {/* أزرار التجديد أو اختيار باقة أخرى */}
           {!boostPendingMeta?.is_renewal && (
             <div className="flex flex-col gap-2 pt-1 sm:flex-row">
               <button
@@ -702,12 +721,12 @@ export function SellerPromoSection({
 
               <button
                 type="button"
-                onClick={() => setShowRenewalPicker((prev) => !prev)}
+                onClick={() => setShowPackageDrawer((prev) => !prev)}
                 className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 text-xs font-extrabold text-[#0f1d40] transition hover:bg-slate-50"
               >
                 <Sparkles className="size-3.5 text-[#2563eb]" />
                 <span>
-                  {showRenewalPicker
+                  {showPackageDrawer
                     ? t.boostHidePickerBtn
                     : t.boostChooseOtherBtn}
                 </span>
@@ -757,7 +776,13 @@ export function SellerPromoSection({
 
       {/* اختيار الباقات والدفع عبر Flitt */}
       {showPackagePicker && (
-        <div className="mt-4">
+        <div className="mt-4 border-t border-slate-100 pt-4">
+          {isWaitingActivationOnly && (
+            <div className="mb-3.5 rounded-xl border border-amber-200 bg-amber-50/75 px-3.5 py-2.5 text-[11px] leading-relaxed font-semibold text-amber-950">
+              ℹ️ {t.boostWaitingStackNote}
+            </div>
+          )}
+
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               <h3 className="truncate text-sm font-extrabold text-[#0f1d40] sm:text-base">
@@ -765,7 +790,10 @@ export function SellerPromoSection({
               </h3>
               <p className="mt-0.5 text-[11px] text-slate-500">
                 {t.boostUnitSubtitle} ·{' '}
-                <span dir="ltr" className="font-mono font-bold text-[#0f1d40]">
+                <span
+                  dir="ltr"
+                  className="inline-block font-mono font-bold text-[#0f1d40]"
+                >
                   {unitCode}
                 </span>
               </p>
@@ -838,7 +866,7 @@ export function SellerPromoSection({
           </div>
 
           <div className="mt-4">
-            <span className="mb-1.5 block text-end text-[11px] font-semibold text-slate-500">
+            <span className="mb-1.5 block text-start text-[11px] font-semibold text-slate-500">
               {t.customAmountLabel}
             </span>
             <div className="flex h-11 items-center justify-between rounded-xl border border-slate-200 bg-slate-50/60 px-3">
@@ -899,17 +927,18 @@ export function SellerPromoSection({
             </div>
           </div>
 
-          <div className="mt-4 rounded-2xl border border-blue-100 bg-[#f5f8ff] p-4">
-            <div className="flex items-center justify-between gap-2">
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-blue-100/80 text-[#2563eb]">
+          {/* ملخص الباقة المختارة بمحاذاة start طبيعية */}
+          <div className="mt-4 rounded-2xl border border-blue-100 bg-[#f5f8ff] p-4 text-start">
+            <div className="flex items-center gap-3">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-blue-100/80 text-[#2563eb]">
                 <Zap className="size-4" />
               </span>
-              <div className="text-end">
-                <strong
-                  dir="ltr"
-                  className="block text-xs font-bold text-[#0f1d40] sm:text-sm"
-                >
-                  {pkgDetails.amount} {GEL} {t.creditedSuffix}
+              <div className="min-w-0 flex-1">
+                <strong className="block text-xs font-bold text-[#0f1d40] sm:text-sm">
+                  <span dir="ltr" className="inline-block tabular-nums">
+                    {pkgDetails.amount} {GEL}
+                  </span>{' '}
+                  {t.creditedSuffix}
                 </strong>
                 <span className="mt-0.5 block text-[11px] font-bold text-[#2563eb]">
                   {pkgDetails.coverLabel}
@@ -918,10 +947,16 @@ export function SellerPromoSection({
             </div>
 
             {pkgDetails.upsellTarget > 0 && (
-              <div className="mt-3 border-t border-blue-200/60 pt-3 text-end">
+              <div className="mt-3 border-t border-blue-200/60 pt-3">
                 <p className="text-[11px] leading-relaxed text-slate-600">
-                  {t.upsellPrefix} {pkgDetails.upsellTarget} {GEL}{' '}
-                  {t.upsellMiddle} {pkgDetails.upsellDiscount}{' '}
+                  {t.upsellPrefix}{' '}
+                  <span dir="ltr" className="inline-block font-bold">
+                    {pkgDetails.upsellTarget} {GEL}
+                  </span>{' '}
+                  {t.upsellMiddle}{' '}
+                  <span dir="ltr" className="inline-block font-bold">
+                    {pkgDetails.upsellDiscount}
+                  </span>{' '}
                   {t.upsellDaysSuffix} ({pkgDetails.upsellDays} {t.daysWord}) ✨
                 </p>
                 <button
@@ -933,10 +968,13 @@ export function SellerPromoSection({
                     )
                     setTopUpAmount(target)
                   }}
-                  className="mt-2 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-3 py-1 text-[10.5px] font-bold text-white shadow-2xs transition hover:opacity-95"
+                  className="mt-2 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-3.5 py-1 text-[10.5px] font-bold text-white shadow-2xs transition hover:opacity-95"
                 >
                   <span>
-                    {t.topUpBtnPrefix} {pkgDetails.upsellTarget} {GEL}
+                    {t.topUpBtnPrefix}{' '}
+                    <span dir="ltr" className="inline-block">
+                      {pkgDetails.upsellTarget} {GEL}
+                    </span>
                   </span>
                 </button>
               </div>
@@ -965,7 +1003,10 @@ export function SellerPromoSection({
                 <>
                   <CreditCard className="size-4" />
                   <span>
-                    {t.payCardPrefix} {pkgDetails.amount} {GEL}{' '}
+                    {t.payCardPrefix}{' '}
+                    <span dir="ltr" className="inline-block">
+                      {pkgDetails.amount} {GEL}
+                    </span>{' '}
                     {t.payCardSuffix}
                   </span>
                 </>

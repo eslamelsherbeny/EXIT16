@@ -103,9 +103,10 @@ export default async function AccountPage({
   let allBuyersForMatch: any[] = []
   let activeMarketUnits: any[] = []
   let allOffers: any[] = []
+  let myBoostRows: any[] = []
 
   try {
-    const [mySellsRes, myBuysRes, allBuysRes, marketRes, offersRes] =
+    const [mySellsRes, myBuysRes, allBuysRes, marketRes, offersRes, boostsRes] =
       await Promise.all([
         supabase
           .from('sell_requests')
@@ -141,6 +142,12 @@ export default async function AccountPage({
           .select(
             'id, property_id, lead_id, buyer_user_id, seller_user_id, offered_cash, status, initiated_by, diff_reasons, updated_at'
           ),
+        supabase
+          .from('boost_requests')
+          .select('*')
+          .eq('user_id', profile.id)
+          .neq('status', 'awaiting_payment')
+          .order('created_at', { ascending: false }),
       ])
 
     mySellsData = mySellsRes.data || []
@@ -148,13 +155,135 @@ export default async function AccountPage({
     allBuyersForMatch = allBuysRes.data || []
     activeMarketUnits = marketRes.data || []
     allOffers = offersRes.data || []
+    myBoostRows = boostsRes.data || []
   } catch (dbErr) {
     console.error('Account page queries error:', dbErr)
   }
 
-  const sells = (mySellsData as SellerUnitItem[]).filter(
-    (s: any) => s && s.status !== 'deleted_by_seller'
-  )
+  // إثراء كل وحدة ببيانات التمييز ومزامنة المراحل (4 و 5) مع جدول العروض مباشرة لتطابق 100% مع لوحة الأدمن
+  const sells = (mySellsData as any[])
+    .filter((s) => s && s.status !== 'deleted_by_seller')
+    .map((unit) => {
+      const unitIdStr = String(unit.id)
+      const unitBoosts = myBoostRows.filter(
+        (b) => String(b.unit_id || '') === unitIdStr
+      )
+      const latestPendingBoost = unitBoosts.find(
+        (b) =>
+          b.status === 'paid_pending_approval' ||
+          b.status === 'pending_admin_approval'
+      )
+      const latestApprovedBoost = unitBoosts.find(
+        (b) => b.status === 'approved'
+      )
+
+      const existingDocs =
+        unit.documents && typeof unit.documents === 'object'
+          ? { ...unit.documents }
+          : {}
+      const existingMeta =
+        existingDocs.__unit_meta && typeof existingDocs.__unit_meta === 'object'
+          ? { ...existingDocs.__unit_meta }
+          : {}
+
+      const isCurrentlyLiveBoost =
+        Boolean(unit.is_featured) &&
+        (!unit.featured_until || new Date(unit.featured_until) > new Date())
+
+      if (latestPendingBoost) {
+        const tierCode = String(latestPendingBoost.package_tier || '')
+          .toUpperCase()
+          .includes('VIP+')
+          ? 'vip_plus'
+          : 'super_vip'
+
+        existingMeta.boost_pending = {
+          ...(existingMeta.boost_pending || {}),
+          order_ref:
+            latestPendingBoost.order_ref ||
+            existingMeta.boost_pending?.order_ref ||
+            unit.featured_fawry_code ||
+            null,
+          paid_via:
+            latestPendingBoost.payment_method ||
+            existingMeta.boost_pending?.paid_via ||
+            'flitt',
+          paid_at:
+            existingMeta.boost_pending?.paid_at ||
+            latestPendingBoost.created_at ||
+            null,
+          tier: tierCode,
+          days: Number(latestPendingBoost.duration_days) || 1,
+          amount_gel: Number(latestPendingBoost.amount_gel) || 0,
+          is_renewal: isCurrentlyLiveBoost,
+        }
+      }
+
+      if (isCurrentlyLiveBoost && latestApprovedBoost) {
+        existingMeta.boost_active = {
+          ...(existingMeta.boost_active || {}),
+          started_at:
+            existingMeta.boost_active?.started_at ||
+            latestApprovedBoost.approved_at ||
+            latestApprovedBoost.created_at ||
+            null,
+          ends_at:
+            unit.featured_until || existingMeta.boost_active?.ends_at || null,
+          order_ref:
+            existingMeta.boost_active?.order_ref ||
+            latestApprovedBoost.order_ref ||
+            unit.featured_fawry_code ||
+            null,
+          amount_gel:
+            existingMeta.boost_active?.amount_gel ??
+            Number(latestApprovedBoost.amount_gel || unit.featured_price || 0),
+        }
+      }
+
+      existingDocs.__unit_meta = existingMeta
+
+      // مزامنة المرحلة مع العروض الفعلية المعتمدة للبائع
+      const unitLiveOffers = allOffers
+        .filter((o: any) => o && String(o.property_id) === unitIdStr)
+        .map((o: any) => ({ ...o, status: normalizeOfferStatus(o) }))
+        .filter(
+          (o: any) => o.status !== 'recommended' && o.status !== 'rejected'
+        )
+
+      let syncedStatus = String(unit.status || 'pending').trim().toLowerCase()
+      const isLiveInMarket = [
+        'active',
+        'approved',
+        'published',
+        'offer_received',
+        'transferring',
+      ].includes(syncedStatus)
+
+      if (isLiveInMarket && syncedStatus !== 'sold') {
+        if (unitLiveOffers.some((o: any) => o.status === 'accepted')) {
+          syncedStatus = 'transferring'
+        } else if (
+          unitLiveOffers.some(
+            (o: any) =>
+              o.status === 'pending_seller' || o.status === 'counter_offered'
+          )
+        ) {
+          syncedStatus = 'offer_received'
+        } else if (
+          syncedStatus === 'offer_received' ||
+          syncedStatus === 'transferring'
+        ) {
+          syncedStatus = 'active'
+        }
+      }
+
+      return {
+        ...unit,
+        status: syncedStatus,
+        documents: existingDocs,
+      } as SellerUnitItem
+    })
+
   const buys = (myBuysData as BuyerRequestItem[]).filter(Boolean)
   const myUnitIds = new Set(sells.map((s) => String(s.id)))
   const myLeadIds = new Set(buys.map((b) => String(b.id)))
@@ -261,7 +390,6 @@ export default async function AccountPage({
     directBuyerOffers.map((o: any) => String(o.property_id))
   )
 
-  // الوحدات التي رشحها مستشار المبيعات خصيصاً لهذا المشتري
   const adminRecUnitIds = new Set(
     allOffers
       .filter(

@@ -349,6 +349,18 @@
       "recentTitle": "أضيفت حديثاً",
       "recentSub": "إعلانات جديدة مرتبة تنازلياً حسب التاريخ — الأحدث أولاً",
       "recentAllBtn": "كل الجديد ←"
+    },
+    "activeBoostWidget": {
+      "activeLabel": "إعلانك نشط الآن",
+      "pendingLabel": "إعلانك بانتظار التفعيل",
+      "remainingPrefix": "متبقي",
+      "dayWord": "يوم",
+      "hourWord": "ساعة",
+      "viewsWord": "مشاهدة",
+      "viewStatsBtn": "تفاصيل ومشاهدات الإعلان",
+      "minimizeAria": "إخفاء مؤقت",
+      "expandAria": "عرض حالة إعلانك المميز",
+      "moreUnitsSuffix": "وحدات أخرى"
     }
   },
   "footer": {
@@ -1454,7 +1466,9 @@
       "newSectionHeader": "جديد",
       "olderSectionHeader": "أقدم",
       "emptyTitle": "لا توجد تنبيهات حتى الآن",
-      "emptySubtitle": "ستظهر هنا جميع الإشعارات الخاصة بعروض الشراء وتحديثات وحداتك فور حدوثها."
+      "emptySubtitle": "ستظهر هنا جميع الإشعارات الخاصة بعروض الشراء وتحديثات وحداتك فور حدوثها.",
+      "loadingMore": "جاري تحميل المزيد من الإشعارات...",
+      "loadMoreBtn": "تحميل المزيد"
     }
   },
   "accountComponents": {
@@ -1727,7 +1741,9 @@
       "boostRejectedBannerTitle": "تعذّر تفعيل طلب الإعلان الأخير",
       "boostRejectedRefundHint": "إذا كنت قد دفعت بالبطاقة، تواصل مع الإدارة عبر واتساب لترتيب الاسترداد أو التفعيل.",
       "waSpeedUpMsgPrefix": "مرحباً إدارة DualDealz، قمت بدفع باقة تمييز عبر Flitt وأرغب في تسريع التفعيل",
-      "waRefundMsgPrefix": "مرحباً إدارة DualDealz، أحتاج مساعدة بخصوص طلب التمييز رقم"
+      "waRefundMsgPrefix": "مرحباً إدارة DualDealz، أحتاج مساعدة بخصوص طلب التمييز رقم",
+      "boostViewPackagesBtn": "استعراض الباقات / إضافة أيام",
+      "boostWaitingStackNote": "ملاحظة: لديك طلب مدفوع قيد التفعيل حالياً. يمكنك استعراض الباقات أدناه أو إضافة أيام إضافية وستُجمع كلها معاً عند التفعيل."
     },
     "buyer": {
       "popularAreas": [
@@ -4090,7 +4106,8 @@
         "negotiable": "قابل للتفاوض",
         "adCodeLabel": "كود الإعلان:",
         "waDocsVerifiedShort": "واتساب ✓",
-        "pausedByAdmin": "موقوفة من الإدارة"
+        "pausedByAdmin": "موقوفة من الإدارة",
+        "selectedUnitBadge": "الوحدة المحددة"
       },
       "header": {
         "promoAllTitle": "طلبات الإعلان والتمييز في كل الدول 🌍",
@@ -4331,6 +4348,22 @@
         "excPausedSeller": "الوحدة موقوفة مؤقتاً بناءً على طلب المالك.",
         "excRejected": "تم رفض الوحدة وإبلاغ المالك بالسبب.",
         "excDeleted": "تم حذف الوحدة بواسطة المالك (سلة مهملات لمدة 7 أيام)."
+      },
+      "statusMenu": {
+        "pipelineGroupLabel": "مراحل الوحدة (١ – ٦)",
+        "otherGroupLabel": "حالات إضافية",
+        "autoBadge": "تلقائي",
+        "currentBadge": "الحالية",
+        "lockedInDealTitle": "الوحدة في صفقة قيد التنازل",
+        "lockedInDealDesc": "لا يمكن تغيير الحالة يدوياً لوجود صفقة جارية. التحكم بالكامل من قسم الصفقات.",
+        "lockedHasOffersTitle": "توجد عروض / تفاوض نشط",
+        "lockedHasOffersDesc": "لا يمكن تغيير الحالة يدوياً أثناء وجود عروض قائمة. راجعها أو اسحبها من قسم العروض.",
+        "lockedSoldTitle": "تم بيع الوحدة وإغلاق الصفقة",
+        "lockedSoldDesc": "الوحدة مباعة نهائياً ولا يمكن تعديل حالتها.",
+        "goToDealsBtn": "إدارة من قسم الصفقات",
+        "goToOffersBtn": "عرض عروض الوحدة",
+        "incompleteBannerTitle": "٠. الوحدة غير مكتملة بعد",
+        "incompleteBannerDesc": "ينقصها صور أو مستندات من المالك. يمكنك النشر بعد توثيق المستندات عبر واتساب أو تحويلها للمراجعة."
       }
     },
     "contactVerification": {
@@ -4471,7 +4504,12 @@
       "justNowWord": "الآن",
       "minsAgoSuffix": "دقيقة",
       "hoursAgoSuffix": "ساعة",
-      "daysAgoSuffix": "يوم"
+      "daysAgoSuffix": "يوم",
+      "manualBadge": "تمييز يدوي / كاش",
+      "cashAmountLabel": "المبلغ المستلم كاش (اختياري — ₾)",
+      "cashAmountPlaceholder": "اتركه 0 للتمييز المجاني أو أدخل المبلغ بـ ₾",
+      "cashNoteHint": "يُسجَّل التمييز اليدوي تلقائياً في السجل برقم مرجعي للمتابعة المالية.",
+      "copiedRefToast": "تم النسخ ✓"
     }
   },
   "smartMatcher": {

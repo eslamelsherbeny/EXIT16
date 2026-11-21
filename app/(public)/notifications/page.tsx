@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState, useTransition } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -26,6 +26,8 @@ type NotifItem = {
   created_at: string
 }
 
+const CLIENT_BATCH = 12
+
 export default function ClientNotificationsPage() {
   const router = useRouter()
   const { t: dict, locale, dir, isRtl } = useTranslation()
@@ -33,16 +35,17 @@ export default function ClientNotificationsPage() {
   const nT = (dict.accountPages as Record<string, any>)?.notifications || {}
 
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [items, setItems] = useState<NotifItem[]>([])
+  const [visibleOlderCount, setVisibleOlderCount] = useState(CLIENT_BATCH)
   const [isPending, startTransition] = useTransition()
+  const olderScrollRef = useRef<HTMLDivElement>(null)
 
   async function loadNotifications() {
     setLoading(true)
     const res = await getUserNotificationsAction('client', 100)
-    if (!res.success && res.notifications.length === 0) {
-      // قد يكون غير مسجل دخول
-    }
     setItems((res.notifications || []) as NotifItem[])
+    setVisibleOlderCount(CLIENT_BATCH)
     setLoading(false)
   }
 
@@ -58,6 +61,28 @@ export default function ClientNotificationsPage() {
     () => items.filter((item) => item.is_read),
     [items]
   )
+  const visibleOlderItems = useMemo(
+    () => olderItems.slice(0, visibleOlderCount),
+    [olderItems, visibleOlderCount]
+  )
+  const hasMoreOlder = visibleOlderCount < olderItems.length
+
+  const triggerLoadMoreOlder = useCallback(() => {
+    if (!hasMoreOlder || loadingMore) return
+    setLoadingMore(true)
+    setTimeout(() => {
+      setVisibleOlderCount((prev) => prev + CLIENT_BATCH)
+      setLoadingMore(false)
+    }, 320)
+  }, [hasMoreOlder, loadingMore])
+
+  const handleOlderScroll = () => {
+    const el = olderScrollRef.current
+    if (!el || !hasMoreOlder || loadingMore) return
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 40) {
+      triggerLoadMoreOlder()
+    }
+  }
 
   const formatNotifDate = (iso: string) => {
     try {
@@ -175,12 +200,12 @@ export default function ClientNotificationsPage() {
                 <span className="mb-2.5 block px-1 text-start text-xs font-extrabold text-[#007a5a]">
                   {nT.newSectionHeader} ({unreadItems.length})
                 </span>
-                <div className="divide-y divide-gray-100 overflow-hidden rounded-[22px] border border-emerald-200/90 bg-white shadow-xs">
+                <div className="max-h-[45vh] divide-y divide-gray-100 overflow-y-auto rounded-[22px] border border-emerald-200/90 bg-white shadow-xs">
                   {unreadItems.map((item) => (
                     <div
                       key={item.id}
                       onClick={() => handleItemClick(item)}
-                      className="cursor-pointer bg-[#f6fcf9] p-5 text-start transition hover:bg-[#eaf8f2]/70"
+                      className="cursor-pointer bg-[#f6fcf9] p-4 text-start transition hover:bg-[#eaf8f2]/70 sm:p-5"
                     >
                       <div className="flex items-start gap-2.5">
                         <span className="mt-1.5 size-2.5 shrink-0 rounded-full bg-[#007a5a]" />
@@ -191,7 +216,7 @@ export default function ClientNotificationsPage() {
                           <p className="mt-1.5 text-xs leading-relaxed font-semibold text-gray-600 sm:text-sm">
                             {item.message}
                           </p>
-                          <span className="mt-2.5 block text-[11px] font-semibold text-gray-400">
+                          <span className="mt-2 block text-[11px] font-semibold text-gray-400">
                             {formatNotifDate(item.created_at)}
                           </span>
                         </div>
@@ -207,12 +232,16 @@ export default function ClientNotificationsPage() {
                 <span className="mb-2.5 block px-1 text-start text-xs font-extrabold text-gray-400">
                   {nT.olderSectionHeader}
                 </span>
-                <div className="divide-y divide-gray-100 overflow-hidden rounded-[22px] border border-gray-200/90 bg-white shadow-2xs">
-                  {olderItems.map((item) => (
+                <div
+                  ref={olderScrollRef}
+                  onScroll={handleOlderScroll}
+                  className="max-h-[55vh] divide-y divide-gray-100 overflow-y-auto rounded-[22px] border border-gray-200/90 bg-white shadow-2xs"
+                >
+                  {visibleOlderItems.map((item) => (
                     <div
                       key={item.id}
                       onClick={() => handleItemClick(item)}
-                      className="cursor-pointer p-5 text-start transition hover:bg-gray-50/80"
+                      className="cursor-pointer p-4 text-start transition hover:bg-gray-50/80 sm:p-5"
                     >
                       <h3 className="text-sm leading-snug font-extrabold text-[#0a1122] sm:text-base">
                         {item.title}
@@ -220,11 +249,30 @@ export default function ClientNotificationsPage() {
                       <p className="mt-1.5 text-xs leading-relaxed text-gray-600 sm:text-sm">
                         {item.message}
                       </p>
-                      <span className="mt-2.5 block text-[11px] font-semibold text-gray-400">
+                      <span className="mt-2 block text-[11px] font-semibold text-gray-400">
                         {formatNotifDate(item.created_at)}
                       </span>
                     </div>
                   ))}
+
+                  {loadingMore && (
+                    <div className="flex items-center justify-center gap-2 py-3.5 text-xs font-bold text-[#007a5a]">
+                      <Loader2 className="size-4 animate-spin" />
+                      <span>{nT.loadingMore || nT.loading}</span>
+                    </div>
+                  )}
+
+                  {hasMoreOlder && !loadingMore && (
+                    <div className="p-2.5 text-center">
+                      <button
+                        type="button"
+                        onClick={triggerLoadMoreOlder}
+                        className="rounded-xl bg-slate-100 px-4 py-1.5 text-xs font-extrabold text-[#0a1122] transition hover:bg-[#eaf8f2] hover:text-[#007a5a]"
+                      >
+                        {nT.loadMoreBtn || nT.viewAllBtn}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </section>
             )}

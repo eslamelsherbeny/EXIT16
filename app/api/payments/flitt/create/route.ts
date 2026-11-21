@@ -6,20 +6,31 @@ import {
   extractUserIdFromCookie,
   parseAndVerifySessionCookie,
 } from "@/lib/session-security"
+import {
+  getUnifiedUnitCode,
+  isUnitCompleteForReview,
+} from "@/lib/unit-display-helpers"
 
 const FLITT_API_URL =
   process.env.FLITT_API_URL || "https://pay.flitt.com/api/checkout/url"
 const DEFAULT_SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL || "https://exit-16.vercel.app"
+  process.env.NEXT_PUBLIC_SITE_URL || "https://dualdealz.com"
 
 function buildFlittSignature(
   params: Record<string, string | number>,
   secretKey: string
 ): string {
   const orderedValues = Object.keys(params)
+    .filter(
+      (k) =>
+        k !== "signature" &&
+        k !== "response_signature_string" &&
+        params[k] !== "" &&
+        params[k] !== null &&
+        params[k] !== undefined
+    )
     .sort()
-    .map((k) => String(params[k] ?? ""))
-    .filter((v) => v.length > 0)
+    .map((k) => String(params[k]))
 
   const signatureString = [secretKey, ...orderedValues].join("|")
   return createHash("sha1").update(signatureString, "utf8").digest("hex")
@@ -27,6 +38,16 @@ function buildFlittSignature(
 
 export async function POST(req: Request) {
   try {
+    const merchantId = process.env.FLITT_MERCHANT_ID?.trim()
+    const secretKey = process.env.FLITT_SECRET_KEY?.trim()
+
+    if (!merchantId || !secretKey) {
+      return NextResponse.json(
+        { error: "FLITT_NOT_CONFIGURED" },
+        { status: 503 }
+      )
+    }
+
     const cookieStore = await cookies()
     const rawSession = cookieStore.get("user_session")?.value
     const userId = extractUserIdFromCookie(rawSession)
@@ -44,7 +65,7 @@ export async function POST(req: Request) {
 
     const { data: user } = await supabase
       .from("users")
-      .select("id, email, password_hash, status")
+      .select("id, email, role, password_hash, status")
       .eq("id", userId)
       .maybeSingle()
 
@@ -56,50 +77,69 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 })
     }
 
-    const body = await req.json()
+    const body = await req.json().catch(() => ({}))
     const unitId = String(body.unitId || "").trim()
     const tier: "super_vip" | "vip_plus" =
       body.tier === "vip_plus" ? "vip_plus" : "super_vip"
-    const durationDays = Math.max(1, Math.min(90, Number(body.days) || 7))
-    const amountGel = Math.max(5, Math.min(10000, Number(body.amountGel) || 0))
+    const durationDays = Math.max(1, Math.min(90, Number(body.days) || 1))
+    const amountGel = Math.max(
+      5,
+      Math.min(10000, Math.round(Number(body.amountGel) || 0))
+    )
 
     if (!unitId || !Number.isFinite(amountGel) || amountGel <= 0) {
       return NextResponse.json({ error: "INVALID_PAYLOAD" }, { status: 400 })
     }
 
-    // قاعدة الأمان: لا يُسمح بالدفع أو التمييز إلا لوحدة منشورة (active) يملكها المستخدم
     const { data: unit } = await supabase
       .from("sell_requests")
-      .select("id, user_id, code, project_name, status")
+      .select("*")
       .eq("id", unitId)
       .maybeSingle()
 
-    if (!unit || String(unit.user_id) !== String(user.id)) {
+    const cleanRole = String(user.role || "user").toLowerCase()
+    const isStaff = ["owner", "admin", "moderator", "sales"].includes(cleanRole)
+
+    if (!unit || (!isStaff && String(unit.user_id) !== String(user.id))) {
       return NextResponse.json({ error: "UNIT_NOT_FOUND" }, { status: 404 })
     }
 
     const unitSt = String(unit.status || "").trim().toLowerCase()
-    if (
-      unitSt !== "active" &&
-      unitSt !== "approved" &&
-      unitSt !== "published" &&
-      unitSt !== "offer_received"
-    ) {
+    const isLive = [
+      "active",
+      "approved",
+      "published",
+      "offer_received",
+    ].includes(unitSt)
+    const isPendingComplete =
+      (unitSt === "pending" || unitSt === "under_review") &&
+      isUnitCompleteForReview(unit)
+
+    if (!isLive && !isPendingComplete) {
       return NextResponse.json(
-        { error: "UNIT_MUST_BE_ACTIVE_TO_BOOST" },
+        { error: "UNIT_MUST_BE_COMPLETE_TO_BOOST" },
         { status: 400 }
       )
     }
 
+    const unitCode = getUnifiedUnitCode(unit.id, unit.code)
     const orderRef = `FL-${Date.now().toString(36).toUpperCase()}-${String(unit.id).slice(0, 4).toUpperCase()}`
     const packageLabel = tier === "vip_plus" ? "VIP+" : "SUPER VIP"
 
-    // تسجيل طلب مؤقت بحالة awaiting_payment (لا يظهر للأدمن إلا بعد تأكيد الدفع من Webhook)
+    // تنظيف أي محاولات دفع غير مكتملة سابقة لنفس الوحدة
+    try {
+      await supabase
+        .from("boost_requests")
+        .update({ status: "expired" })
+        .eq("unit_id", unit.id)
+        .eq("status", "awaiting_payment")
+    } catch {}
+
     const { data: boostRow, error: insertErr } = await supabase
       .from("boost_requests")
       .insert({
         unit_id: unit.id,
-        unit_code: unit.code || null,
+        unit_code: unitCode,
         user_id: user.id,
         package_tier: packageLabel,
         duration_days: durationDays,
@@ -113,30 +153,25 @@ export async function POST(req: Request) {
 
     if (insertErr || !boostRow) {
       return NextResponse.json(
-        { error: "DB_INSERT_FAILED" },
+        { error: "DB_INSERT_FAILED", details: insertErr?.message || null },
         { status: 500 }
       )
     }
 
-    const merchantId = process.env.FLITT_MERCHANT_ID?.trim()
-    const secretKey = process.env.FLITT_SECRET_KEY?.trim()
-
-    if (!merchantId || !secretKey) {
-      return NextResponse.json(
-        { error: "FLITT_NOT_CONFIGURED" },
-        { status: 503 }
-      )
-    }
+    const cleanOrigin = DEFAULT_SITE_URL.replace(/\/$/, "")
 
     const flittParams: Record<string, string | number> = {
       order_id: orderRef,
-      merchant_id: Number(merchantId),
-      order_desc: `DualDealz ${packageLabel} (${durationDays}d) - ${unit.project_name || unit.code || unit.id}`,
-      amount: Math.round(amountGel * 100), // المبلغ بالتيتري (1 GEL = 100)
+      merchant_id: Number(merchantId) || merchantId,
+      order_desc: `DualDealz ${packageLabel} (${durationDays}d) - ${unitCode}`,
+      amount: Math.round(amountGel * 100),
       currency: "GEL",
-      response_url: `${DEFAULT_SITE_URL}/account?view=seller&unitId=${unit.id}&payment=returned&ref=${encodeURIComponent(orderRef)}`,
-      server_callback_url: `${DEFAULT_SITE_URL}/api/payments/flitt/webhook`,
-      sender_email: user.email || "",
+      response_url: `${cleanOrigin}/account?view=seller&unitId=${encodeURIComponent(unit.id)}&payment=returned&ref=${encodeURIComponent(orderRef)}`,
+      server_callback_url: `${cleanOrigin}/api/payments/flitt/webhook`,
+    }
+
+    if (user.email && user.email.trim()) {
+      flittParams.sender_email = user.email.trim()
     }
 
     const signature = buildFlittSignature(flittParams, secretKey)
@@ -152,14 +187,17 @@ export async function POST(req: Request) {
       }),
     })
 
-    const flittData = await flittRes.json()
+    const flittData = await flittRes.json().catch(() => ({}))
     const checkoutUrl = flittData?.response?.checkout_url
 
     if (!checkoutUrl) {
       return NextResponse.json(
         {
-          error:
-            flittData?.response?.error_message || "FLITT_CHECKOUT_INIT_FAILED",
+          error: "FLITT_INIT_FAILED",
+          details:
+            flittData?.response?.error_message ||
+            flittData?.response?.response_status ||
+            null,
         },
         { status: 502 }
       )

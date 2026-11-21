@@ -41,7 +41,11 @@ export async function POST(req: Request) {
       )
     }
 
-    const payload = (await req.json()) as Record<string, any>
+    const rawBody = (await req.json().catch(() => ({}))) as Record<string, any>
+    const payload =
+      rawBody?.response && typeof rawBody.response === "object"
+        ? rawBody.response
+        : rawBody
 
     if (!verifyFlittWebhookSignature(payload, secretKey)) {
       return NextResponse.json({ error: "INVALID_SIGNATURE" }, { status: 403 })
@@ -71,7 +75,6 @@ export async function POST(req: Request) {
     }
 
     if (orderStatus === "approved") {
-      // حماية من التكرار (Idempotency)
       if (
         reqRow.status === "paid_pending_approval" ||
         reqRow.status === "approved"
@@ -117,6 +120,11 @@ export async function POST(req: Request) {
           is_read: false,
         })
       } catch {}
+    } else if (orderStatus === "declined" || orderStatus === "expired") {
+      await supabase
+        .from("boost_requests")
+        .update({ status: "rejected" })
+        .eq("id", reqRow.id)
     }
 
     return NextResponse.json({ ok: true })

@@ -92,12 +92,7 @@ export function SellerPromoSection({
   const activeLocale = (locale as LocaleCode) || 'ar'
   const GEL = '₾'
 
-  const defaultAmt =
-    initialAmount && initialAmount >= 5
-      ? initialAmount
-      : activePromoPrice >= 5
-        ? activePromoPrice
-        : 10
+  const defaultAmt = initialAmount && initialAmount >= 5 ? initialAmount : 10
 
   const [selectedPreset, setSelectedPreset] = useState<number | 'custom'>(
     [5, 10, 20, 50, 100].includes(defaultAmt) ? defaultAmt : 'custom'
@@ -198,7 +193,12 @@ export function SellerPromoSection({
       } else if (data?.error === 'UNIT_MUST_BE_COMPLETE_TO_BOOST') {
         setBoostNotice({ text: t.boostIncompleteTitle, isError: true })
       } else {
-        setBoostNotice({ text: t.flittInitFailedErr, isError: true })
+        setBoostNotice({
+          text: data?.details
+            ? `${t.flittInitFailedErr} (${data.details})`
+            : t.flittInitFailedErr,
+          isError: true,
+        })
       }
     } catch {
       setBoostNotice({ text: t.flittInitFailedErr, isError: true })

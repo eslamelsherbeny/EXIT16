@@ -1,5 +1,30 @@
 import { getLocalizedGeorgiaAreaName } from "@/components/shared/georgia-areas"
 import type { LocaleCode } from "@/lib/i18n"
+import {
+  getUnifiedUnitCode,
+  getUnifiedUnitHeadline,
+  getUnitImagesCount,
+  getUnitUploadedDocsCount,
+  hasUnitAllCoreDetails,
+  isUnitCompleteForReview,
+  isUnitDocsSatisfied,
+  isUnitWhatsAppDocsVerified,
+  REAL_UNIT_DOC_KEYS,
+  type UnitDocKey,
+} from "@/lib/unit-display-helpers"
+
+export {
+  getUnifiedUnitCode,
+  getUnifiedUnitHeadline,
+  getUnitImagesCount,
+  getUnitUploadedDocsCount,
+  hasUnitAllCoreDetails,
+  isUnitCompleteForReview,
+  isUnitDocsSatisfied,
+  isUnitWhatsAppDocsVerified,
+  REAL_UNIT_DOC_KEYS,
+  type UnitDocKey,
+}
 
 export const ACTIVE_ADMIN_COUNTRY = "GE"
 export const PENDING_ADMIN_TAG = "__PENDING_ADMIN_VERIFICATION__"
@@ -71,7 +96,12 @@ export type UserVerificationBadgeInfo = {
 }
 
 export type ConfirmPropertyAction =
-  | { type: "status"; property: SellRequest; newStatus: string }
+  | {
+      type: "status"
+      property: SellRequest
+      newStatus: string
+      allowWhatsAppDocsVerify?: boolean
+    }
   | { type: "delete"; property: SellRequest }
   | { type: "purge_all_deleted"; count: number }
   | {
@@ -83,14 +113,14 @@ export type ConfirmPropertyAction =
     }
 
 export function deriveShortUnitCode(id: string, dbCode?: string | null) {
-  if (dbCode && String(dbCode).trim()) return String(dbCode).trim()
-  const numericCode = String(id || "")
-    .replace(/\D/g, "")
-    .slice(0, 5)
-  const fallbackCode = String(id || "")
-    .slice(0, 5)
-    .toUpperCase()
-  return `U-${numericCode.length >= 4 ? numericCode : fallbackCode}`
+  return getUnifiedUnitCode(id, dbCode)
+}
+
+export function getPropertyHeadline(
+  property: SellRequest,
+  fallback = ""
+) {
+  return getUnifiedUnitHeadline(property, fallback)
 }
 
 export function cleanPropertyAreaDisplay(
@@ -102,6 +132,112 @@ export function cleanPropertyAreaDisplay(
     return localized.replace(/\s*\([A-Za-z0-9\s/-]+\)\s*$/g, "").trim()
   }
   return localized
+}
+
+export function getSixStageTimelineMeta(
+  effectiveStage: string,
+  t?: Record<string, any>
+) {
+  const stL = (t?.stageTimeline as Record<string, string>) || {}
+
+  const stages = [
+    {
+      index: 0,
+      key: "incomplete",
+      label: stL.s1Label || "",
+      sub: stL.s1Sub || "",
+      owner: "client" as const,
+    },
+    {
+      index: 1,
+      key: "review",
+      label: stL.s2Label || "",
+      sub: stL.s2Sub || "",
+      owner: "admin" as const,
+    },
+    {
+      index: 2,
+      key: "active",
+      label: stL.s3Label || "",
+      sub: stL.s3Sub || "",
+      owner: "admin" as const,
+    },
+    {
+      index: 3,
+      key: "offers",
+      label: stL.s4Label || "",
+      sub: stL.s4Sub || "",
+      owner: "auto" as const,
+    },
+    {
+      index: 4,
+      key: "in_deal",
+      label: stL.s5Label || "",
+      sub: stL.s5Sub || "",
+      owner: "auto" as const,
+    },
+    {
+      index: 5,
+      key: "sold",
+      label: stL.s6Label || "",
+      sub: stL.s6Sub || "",
+      owner: "auto" as const,
+    },
+  ]
+
+  let currentStepIndex = 1
+  let isExceptionState = false
+  let exceptionNote = ""
+
+  switch (effectiveStage) {
+    case "incomplete":
+    case "draft_unverified":
+      currentStepIndex = 0
+      break
+    case "pending":
+    case "under_review":
+      currentStepIndex = 1
+      break
+    case "active":
+      currentStepIndex = 2
+      break
+    case "has_offers":
+    case "negotiating":
+    case "offer_received":
+      currentStepIndex = 3
+      break
+    case "in_deal":
+    case "transferring":
+      currentStepIndex = 4
+      break
+    case "sold":
+      currentStepIndex = 5
+      break
+    case "paused_by_admin":
+      currentStepIndex = 2
+      isExceptionState = true
+      exceptionNote = stL.excPausedAdmin || ""
+      break
+    case "paused_by_seller":
+      currentStepIndex = 2
+      isExceptionState = true
+      exceptionNote = stL.excPausedSeller || ""
+      break
+    case "rejected":
+      currentStepIndex = 1
+      isExceptionState = true
+      exceptionNote = stL.excRejected || ""
+      break
+    case "deleted_by_seller":
+      currentStepIndex = 0
+      isExceptionState = true
+      exceptionNote = stL.excDeleted || ""
+      break
+    default:
+      currentStepIndex = 1
+  }
+
+  return { stages, currentStepIndex, isExceptionState, exceptionNote }
 }
 
 export function isSelfOfferOnProperty(
@@ -183,7 +319,7 @@ export function getUploadedDocsList(
         key !== "__unit_meta" && val && typeof val === "object" && val.url
     )
     .map(([key, val]) => ({
-      key,
+      key: key === "national_id" ? "passport" : key,
       label: docLabels[key] || key,
       url: String(val.url),
       name: String(val.name || fallbackName),
@@ -205,7 +341,7 @@ export function buildSellerWhatsAppMessage({
   leadsPrompts: Record<string, any>
 }) {
   const uCode = deriveShortUnitCode(property.id, property.code)
-  const proj = property.project_name || t.table.unspecifiedProject
+  const proj = getPropertyHeadline(property, t.table.unspecifiedProject)
   const localizedArea = property.area
     ? ` - ${cleanPropertyAreaDisplay(property.area, locale)}`
     : ""
@@ -219,9 +355,6 @@ export function buildSellerWhatsAppMessage({
   return `${leadsPrompts.waGeneralPrefix} ${property.name}${commaSep}(${proj}${localizedArea} - ${uCode}${adPart}) — ${t.table.colCash}: ${cash} ${unitCur} | ${t.table.contractShort} ${contract} ${unitCur}`
 }
 
-/**
- * دالة إنشاء تقرير أداء ومشاهدات الوحدة لإرساله لصاحب الإعلان عبر واتساب
- */
 export function buildOwnerPerformanceReportWhatsAppMessage({
   property,
   viewsCount,
@@ -239,20 +372,18 @@ export function buildOwnerPerformanceReportWhatsAppMessage({
 }) {
   const aL = (t?.analytics as Record<string, string>) || {}
   const uCode = deriveShortUnitCode(property.id, property.code)
-  const proj =
-    property.project_name ||
-    t?.modals?.detailsFallbackTitle ||
-    t?.table?.unspecifiedProject ||
-    ""
+  const proj = getPropertyHeadline(
+    property,
+    t?.modals?.detailsFallbackTitle || t?.table?.unspecifiedProject || ""
+  )
   const area = cleanPropertyAreaDisplay(property.area, locale)
   const siteOrigin =
     typeof window !== "undefined"
       ? window.location.origin
-      : "https://aqarexit.com"
+      : "https://dualdealz.com"
   const unitUrl = `${siteOrigin}/opportunities/${property.id}`
   const isFeatured = Boolean(property.is_featured)
-  const tierName =
-    property.boost_tier === "vip_plus" ? "+VIP" : "SUPER VIP"
+  const tierName = property.boost_tier === "vip_plus" ? "+VIP" : "SUPER VIP"
 
   const promoStatusText = isFeatured
     ? `${aL.waReportFeaturedPrefix || ""} (${tierName})`.trim()

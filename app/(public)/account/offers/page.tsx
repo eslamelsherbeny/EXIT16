@@ -49,6 +49,10 @@ import {
   SellerOffersSection,
 } from '@/components/features/account/seller-offers-section'
 import { getCurrencySymbol, useTranslation } from '@/lib/i18n'
+import {
+  getUnifiedUnitCode,
+  getUnifiedUnitHeadline,
+} from '@/lib/unit-display-helpers'
 
 const INITIAL_SUBMITTED_OFFERS_VISIBLE = 3
 const BUYER_WA_OFFER_SENT_STORAGE_KEY = 'aqar_buyer_wa_offer_sent'
@@ -130,6 +134,7 @@ function OffersContent() {
     justSubmittedOffer?: {
       offerId: string
       unitId: string
+      unitCode: string
       projectName: string
       offeredCash: number
     }
@@ -281,7 +286,11 @@ function OffersContent() {
             : {
                 offerId: String(res.offerId || targetUnit.id),
                 unitId: String(targetUnit.id),
-                projectName: targetUnit.project_name || t.unitFallback,
+                unitCode: getUnifiedUnitCode(
+                  targetUnit.id,
+                  (targetUnit as any).code
+                ),
+                projectName: getUnifiedUnitHeadline(targetUnit, t.unitFallback),
                 offeredCash: finalAmount,
               },
         })
@@ -440,6 +449,8 @@ function OffersContent() {
       0,
       market - contract - Math.round(market * 0.0125)
     )
+    const unitCode = getUnifiedUnitCode(unit.id, (unit as any).code)
+    const unitTitle = getUnifiedUnitHeadline(unit, t.unitFallback)
 
     return (
       <div
@@ -454,15 +465,23 @@ function OffersContent() {
       >
         <div>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <span
-              className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-black ${
-                match.score >= 85
-                  ? 'bg-[#007a5a] text-white'
-                  : 'bg-emerald-100 text-[#007a5a]'
-              }`}
-            >
-              🎯 {t.matchScoreLabel}: {match.score}%
-            </span>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span
+                dir="ltr"
+                className="rounded-md bg-[#0a1122] px-2 py-0.5 font-mono text-[10.5px] font-bold text-white"
+              >
+                {unitCode}
+              </span>
+              <span
+                className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-black ${
+                  match.score >= 85
+                    ? 'bg-[#007a5a] text-white'
+                    : 'bg-emerald-100 text-[#007a5a]'
+                }`}
+              >
+                🎯 {t.matchScoreLabel}: {match.score}%
+              </span>
+            </div>
 
             {recommendedByAdmin ? (
               <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-[10.5px] font-extrabold text-amber-900">
@@ -478,7 +497,7 @@ function OffersContent() {
           </div>
 
           <h3 className="mt-3 text-base font-extrabold text-[#0a1122]">
-            {unit.project_name || t.unitFallback}
+            {unitTitle}
           </h3>
           <p className="mt-0.5 text-xs text-gray-500">
             {unit.developer_name || ''} ·{' '}
@@ -584,7 +603,7 @@ function OffersContent() {
   const siteOrigin =
     typeof window !== 'undefined'
       ? window.location.origin
-      : 'https://exit-16.vercel.app'
+      : 'https://dualdealz.com'
 
   const visibleBuyerOffers = showAllSubmittedOffers
     ? buyerOffers
@@ -668,7 +687,7 @@ function OffersContent() {
                 <div className="mt-3.5 border-t border-emerald-200/80 pt-3">
                   <a
                     href={`https://wa.me/${supportWhatsApp}?text=${encodeURIComponent(
-                      `${t.waFastTrackOfferMsgPrefix} (${getOfferRef(feedback.justSubmittedOffer.offerId)}) ${t.waFastTrackOfferMsgMiddle} (${feedback.justSubmittedOffer.projectName}) — ${feedback.justSubmittedOffer.offeredCash.toLocaleString('en-US')} ${cur} ${t.waFastTrackOfferMsgSuffix}\n${siteOrigin}/admin/offers?offerId=${feedback.justSubmittedOffer.offerId}`
+                      `${t.waFastTrackOfferMsgPrefix} (${getOfferRef(feedback.justSubmittedOffer.offerId)}) ${t.waFastTrackOfferMsgMiddle} (${feedback.justSubmittedOffer.projectName} · ${feedback.justSubmittedOffer.unitCode}) — ${feedback.justSubmittedOffer.offeredCash.toLocaleString('en-US')} ${cur} ${t.waFastTrackOfferMsgSuffix}\n${siteOrigin}/admin/offers?offerId=${feedback.justSubmittedOffer.offerId}`
                     )}`}
                     target="_blank"
                     rel="noreferrer"
@@ -747,6 +766,12 @@ function OffersContent() {
                   {visibleBuyerOffers.map((offer) => {
                     const u = offer.unit
                     const refCode = getOfferRef(offer.id)
+                    const unitCode = u
+                      ? getUnifiedUnitCode(u.id, (u as any).code)
+                      : null
+                    const unitTitle = u
+                      ? getUnifiedUnitHeadline(u, t.unitFallback)
+                      : t.unitFallback
                     const diffs = Array.isArray(offer.diff_reasons)
                       ? offer.diff_reasons
                       : []
@@ -760,6 +785,7 @@ function OffersContent() {
                       !u ||
                       unitStatusClean === 'deleted_by_seller' ||
                       unitStatusClean === 'paused_by_seller' ||
+                      unitStatusClean === 'paused_by_admin' ||
                       unitStatusClean === 'paused_deletion'
 
                     const isReopenedPromptActive =
@@ -781,7 +807,7 @@ function OffersContent() {
                     const didInstallmentIncrease =
                       currentUnitPaid > Number(offer.required_cash || 0)
 
-                    const waConfirmText = `${t.waFastTrackOfferMsgPrefix} (${refCode}) ${t.waFastTrackOfferMsgMiddle} (${u?.project_name || ''}) — ${Number(offer.offered_cash).toLocaleString('en-US')} ${cur} ${t.waFastTrackOfferMsgSuffix}\n${siteOrigin}/admin/offers?offerId=${offer.id}`
+                    const waConfirmText = `${t.waFastTrackOfferMsgPrefix} (${refCode}) ${t.waFastTrackOfferMsgMiddle} (${unitTitle}${unitCode ? ` · ${unitCode}` : ''}) — ${Number(offer.offered_cash).toLocaleString('en-US')} ${cur} ${t.waFastTrackOfferMsgSuffix}\n${siteOrigin}/admin/offers?offerId=${offer.id}`
 
                     const isWaBtnHidden =
                       Boolean(hiddenWaOfferIds[offer.id]) ||
@@ -795,9 +821,19 @@ function OffersContent() {
                           className="rounded-[20px] border border-gray-200 bg-gray-50/80 p-4 text-start sm:p-5"
                         >
                           <div className="flex flex-wrap items-center justify-between gap-2">
-                            <span className="inline-flex items-center rounded-lg bg-gray-200 px-2.5 py-1 font-mono text-[11px] font-extrabold text-gray-600">
-                              #{refCode}
-                            </span>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              {unitCode && (
+                                <span
+                                  dir="ltr"
+                                  className="inline-flex items-center rounded-lg bg-[#0a1122] px-2.5 py-1 font-mono text-[11px] font-bold text-white"
+                                >
+                                  {unitCode}
+                                </span>
+                              )}
+                              <span className="inline-flex items-center rounded-lg bg-gray-200 px-2.5 py-1 font-mono text-[11px] font-extrabold text-gray-600">
+                                #{refCode}
+                              </span>
+                            </div>
                             <span className="inline-flex items-center gap-1 rounded-full bg-gray-200 px-3 py-1 text-[11px] font-extrabold text-gray-700">
                               {isUnitSoldToOther
                                 ? t.unitSoldFinalBadge
@@ -805,7 +841,7 @@ function OffersContent() {
                             </span>
                           </div>
                           <h3 className="mt-2 text-sm font-black text-gray-700 sm:text-base">
-                            {u?.project_name || t.unitFallback} —{' '}
+                            {unitTitle} —{' '}
                             {getLocalizedGeorgiaAreaName(u?.area, locale)}
                           </h3>
                           <p className="mt-1.5 text-xs leading-relaxed font-semibold text-gray-600">
@@ -847,9 +883,19 @@ function OffersContent() {
                         }`}
                       >
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <span className="inline-flex items-center rounded-lg bg-gray-100 px-2.5 py-1 font-mono text-[11px] font-extrabold text-gray-600">
-                            #{refCode}
-                          </span>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {unitCode && (
+                              <span
+                                dir="ltr"
+                                className="inline-flex items-center rounded-lg bg-[#0a1122] px-2.5 py-1 font-mono text-[11px] font-bold text-white"
+                              >
+                                {unitCode}
+                              </span>
+                            )}
+                            <span className="inline-flex items-center rounded-lg bg-gray-100 px-2.5 py-1 font-mono text-[11px] font-extrabold text-gray-600">
+                              #{refCode}
+                            </span>
+                          </div>
 
                           <div className="flex flex-wrap items-center gap-1.5">
                             {(offer.status === 'counter_offered' ||
@@ -893,7 +939,7 @@ function OffersContent() {
                         </div>
 
                         <h3 className="mt-2.5 text-sm leading-relaxed font-black text-[#0a1122] sm:text-base">
-                          {u?.project_name || t.unitFallback} —{' '}
+                          {unitTitle} —{' '}
                           {getLocalizedGeorgiaAreaName(u?.area, locale)}
                         </h3>
 
@@ -1186,7 +1232,7 @@ function OffersContent() {
                             <p>🎉 {t.dealLockedBannerForBuyer}</p>
                             <a
                               href={`https://wa.me/${supportWhatsApp}?text=${encodeURIComponent(
-                                `${t.waFastTrackOfferMsgPrefix} (#${refCode}) ${t.waFastTrackOfferMsgMiddle} (${u?.project_name || ''})`
+                                `${t.waFastTrackOfferMsgPrefix} (#${refCode}) ${t.waFastTrackOfferMsgMiddle} (${unitTitle}${unitCode ? ` · ${unitCode}` : ''})`
                               )}`}
                               target="_blank"
                               rel="noreferrer"
@@ -1238,7 +1284,7 @@ function OffersContent() {
 
                                 <a
                                   href={`https://wa.me/${supportWhatsApp}?text=${encodeURIComponent(
-                                    `${t.waFastTrackOfferMsgPrefix} (#${refCode}) ${t.waFastTrackOfferMsgMiddle} (${u?.project_name || ''}) — ${Number(offer.counter_cash).toLocaleString('en-US')} ${cur}`
+                                    `${t.waFastTrackOfferMsgPrefix} (#${refCode}) ${t.waFastTrackOfferMsgMiddle} (${unitTitle}${unitCode ? ` · ${unitCode}` : ''}) — ${Number(offer.counter_cash).toLocaleString('en-US')} ${cur}`
                                   )}`}
                                   target="_blank"
                                   rel="noreferrer"
@@ -1328,7 +1374,6 @@ function OffersContent() {
               </section>
             )}
 
-            {/* قسم ترشيحات مستشار المبيعات لك (يظهر في الصدارة عندما يرشح السيلز وحدة يدوياً) */}
             {advisorPickedRecs.length > 0 && (
               <section className="rounded-[24px] border-2 border-amber-300/90 bg-amber-50/45 p-4 shadow-xs sm:p-6">
                 <div className="mb-4 flex items-center gap-2.5 border-b border-amber-200/70 pb-3.5">

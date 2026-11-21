@@ -1,4 +1,13 @@
 import type { LocaleCode } from '@/lib/i18n'
+import {
+  getUnifiedUnitCode,
+  getUnifiedUnitHeadline,
+  getUnitMetaObject,
+  isUnitWhatsAppDocsVerified,
+  REAL_UNIT_DOC_KEYS,
+} from '@/lib/unit-display-helpers'
+
+export { getUnifiedUnitCode, getUnifiedUnitHeadline }
 
 export type SellerUnitItem = {
   id: string
@@ -86,16 +95,25 @@ export type ConfirmModalState =
   | { type: 'cancel_promo' }
   | null
 
-export const REAL_DOC_KEYS = [
-  'contract',
-  'receipts',
-  'statement',
-  'passport',
-] as const
+export const REAL_DOC_KEYS = REAL_UNIT_DOC_KEYS
 
 export function getVisibleSellerAdminNote(
-  rawNote?: string | null
+  rawNote?: string | null,
+  unitStatus?: string | null
 ): string | null {
+  const cleanSt = String(unitStatus || '')
+    .trim()
+    .toLowerCase()
+  // لا تُعرض ملاحظات المراجعة القديمة بمجرد اعتماد الوحدة ونشرها أو بيعها
+  if (
+    cleanSt === 'active' ||
+    cleanSt === 'approved' ||
+    cleanSt === 'published' ||
+    cleanSt === 'sold'
+  ) {
+    return null
+  }
+
   if (!rawNote) return null
   const clean = String(rawNote).trim()
   if (!clean || clean.startsWith('__')) return null
@@ -122,10 +140,7 @@ export function calculateUnitCompletion(
   unit: SellerUnitItem,
   t: Record<string, any>
 ) {
-  const meta =
-    unit.documents && typeof unit.documents === 'object'
-      ? unit.documents.__unit_meta || {}
-      : {}
+  const meta = getUnitMetaObject(unit.documents)
 
   const rawImages = Array.isArray(unit.images)
     ? unit.images
@@ -145,12 +160,16 @@ export function calculateUnitCompletion(
     normalizedDocs.passport = normalizedDocs.national_id
   }
 
-  const uploadedDocsCount = REAL_DOC_KEYS.filter((k) =>
+  const rawUploadedDocsCount = REAL_DOC_KEYS.filter((k) =>
     Boolean(normalizedDocs[k]?.url)
   ).length
+  const whatsappDocsVerified = isUnitWhatsAppDocsVerified(unit)
   const totalDocsRequired = REAL_DOC_KEYS.length // 4
-  const hasAllDocuments = uploadedDocsCount === totalDocsRequired
-  const remainingDocsCount = Math.max(0, totalDocsRequired - uploadedDocsCount)
+  const effectiveDocsCount = whatsappDocsVerified
+    ? totalDocsRequired
+    : rawUploadedDocsCount
+  const hasAllDocuments = effectiveDocsCount === totalDocsRequired
+  const remainingDocsCount = Math.max(0, totalDocsRequired - effectiveDocsCount)
 
   const areaVal = unit.area || meta.area
   const streetVal = unit.exact_street || meta.exact_street
@@ -197,11 +216,11 @@ export function calculateUnitCompletion(
 
   const total = dataChecks.length + 1 + totalDocsRequired // 18
   const completedCount =
-    completedDataCount + (hasImages ? 1 : 0) + uploadedDocsCount
+    completedDataCount + (hasImages ? 1 : 0) + effectiveDocsCount
 
   const dataScore = Math.round((completedDataCount / dataChecks.length) * 60)
   const photosScore = hasImages ? 20 : 0
-  const docsScore = Math.round((uploadedDocsCount / totalDocsRequired) * 20)
+  const docsScore = Math.round((effectiveDocsCount / totalDocsRequired) * 20)
   const percentage = Math.min(100, dataScore + photosScore + docsScore)
 
   const missingItems: MissingCompletionItem[] = []
@@ -223,9 +242,9 @@ export function calculateUnitCompletion(
     missingItems.push({
       key: 'docs',
       label:
-        uploadedDocsCount === 0
+        rawUploadedDocsCount === 0
           ? t.addDocsAction
-          : `${t.completeDocsPrefix} (${uploadedDocsCount}/4 — ${t.remainingDocsWord} ${remainingDocsCount})`,
+          : `${t.completeDocsPrefix} (${rawUploadedDocsCount}/4 — ${t.remainingDocsWord} ${remainingDocsCount})`,
       href: `/account/documents?unitId=${unit.id}`,
     })
   }
@@ -248,7 +267,9 @@ export function calculateUnitCompletion(
     hasImages,
     hasAllDocuments,
     hasAllCoreDetails,
-    uploadedDocsCount,
+    whatsappDocsVerified,
+    uploadedDocsCount: effectiveDocsCount,
+    rawUploadedDocsCount,
     remainingDocsCount,
     missingItems,
     isUnitPhoneVerified: Boolean(
@@ -373,6 +394,24 @@ export function getSellerTimelineAndStatus(
           cls: 'bg-teal-700 text-white',
         } as StatusBadgeItem | null,
         headline: t.statusSoldHeadline,
+      }
+
+    case 'paused_by_admin':
+      return {
+        code: 'paused_by_admin',
+        stepIndex: 2,
+        timelineSteps,
+        listBadge: {
+          label: t.statusPausedByAdminBadge || 'موقوفة من الإدارة',
+          cls: 'bg-rose-100 text-rose-900 border border-rose-300',
+        },
+        headerBadge: {
+          label: t.statusPausedByAdminBadge || 'موقوفة من الإدارة',
+          cls: 'bg-rose-100 text-rose-900 border border-rose-300',
+        } as StatusBadgeItem | null,
+        headline:
+          t.statusPausedByAdminHeadline ||
+          'تم إيقاف عرض وحدتك مؤقتاً من قِبل الإدارة — تواصل معنا لإعادة النشر',
       }
 
     case 'paused_by_seller':

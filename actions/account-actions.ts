@@ -11,9 +11,13 @@ import {
 } from '@/lib/session-security'
 import { getServerI18n } from '@/lib/get-server-dictionary'
 import { upsertUserVerificationMeta } from '@/lib/form-action-helpers'
+import {
+  getUnifiedUnitCode,
+  isUnitCompleteForReview,
+} from '@/lib/unit-display-helpers'
 
 const DEFAULT_SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL || 'https://exit-16.vercel.app'
+  process.env.NEXT_PUBLIC_SITE_URL || 'https://dualdealz.com'
 
 async function getAccDict() {
   const { dict, dir } = await getServerI18n()
@@ -39,14 +43,21 @@ function normalizeDigits(str: string): string {
     .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 1776))
 }
 
-function isUnitBoostEligibleStatus(rawStatus?: string | null): boolean {
-  const st = String(rawStatus || '').trim().toLowerCase()
-  return (
+function isUnitBoostEligible(unit: Record<string, any> | null): boolean {
+  if (!unit) return false
+  const st = String(unit.status || 'pending').trim().toLowerCase()
+  if (
     st === 'active' ||
     st === 'approved' ||
     st === 'published' ||
     st === 'offer_received'
-  )
+  ) {
+    return true
+  }
+  if (st === 'pending' || st === 'under_review') {
+    return isUnitCompleteForReview(unit)
+  }
+  return false
 }
 
 async function getVerifiedSessionUser() {
@@ -279,7 +290,10 @@ export async function createBoostRequestAction(payload: {
   try {
     const supabase = await getSupabase()
     const session = await getVerifiedSessionUser()
-    const userId = session?.user?.id || null
+    if (!session) {
+      return { success: false, error: msg.sessionExpired }
+    }
+    const userId = session.user.id
 
     const cleanAmount = Math.max(
       5,
@@ -299,58 +313,63 @@ export async function createBoostRequestAction(payload: {
     let resolvedUnit: any = null
 
     if (payload.unitId) {
-      if (session) {
-        resolvedUnit = await verifyUnitOwnership(
-          supabase,
-          payload.unitId,
-          session.user
-        )
-        if (!resolvedUnit) {
-          return { success: false, error: msg.unitNotFound }
-        }
-      } else {
-        const { data: uById } = await supabase
-          .from('sell_requests')
-          .select('id, code, project_name, status')
-          .eq('id', payload.unitId)
-          .maybeSingle()
-        resolvedUnit = uById
+      resolvedUnit = await verifyUnitOwnership(
+        supabase,
+        payload.unitId,
+        session.user
+      )
+      if (!resolvedUnit) {
+        return { success: false, error: msg.unitNotFound }
       }
     } else if (cleanCode) {
       const { data: uByCode } = await supabase
         .from('sell_requests')
-        .select('id, code, project_name, status')
+        .select('*')
         .ilike('code', cleanCode)
+        .eq('user_id', userId)
         .limit(1)
         .maybeSingle()
       resolvedUnit = uByCode
-    } else if (userId) {
+    } else {
       const { data: latestUnit } = await supabase
         .from('sell_requests')
-        .select('id, code, project_name, status')
+        .select('*')
         .eq('user_id', userId)
-        .in('status', ['active', 'approved', 'published', 'offer_received'])
+        .neq('status', 'deleted_by_seller')
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle()
       resolvedUnit = latestUnit
     }
 
-    if (resolvedUnit && !isUnitBoostEligibleStatus(resolvedUnit.status)) {
+    if (!resolvedUnit) {
+      return { success: false, error: msg.unitNotFound }
+    }
+
+    if (!isUnitBoostEligible(resolvedUnit)) {
       return {
         success: false,
-        error: msg.boostOnlyActiveUnits || msg.promoFailed,
+        error: msg.boostCompleteUnitFirstError || msg.promoFailed,
       }
     }
 
-    const resolvedUnitId = resolvedUnit?.id ? String(resolvedUnit.id) : null
-    const resolvedUnitCode = resolvedUnit?.code || cleanCode || null
-    const resolvedProjectName = resolvedUnit?.project_name || ''
+    const unitStatusNorm = String(resolvedUnit.status || 'pending')
+      .trim()
+      .toLowerCase()
+    const isPendingReviewUnit =
+      unitStatusNorm === 'pending' || unitStatusNorm === 'under_review'
+
+    const resolvedUnitId = String(resolvedUnit.id)
+    const resolvedUnitCode = getUnifiedUnitCode(
+      resolvedUnitId,
+      resolvedUnit.code || cleanCode
+    )
+    const resolvedProjectName = resolvedUnit.project_name || ''
 
     const prefix = payload.paymentMethod === 'bank' ? 'BK' : 'AD'
-    const refCore = (resolvedUnitCode || resolvedUnitId || Date.now().toString(36))
+    const refCore = resolvedUnitCode
       .replace(/[^A-Z0-9]/gi, '')
-      .slice(0, 4)
+      .slice(-4)
       .toUpperCase()
     const randomSuffix = Math.floor(100 + Math.random() * 900)
     const orderRef = `${prefix}-${refCore}${randomSuffix}`
@@ -372,7 +391,6 @@ export async function createBoostRequestAction(payload: {
       .maybeSingle()
 
     if (insertErr) {
-      // fallback if order_ref column is missing on legacy schemas
       await supabase.from('boost_requests').insert({
         user_id: userId,
         unit_id: resolvedUnitId,
@@ -385,31 +403,33 @@ export async function createBoostRequestAction(payload: {
       })
     }
 
-    if (resolvedUnitId) {
-      await supabase
-        .from('sell_requests')
-        .update({
-          featured_days: cleanDays,
-          featured_price: cleanAmount,
-          featured_status: 'pending_payment',
-          featured_fawry_code: orderRef,
-          boost_tier: dbTierCode,
-        })
-        .eq('id', resolvedUnitId)
-    }
+    await supabase
+      .from('sell_requests')
+      .update({
+        featured_days: cleanDays,
+        featured_price: cleanAmount,
+        featured_status: 'pending_payment',
+        featured_fawry_code: orderRef,
+        boost_tier: dbTierCode,
+      })
+      .eq('id', resolvedUnitId)
 
     const methodWord =
       payload.paymentMethod === 'card'
         ? msg.methodCard || 'Card'
         : msg.methodBank || 'Bank'
 
+    const priorityTag = isPendingReviewUnit
+      ? ` ${msg.boostPriorityTag || ''}`
+      : ''
+
     try {
       await supabase.from('notifications').insert({
         user_id: null,
         role: 'admin',
         type: 'property',
-        title: `💳 ${msg.promoNewNotifTitle || ''} (${cleanTier} — ${cleanAmount} ₾ / ${cleanDays}d) · ${orderRef}`,
-        message: `${session?.user?.name || msg.dearClient || ''} ${resolvedUnitCode ? `· (${resolvedUnitCode})` : ''} ${resolvedProjectName ? `· ${resolvedProjectName}` : ''} · ${methodWord}`,
+        title: `💳 ${msg.promoNewNotifTitle || ''} (${cleanTier} — ${cleanAmount} ₾ / ${cleanDays}d) · ${orderRef}${priorityTag}`,
+        message: `${session.user.name || msg.dearClient || ''} · (${resolvedUnitCode}) ${resolvedProjectName ? `· ${resolvedProjectName}` : ''} · ${methodWord}`,
         link: '/admin/promotions',
         is_read: false,
       })
@@ -419,13 +439,18 @@ export async function createBoostRequestAction(payload: {
     revalidatePath('/admin/properties')
     revalidatePath('/admin/promotions')
 
+    const successMsg = isPendingReviewUnit
+      ? String(msg.boostPendingUnitSuccess || '').replace('{ref}', orderRef)
+      : String(msg.boostRecordedSimpleSuccess || '').replace('{ref}', orderRef)
+
     return {
       success: true,
       boostRequestId: boostRow?.id ? String(boostRow.id) : '',
       orderRef,
       unitId: resolvedUnitId,
       unitCode: resolvedUnitCode,
-      message: msg.bankTransferSubmitted || '',
+      isPendingReviewUnit,
+      message: successMsg,
     }
   } catch (e) {
     console.error('createBoostRequestAction error:', e)
@@ -570,7 +595,7 @@ export async function updateEmailInfoAction(payload: { email: string }) {
 
     sendAccountEmail({
       to: cleanEmail,
-      senderName: msg.emailSenderName,
+      senderName: 'DualDealz',
       subject: msg.emailUpdatedSubject,
       html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.8; color: #0a1122;">
                <p>${msg.greetingWord} <strong>${currentUser.name || msg.dearClient}</strong>${comma}</p>
@@ -660,7 +685,7 @@ export async function requestAccountDeletionAction(payload: {
     if (user.email) {
       sendAccountEmail({
         to: user.email,
-        senderName: msg.emailSenderName,
+        senderName: 'DualDealz',
         subject: msg.deletionEmailSubject,
         html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.9; color: #0a1122;">
                 <p>${msg.deletionEmailLine1}</p>
@@ -735,7 +760,12 @@ export async function toggleSellerUnitStatusAction(payload: {
       .limit(1)
       .maybeSingle()
 
-    if (cleanSt === 'transferring' || cleanSt === 'sold' || acceptedDeal) {
+    if (
+      cleanSt === 'transferring' ||
+      cleanSt === 'sold' ||
+      cleanSt === 'paused_by_admin' ||
+      acceptedDeal
+    ) {
       return {
         success: false,
         error: msg.unitLockedByDeal || msg.pauseFailed,
@@ -1135,6 +1165,7 @@ export async function requestUnitPromotionAction(payload: {
   days: number
   price: number
   tier?: 'SUPER VIP' | 'VIP+'
+  paymentMethod?: 'card' | 'bank'
 }) {
   const { t: msg } = await getAccDict()
   try {
@@ -1145,10 +1176,10 @@ export async function requestUnitPromotionAction(payload: {
     const unit = await verifyUnitOwnership(supabase, payload.unitId, user)
     if (!unit) return { success: false, error: msg.unitNotFound }
 
-    if (!isUnitBoostEligibleStatus(unit.status)) {
+    if (!isUnitBoostEligible(unit)) {
       return {
         success: false,
-        error: msg.boostOnlyActiveUnits || msg.promoFailed,
+        error: msg.boostCompleteUnitFirstError || msg.promoFailed,
       }
     }
 
@@ -1158,7 +1189,7 @@ export async function requestUnitPromotionAction(payload: {
       amountGel: payload.price,
       durationDays: payload.days,
       packageTier: payload.tier || (payload.price < 10 ? 'VIP+' : 'SUPER VIP'),
-      paymentMethod: 'bank',
+      paymentMethod: payload.paymentMethod || 'bank',
     })
 
     if (!res.success) {
@@ -1170,6 +1201,8 @@ export async function requestUnitPromotionAction(payload: {
       fawryCode: res.orderRef || '',
       days: payload.days,
       price: payload.price,
+      isPendingReviewUnit: res.isPendingReviewUnit,
+      message: res.message,
     }
   } catch {
     return { success: false, error: msg.promoFailed }

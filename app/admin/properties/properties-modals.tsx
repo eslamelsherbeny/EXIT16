@@ -4,13 +4,17 @@ import { useEffect, useState, useTransition } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
+  AlertTriangle,
   BarChart3,
   Box,
+  Check,
   CheckCircle2,
   ClipboardList,
   Clock,
   Crown,
+  Edit3,
   ExternalLink,
+  FileCheck2,
   Flame,
   Handshake,
   Loader2,
@@ -23,11 +27,15 @@ import {
   Sparkles,
   Star,
   Trash2,
+  UploadCloud,
   Users,
   Video,
   XCircle,
 } from "lucide-react"
-import { savePropertyAdminNoteAction } from "@/actions/admin-actions"
+import {
+  adminUpdatePropertyDataAction,
+  savePropertyAdminNoteAction,
+} from "@/actions/admin-actions"
 import { adminWithdrawPendingOfferAction } from "@/actions/offer-actions"
 import { Button } from "@/components/ui/button"
 import {
@@ -48,8 +56,13 @@ import type {
 import {
   cleanPropertyAreaDisplay,
   deriveShortUnitCode,
+  getPropertyHeadline,
+  getSixStageTimelineMeta,
+  getUnitUploadedDocsCount,
   isSellerEmailVerified,
   isSellerPhoneVerified,
+  isUnitDocsSatisfied,
+  isUnitWhatsAppDocsVerified,
 } from "./properties-helpers"
 
 const PRIORITY_RETURNED_TAG = "__PRIORITY_FROM_BACKUP__"
@@ -63,6 +76,7 @@ export function PropertyConfirmDialog({
   setReason,
   pending,
   getStatusLabel,
+  onOpenDocs,
   onClose,
   onExecute,
 }: {
@@ -74,10 +88,29 @@ export function PropertyConfirmDialog({
   setReason: (val: string) => void
   pending: boolean
   getStatusLabel: (st: string | null | undefined) => string
+  onOpenDocs?: (property: SellRequest) => void
   onClose: () => void
   onExecute: () => void
 }) {
   const qMark = dir === "rtl" ? "؟" : "?"
+  const mL = (t.modals as Record<string, string>) || {}
+
+  const isPublishingIncompleteDocs =
+    confirmAction?.type === "status" &&
+    confirmAction.newStatus === "active" &&
+    !isUnitDocsSatisfied(confirmAction.property)
+
+  const uploadedCount =
+    confirmAction?.type === "status"
+      ? getUnitUploadedDocsCount(confirmAction.property.documents)
+      : 0
+
+  const allowWaOverride =
+    confirmAction?.type === "status" &&
+    Boolean(confirmAction.allowWhatsAppDocsVerify)
+
+  const isConfirmDisabled =
+    pending || (isPublishingIncompleteDocs && !allowWaOverride)
 
   return (
     <Dialog
@@ -88,7 +121,7 @@ export function PropertyConfirmDialog({
     >
       <DialogContent
         dir={dir}
-        className="w-[90vw] max-w-[380px] rounded-2xl p-5 text-start sm:max-w-[420px]"
+        className="w-[92vw] max-w-[430px] rounded-2xl p-5 text-start sm:max-w-[460px]"
       >
         {confirmAction && (
           <>
@@ -99,7 +132,8 @@ export function PropertyConfirmDialog({
                     confirmAction.type === "delete" ||
                     confirmAction.type === "purge_all_deleted" ||
                     (confirmAction.type === "status" &&
-                      confirmAction.newStatus === "rejected")
+                      (confirmAction.newStatus === "rejected" ||
+                        confirmAction.newStatus === "paused_by_admin"))
                       ? "bg-red-100 text-red-600"
                       : confirmAction.type === "promote"
                         ? "bg-amber-100 text-amber-700"
@@ -116,40 +150,43 @@ export function PropertyConfirmDialog({
                   )}
                 </span>
                 <DialogTitle className="text-sm font-extrabold text-[#0a1122]">
-                  {confirmAction.type === "purge_all_deleted" &&
-                    t.modals.purgeTitle}
-                  {confirmAction.type === "delete" && t.modals.deleteTitle}
+                  {confirmAction.type === "purge_all_deleted" && mL.purgeTitle}
+                  {confirmAction.type === "delete" && mL.deleteTitle}
                   {confirmAction.type === "promote" &&
                     (confirmAction.promoAction === "activate"
-                      ? t.modals.activatePromoTitle
-                      : t.modals.cancelPromoTitle)}
+                      ? mL.activatePromoTitle
+                      : mL.cancelPromoTitle)}
                   {confirmAction.type === "status" &&
                     (confirmAction.newStatus === "active"
-                      ? t.modals.publishConfirmTitle
-                      : confirmAction.newStatus === "pending"
-                        ? t.modals.unpublishConfirmTitle
-                        : t.modals.stageConfirmTitle)}
+                      ? mL.publishConfirmTitle
+                      : confirmAction.newStatus === "paused_by_admin"
+                        ? mL.pausedByAdminConfirmTitle
+                        : confirmAction.newStatus === "pending"
+                          ? mL.unpublishConfirmTitle
+                          : mL.stageConfirmTitle)}
                 </DialogTitle>
               </div>
 
               <DialogDescription className="text-start text-xs leading-relaxed text-gray-600">
                 {confirmAction.type === "purge_all_deleted" && (
                   <>
-                    {t.modals.purgeDescPrefix} ({confirmAction.count}){" "}
-                    {t.modals.purgeDescSuffix}
+                    {mL.purgeDescPrefix} ({confirmAction.count}){" "}
+                    {mL.purgeDescSuffix}
                   </>
                 )}
 
                 {confirmAction.type === "status" && (
                   <>
-                    {t.modals.updateUnitPrefix}{" "}
+                    {mL.updateUnitPrefix}{" "}
                     <strong className="text-[#0a1122]">
                       &ldquo;
-                      {confirmAction.property.project_name ||
-                        confirmAction.property.name}
+                      {getPropertyHeadline(
+                        confirmAction.property,
+                        confirmAction.property.name
+                      )}
                       &rdquo;
                     </strong>{" "}
-                    {t.modals.toWord}{" "}
+                    {mL.toWord}{" "}
                     <span className="font-bold text-[#105C50]">
                       ({getStatusLabel(confirmAction.newStatus)})
                     </span>
@@ -159,36 +196,42 @@ export function PropertyConfirmDialog({
 
                 {confirmAction.type === "delete" && (
                   <>
-                    {t.modals.deleteDescPrefix}{" "}
+                    {mL.deleteDescPrefix}{" "}
                     <strong className="text-red-600">
                       &ldquo;
-                      {confirmAction.property.project_name ||
-                        confirmAction.property.name}
+                      {getPropertyHeadline(
+                        confirmAction.property,
+                        confirmAction.property.name
+                      )}
                       &rdquo;
                     </strong>{" "}
-                    {t.modals.deleteDescSuffix}
+                    {mL.deleteDescSuffix}
                   </>
                 )}
 
                 {confirmAction.type === "promote" &&
                   (confirmAction.promoAction === "activate" ? (
                     <>
-                      {t.modals.selectPromoDuration}{" "}
+                      {mL.selectPromoDuration}{" "}
                       <strong className="text-[#0a1122]">
                         &ldquo;
-                        {confirmAction.property.project_name ||
-                          confirmAction.property.name}
+                        {getPropertyHeadline(
+                          confirmAction.property,
+                          confirmAction.property.name
+                        )}
                         &rdquo;
                       </strong>
                       :
                     </>
                   ) : (
                     <>
-                      {t.modals.confirmCancelPromo}{" "}
+                      {mL.confirmCancelPromo}{" "}
                       <strong className="text-[#0a1122]">
                         &ldquo;
-                        {confirmAction.property.project_name ||
-                          confirmAction.property.name}
+                        {getPropertyHeadline(
+                          confirmAction.property,
+                          confirmAction.property.name
+                        )}
                         &rdquo;
                       </strong>
                       {qMark}
@@ -196,6 +239,52 @@ export function PropertyConfirmDialog({
                   ))}
               </DialogDescription>
             </DialogHeader>
+
+            {isPublishingIncompleteDocs && confirmAction.type === "status" && (
+              <div className="mt-3 space-y-2.5 rounded-xl border-2 border-amber-300 bg-amber-50 p-3.5 text-xs">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+                  <div>
+                    <p className="font-black text-amber-950">
+                      {mL.incompleteDocsGuardTitle} ({uploadedCount}/4)
+                    </p>
+                    <p className="mt-0.5 leading-relaxed font-medium text-amber-900">
+                      {mL.incompleteDocsGuardDesc}
+                    </p>
+                  </div>
+                </div>
+
+                <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-amber-300/80 bg-white px-3 py-2.5 font-extrabold text-[#0f1d40]">
+                  <input
+                    type="checkbox"
+                    checked={allowWaOverride}
+                    onChange={(e) =>
+                      setConfirmAction({
+                        ...confirmAction,
+                        allowWhatsAppDocsVerify: e.target.checked,
+                      })
+                    }
+                    className="size-4 accent-[#007a5a]"
+                  />
+                  <span>{mL.incompleteDocsGuardCheckbox}</span>
+                </label>
+
+                {onOpenDocs && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const targetProp = confirmAction.property
+                      onClose()
+                      onOpenDocs(targetProp)
+                    }}
+                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#007a5a]/30 bg-white py-2 text-[11.5px] font-extrabold text-[#007a5a] transition hover:bg-[#eaf8f2]"
+                  >
+                    <UploadCloud className="size-3.5" />
+                    <span>{mL.incompleteDocsGuardUploadBtn}</span>
+                  </button>
+                )}
+              </div>
+            )}
 
             {confirmAction.type === "promote" &&
               confirmAction.promoAction === "activate" && (
@@ -277,14 +366,22 @@ export function PropertyConfirmDialog({
             {confirmAction.type === "status" &&
               (confirmAction.newStatus === "rejected" ||
                 confirmAction.newStatus === "pending" ||
-                confirmAction.newStatus === "under_review") && (
-                <div className="mt-2">
+                confirmAction.newStatus === "under_review" ||
+                confirmAction.newStatus === "paused_by_admin") && (
+                <div className="mt-2.5 space-y-1.5">
                   <Textarea
                     value={reason}
                     onChange={(event) => setReason(event.target.value)}
-                    placeholder={t.modals.rejectReasonPlaceholder}
-                    className="min-h-[65px] rounded-xl text-xs"
+                    placeholder={
+                      confirmAction.newStatus === "paused_by_admin"
+                        ? mL.pausedByAdminReasonPlaceholder
+                        : mL.rejectReasonPlaceholder
+                    }
+                    className="min-h-[70px] rounded-xl text-xs"
                   />
+                  <p className="text-[10.5px] font-medium text-slate-500">
+                    {mL.statusEmailNotifyHint}
+                  </p>
                 </div>
               )}
 
@@ -300,13 +397,14 @@ export function PropertyConfirmDialog({
               </Button>
               <Button
                 type="button"
-                disabled={pending}
+                disabled={isConfirmDisabled}
                 onClick={onExecute}
                 className={`h-9 flex-1 rounded-xl text-xs font-bold text-white sm:flex-none ${
                   confirmAction.type === "delete" ||
                   confirmAction.type === "purge_all_deleted" ||
                   (confirmAction.type === "status" &&
-                    confirmAction.newStatus === "rejected")
+                    (confirmAction.newStatus === "rejected" ||
+                      confirmAction.newStatus === "paused_by_admin"))
                     ? "bg-red-600 hover:bg-red-700"
                     : "bg-[#105C50] hover:bg-[#0c483f]"
                 }`}
@@ -316,6 +414,8 @@ export function PropertyConfirmDialog({
                     <Loader2 className="size-3.5 animate-spin" />
                     {t.actions.executingBtn}
                   </span>
+                ) : isPublishingIncompleteDocs && allowWaOverride ? (
+                  mL.verifyWaAndPublishNowBtn
                 ) : (
                   t.actions.confirmBtn
                 )}
@@ -323,6 +423,653 @@ export function PropertyConfirmDialog({
             </DialogFooter>
           </>
         )}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+export function PropertyStageTimelineDialog({
+  dir,
+  t,
+  blockedDict,
+  data,
+  onClose,
+  onOpenOffersLog,
+}: {
+  dir: "rtl" | "ltr"
+  t: Record<string, any>
+  blockedDict: Record<string, string>
+  data: {
+    property: SellRequest
+    stage: string
+    offerId?: string
+  } | null
+  onClose: () => void
+  onOpenOffersLog: (property: SellRequest) => void
+}) {
+  if (!data) return null
+
+  const mL = (t.modals as Record<string, string>) || {}
+  const { property, stage, offerId } = data
+  const { stages, currentStepIndex, isExceptionState, exceptionNote } =
+    getSixStageTimelineMeta(stage)
+  const uCode = deriveShortUnitCode(property.id, property.code)
+  const headline = getPropertyHeadline(property, property.name)
+
+  return (
+    <Dialog open={Boolean(data)} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent
+        dir={dir}
+        className="w-[93vw] max-w-[470px] rounded-2xl p-5 text-start"
+      >
+        <DialogHeader className="border-b border-slate-100 pb-3 text-start">
+          <div className="flex items-center gap-2">
+            <span className="rounded-md bg-[#0f1d40] px-2 py-0.5 font-mono text-[11px] font-bold text-white">
+              {uCode}
+            </span>
+            <DialogTitle className="truncate text-sm font-black text-[#0f1d40] sm:text-base">
+              {mL.stageTimelineTitlePrefix} — {headline}
+            </DialogTitle>
+          </div>
+          <DialogDescription className="text-start text-xs text-slate-500">
+            {mL.stageTimelineSubtitle}
+          </DialogDescription>
+        </DialogHeader>
+
+        {isExceptionState && exceptionNote && (
+          <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-900">
+            ℹ️ {exceptionNote}
+          </div>
+        )}
+
+        <ol className="relative mt-3 space-y-3 ps-1">
+          {stages.map((st, idx) => {
+            const isDone = idx < currentStepIndex
+            const isCurrent = idx === currentStepIndex
+            const isLast = idx === stages.length - 1
+
+            return (
+              <li key={st.key} className="relative flex items-start gap-3">
+                {!isLast && (
+                  <span
+                    className={`absolute top-6 start-[11px] h-[calc(100%+4px)] w-[2px] ${
+                      isDone ? "bg-[#007a5a]" : "bg-slate-200"
+                    }`}
+                  />
+                )}
+                <span
+                  className={`relative z-10 flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-black ${
+                    isDone
+                      ? "bg-[#007a5a] text-white"
+                      : isCurrent
+                        ? "bg-[#0f1d40] text-white ring-4 ring-emerald-100"
+                        : "bg-slate-100 text-slate-400"
+                  }`}
+                >
+                  {isDone ? (
+                    <Check className="size-3.5 stroke-[2.6]" />
+                  ) : (
+                    idx + 1
+                  )}
+                </span>
+
+                <div
+                  className={`flex-1 rounded-xl border px-3 py-2 text-xs ${
+                    isCurrent
+                      ? "border-[#007a5a] bg-[#eaf8f2]/70"
+                      : isDone
+                        ? "border-slate-100 bg-slate-50/70"
+                        : "border-slate-100 bg-white opacity-70"
+                  }`}
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-1.5">
+                    <span
+                      className={`font-extrabold ${
+                        isCurrent
+                          ? "text-[#0f1d40]"
+                          : isDone
+                            ? "text-[#007a5a]"
+                            : "text-slate-400"
+                      }`}
+                    >
+                      {st.label}
+                    </span>
+
+                    {isCurrent && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-[#007a5a] px-2 py-0.5 text-[9.5px] font-extrabold text-white">
+                        {st.owner === "auto" && <Lock className="size-2.5" />}
+                        <span>{mL.stageCurrentBadge}</span>
+                      </span>
+                    )}
+                    {isDone && (
+                      <span className="text-[10px] font-bold text-[#007a5a]">
+                        {mL.stageDoneBadge}
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-0.5 text-[11px] text-slate-500">{st.sub}</p>
+                </div>
+              </li>
+            )
+          })}
+        </ol>
+
+        <DialogFooter className="mt-4 flex flex-col-reverse gap-2 border-t border-slate-100 pt-3 sm:flex-row sm:items-center sm:justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+            className="h-9 rounded-xl text-xs font-bold"
+          >
+            {blockedDict.gotItBtn || t.actions.closeBtn}
+          </Button>
+
+          {(stage === "in_deal" || stage === "sold") && offerId ? (
+            <Link
+              href={`/admin/deals?offerId=${offerId}`}
+              onClick={onClose}
+              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-4 text-xs font-extrabold text-white hover:bg-[#006248]"
+            >
+              <Handshake className="size-3.5" />
+              <span>{blockedDict.openDealBtn}</span>
+            </Link>
+          ) : stage === "has_offers" || stage === "negotiating" ? (
+            <button
+              type="button"
+              onClick={() => {
+                const targetProp = property
+                onClose()
+                onOpenOffersLog(targetProp)
+              }}
+              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[#0f1d40] px-4 text-xs font-extrabold text-white hover:bg-[#1e293b]"
+            >
+              <ClipboardList className="size-3.5 text-emerald-300" />
+              <span>{blockedDict.openOffersBtn}</span>
+            </button>
+          ) : null}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+export function PropertyEditDataDialog({
+  dir,
+  t,
+  property,
+  onClose,
+  onNotice,
+}: {
+  dir: "rtl" | "ltr"
+  t?: Record<string, any>
+  property: SellRequest | null
+  onClose: () => void
+  onNotice?: (msg: { text: string; isError?: boolean }) => void
+}) {
+  const router = useRouter()
+  const [saving, startSaving] = useTransition()
+  const mL = (t?.modals as Record<string, string>) || {}
+
+  const [form, setForm] = useState({
+    project_name: "",
+    developer_name: "",
+    area: "",
+    exact_street: "",
+    house_number: "",
+    cadastral_code: "",
+    unit_type: "",
+    size: "",
+    rooms: "",
+    bedrooms: "",
+    bathrooms: "",
+    floor_number: "",
+    total_floors: "",
+    finishing: "",
+    delivery_status: "",
+    contract_price: "",
+    paid_amount: "",
+    market_price: "",
+    installment_amount: "",
+    installment_frequency: "",
+    years_left: "",
+    description: "",
+  })
+
+  useEffect(() => {
+    if (!property) return
+    const meta = property.documents?.__unit_meta || {}
+    setForm({
+      project_name: property.project_name || "",
+      developer_name: property.developer_name || meta.developer_name || "",
+      area: property.area || meta.area || "",
+      exact_street: property.exact_street || meta.exact_street || "",
+      house_number: property.house_number || meta.house_number || "",
+      cadastral_code: property.cadastral_code || meta.cadastral_code || "",
+      unit_type: property.unit_type || meta.unit_type || "",
+      size: property.size != null ? String(property.size) : "",
+      rooms: property.rooms != null ? String(property.rooms) : "",
+      bedrooms: property.bedrooms != null ? String(property.bedrooms) : "",
+      bathrooms: property.bathrooms != null ? String(property.bathrooms) : "",
+      floor_number:
+        property.floor_number != null ? String(property.floor_number) : "",
+      total_floors:
+        property.total_floors != null ? String(property.total_floors) : "",
+      finishing: property.finishing || meta.finishing || "",
+      delivery_status: property.delivery_status || meta.delivery_status || "",
+      contract_price:
+        property.contract_price != null ? String(property.contract_price) : "",
+      paid_amount:
+        property.paid_amount != null ? String(property.paid_amount) : "",
+      market_price:
+        property.market_price != null ? String(property.market_price) : "",
+      installment_amount:
+        property.installment_amount != null
+          ? String(property.installment_amount)
+          : "",
+      installment_frequency:
+        property.installment_frequency || meta.installment_frequency || "",
+      years_left:
+        property.years_left != null ? String(property.years_left) : "",
+      description: property.description || "",
+    })
+  }, [property])
+
+  if (!property) return null
+
+  const uCode = deriveShortUnitCode(property.id, property.code)
+
+  function handleSave(e: React.FormEvent) {
+    e.preventDefault()
+    if (!property) return
+    startSaving(async () => {
+      const toNum = (v: string) => (v.trim() === "" ? null : Number(v))
+      const res = await adminUpdatePropertyDataAction({
+        propertyId: property.id,
+        project_name: form.project_name,
+        developer_name: form.developer_name,
+        area: form.area,
+        exact_street: form.exact_street,
+        house_number: form.house_number,
+        cadastral_code: form.cadastral_code,
+        unit_type: form.unit_type,
+        size: toNum(form.size),
+        rooms: toNum(form.rooms),
+        bedrooms: toNum(form.bedrooms),
+        bathrooms: toNum(form.bathrooms),
+        floor_number: toNum(form.floor_number),
+        total_floors: toNum(form.total_floors),
+        finishing: form.finishing,
+        delivery_status: form.delivery_status,
+        contract_price: toNum(form.contract_price),
+        paid_amount: toNum(form.paid_amount),
+        market_price: toNum(form.market_price),
+        installment_amount: toNum(form.installment_amount),
+        installment_frequency: form.installment_frequency,
+        years_left: toNum(form.years_left),
+        description: form.description,
+      })
+
+      if (res.success) {
+        onNotice?.({ text: `${mL.editSavedSuccess} (${uCode})` })
+        router.refresh()
+        onClose()
+      } else {
+        onNotice?.({
+          text: res.error || mL.editSaveError,
+          isError: true,
+        })
+      }
+    })
+  }
+
+  const inputCls =
+    "h-9 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 text-xs font-bold text-[#0f1d40] focus:border-[#007a5a] focus:bg-white focus:outline-none"
+
+  return (
+    <Dialog
+      open={Boolean(property)}
+      onOpenChange={(o) => !o && !saving && onClose()}
+    >
+      <DialogContent
+        dir={dir}
+        className="max-h-[90vh] w-[95vw] max-w-2xl overflow-y-auto rounded-2xl p-5 text-start"
+      >
+        <DialogHeader className="border-b border-slate-100 pb-3 text-start">
+          <DialogTitle className="flex items-center gap-2 text-sm font-black text-[#0f1d40] sm:text-base">
+            <Edit3 className="size-4.5 text-[#007a5a]" />
+            <span>{mL.editModalTitle}</span>
+            <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs font-bold text-[#0f1d40]">
+              {uCode}
+            </span>
+          </DialogTitle>
+          <DialogDescription className="text-start text-xs text-slate-500">
+            {mL.editModalDesc}
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSave} className="mt-3 space-y-4 text-xs">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-[11px] font-bold text-slate-500">
+                {mL.editProjectLabel}
+              </label>
+              <input
+                value={form.project_name}
+                onChange={(e) =>
+                  setForm({ ...form, project_name: e.target.value })
+                }
+                className={inputCls}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] font-bold text-slate-500">
+                {mL.editDeveloperLabel}
+              </label>
+              <input
+                value={form.developer_name}
+                onChange={(e) =>
+                  setForm({ ...form, developer_name: e.target.value })
+                }
+                className={inputCls}
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-[11px] font-bold text-slate-500">
+                {mL.editAreaLabel}
+              </label>
+              <input
+                value={form.area}
+                onChange={(e) => setForm({ ...form, area: e.target.value })}
+                className={inputCls}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] font-bold text-slate-500">
+                {mL.editStreetLabel}
+              </label>
+              <input
+                value={form.exact_street}
+                onChange={(e) =>
+                  setForm({ ...form, exact_street: e.target.value })
+                }
+                className={inputCls}
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-[11px] font-bold text-slate-500">
+                {mL.editHouseNoLabel}
+              </label>
+              <input
+                value={form.house_number}
+                onChange={(e) =>
+                  setForm({ ...form, house_number: e.target.value })
+                }
+                className={inputCls}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] font-bold text-slate-500">
+                {mL.editCadastralLabel}
+              </label>
+              <input
+                dir="ltr"
+                value={form.cadastral_code}
+                onChange={(e) =>
+                  setForm({ ...form, cadastral_code: e.target.value })
+                }
+                className={inputCls}
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-[11px] font-bold text-slate-500">
+                {mL.editUnitTypeLabel}
+              </label>
+              <input
+                value={form.unit_type}
+                onChange={(e) =>
+                  setForm({ ...form, unit_type: e.target.value })
+                }
+                className={inputCls}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] font-bold text-slate-500">
+                {mL.editSizeLabel}
+              </label>
+              <input
+                type="number"
+                dir="ltr"
+                value={form.size}
+                onChange={(e) => setForm({ ...form, size: e.target.value })}
+                className={inputCls}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+            <div>
+              <label className="mb-1 block text-[11px] font-bold text-slate-500">
+                {mL.editRoomsLabel}
+              </label>
+              <input
+                type="number"
+                dir="ltr"
+                value={form.rooms}
+                onChange={(e) => setForm({ ...form, rooms: e.target.value })}
+                className={inputCls}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] font-bold text-slate-500">
+                {mL.editBedroomsLabel}
+              </label>
+              <input
+                type="number"
+                dir="ltr"
+                value={form.bedrooms}
+                onChange={(e) => setForm({ ...form, bedrooms: e.target.value })}
+                className={inputCls}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] font-bold text-slate-500">
+                {mL.editBathroomsLabel}
+              </label>
+              <input
+                type="number"
+                dir="ltr"
+                value={form.bathrooms}
+                onChange={(e) =>
+                  setForm({ ...form, bathrooms: e.target.value })
+                }
+                className={inputCls}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] font-bold text-slate-500">
+                {mL.editFloorLabel}
+              </label>
+              <input
+                type="number"
+                dir="ltr"
+                value={form.floor_number}
+                onChange={(e) =>
+                  setForm({ ...form, floor_number: e.target.value })
+                }
+                className={inputCls}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] font-bold text-slate-500">
+                {mL.editTotalFloorsLabel}
+              </label>
+              <input
+                type="number"
+                dir="ltr"
+                value={form.total_floors}
+                onChange={(e) =>
+                  setForm({ ...form, total_floors: e.target.value })
+                }
+                className={inputCls}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 rounded-xl border border-emerald-200/70 bg-[#f8faf9] p-3 sm:grid-cols-3">
+            <div>
+              <label className="mb-1 block text-[11px] font-bold text-[#007a5a]">
+                {mL.editPaidAmountLabel}
+              </label>
+              <input
+                type="number"
+                dir="ltr"
+                value={form.paid_amount}
+                onChange={(e) =>
+                  setForm({ ...form, paid_amount: e.target.value })
+                }
+                className={inputCls}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] font-bold text-slate-600">
+                {mL.editContractPriceLabel}
+              </label>
+              <input
+                type="number"
+                dir="ltr"
+                value={form.contract_price}
+                onChange={(e) =>
+                  setForm({ ...form, contract_price: e.target.value })
+                }
+                className={inputCls}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] font-bold text-slate-600">
+                {mL.editMarketPriceLabel}
+              </label>
+              <input
+                type="number"
+                dir="ltr"
+                value={form.market_price}
+                onChange={(e) =>
+                  setForm({ ...form, market_price: e.target.value })
+                }
+                className={inputCls}
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-[11px] font-bold text-slate-600">
+                {mL.editInstallmentLabel}
+              </label>
+              <input
+                type="number"
+                dir="ltr"
+                value={form.installment_amount}
+                onChange={(e) =>
+                  setForm({ ...form, installment_amount: e.target.value })
+                }
+                className={inputCls}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] font-bold text-slate-600">
+                {mL.editFrequencyLabel}
+              </label>
+              <input
+                value={form.installment_frequency}
+                onChange={(e) =>
+                  setForm({ ...form, installment_frequency: e.target.value })
+                }
+                className={inputCls}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] font-bold text-slate-600">
+                {mL.editYearsLeftLabel}
+              </label>
+              <input
+                type="number"
+                dir="ltr"
+                value={form.years_left}
+                onChange={(e) =>
+                  setForm({ ...form, years_left: e.target.value })
+                }
+                className={inputCls}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-[11px] font-bold text-slate-500">
+                {mL.editFinishingLabel}
+              </label>
+              <input
+                value={form.finishing}
+                onChange={(e) =>
+                  setForm({ ...form, finishing: e.target.value })
+                }
+                className={inputCls}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] font-bold text-slate-500">
+                {mL.editDeliveryLabel}
+              </label>
+              <input
+                value={form.delivery_status}
+                onChange={(e) =>
+                  setForm({ ...form, delivery_status: e.target.value })
+                }
+                className={inputCls}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-[11px] font-bold text-slate-500">
+              {mL.editDescriptionLabel}
+            </label>
+            <Textarea
+              value={form.description}
+              onChange={(e) =>
+                setForm({ ...form, description: e.target.value })
+              }
+              className="min-h-[75px] rounded-xl text-xs"
+            />
+          </div>
+
+          <DialogFooter className="flex flex-row justify-end gap-2 border-t border-slate-100 pt-3">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={saving}
+              onClick={onClose}
+              className="h-9 rounded-xl text-xs font-bold"
+            >
+              {t?.actions?.cancelBtn}
+            </Button>
+            <Button
+              type="submit"
+              disabled={saving}
+              className="h-9 rounded-xl bg-[#007a5a] px-5 text-xs font-extrabold text-white hover:bg-[#006248]"
+            >
+              {saving ? (
+                <span className="flex items-center gap-1.5">
+                  <Loader2 className="size-3.5 animate-spin" />
+                  {mL.editSavingBtn}
+                </span>
+              ) : (
+                mL.editSaveBtn
+              )}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   )
@@ -396,7 +1143,7 @@ export function PropertyOffersLogDialog({
             <span>
               {oL.title}:{" "}
               <span className="text-[#007a5a]">
-                {property.project_name || t.table.unspecifiedProject}
+                {getPropertyHeadline(property, t.table.unspecifiedProject)}
               </span>
             </span>
             <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs font-bold text-[#0f1d40]">
@@ -655,8 +1402,8 @@ export function PropertyDealQuickSummaryDialog({
             <span>{leadsDict.dealQuickSummaryTitle}</span>
           </DialogTitle>
           <DialogDescription className="mt-1 text-start text-xs font-semibold text-slate-500">
-            {property.project_name || t.table.unspecifiedProject} ({uCode})
-            {area ? ` · ${area}` : ""}
+            {getPropertyHeadline(property, t.table.unspecifiedProject)} ({uCode}
+            ){area ? ` · ${area}` : ""}
           </DialogDescription>
         </DialogHeader>
 
@@ -763,7 +1510,9 @@ export function PropertyDealQuickSummaryDialog({
             className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-4 text-xs font-extrabold text-white transition hover:bg-[#006248]"
           >
             <Handshake className="size-3.5" />
-            <span>{t.dealSummary?.openDealFileBtn || leadsDict.openDealFileBtn}</span>
+            <span>
+              {t.dealSummary?.openDealFileBtn || leadsDict.openDealFileBtn}
+            </span>
           </Link>
         </DialogFooter>
       </DialogContent>
@@ -779,6 +1528,8 @@ export function PropertyDetailsDialog({
   whatsappBtnLabel,
   detailsProperty,
   onClose,
+  onOpenEdit,
+  onOpenDocs,
   unitCur,
   waMessage,
   reportWaMessage,
@@ -795,6 +1546,8 @@ export function PropertyDetailsDialog({
   whatsappBtnLabel: string
   detailsProperty: SellRequest | null
   onClose: () => void
+  onOpenEdit?: (property: SellRequest) => void
+  onOpenDocs?: (property: SellRequest) => void
   unitCur: string
   waMessage: string
   reportWaMessage?: string
@@ -828,15 +1581,16 @@ export function PropertyDetailsDialog({
   const emailOk = detailsProperty
     ? isSellerEmailVerified(detailsProperty, verificationMap)
     : false
+  const waDocsOk = detailsProperty
+    ? isUnitWhatsAppDocsVerified(detailsProperty)
+    : false
 
   const propActions = (t.actions as Record<string, string>) || {}
   const propBadges = (t.badges as Record<string, string>) || {}
 
   const meta = detailsProperty?.documents?.__unit_meta || {}
-  const exactStreet =
-    detailsProperty?.exact_street || meta.exact_street || ""
-  const houseNumber =
-    detailsProperty?.house_number || meta.house_number || ""
+  const exactStreet = detailsProperty?.exact_street || meta.exact_street || ""
+  const houseNumber = detailsProperty?.house_number || meta.house_number || ""
   const cadastralCode =
     detailsProperty?.cadastral_code || meta.cadastral_code || ""
   const videoUrl = detailsProperty?.video_url || meta.video_url || ""
@@ -886,9 +1640,17 @@ export function PropertyDetailsDialog({
         {detailsProperty && (
           <>
             <DialogHeader className="text-start">
-              <DialogTitle className="text-sm font-extrabold sm:text-base">
-                {detailsProperty.project_name || t.modals.detailsFallbackTitle}{" "}
-                — {detailsProperty.name}
+              <DialogTitle className="flex flex-wrap items-center gap-2 text-sm font-extrabold sm:text-base">
+                <span className="rounded-md bg-[#0f1d40] px-2 py-0.5 font-mono text-[11px] font-bold text-white">
+                  {deriveShortUnitCode(detailsProperty.id, detailsProperty.code)}
+                </span>
+                <span>
+                  {getPropertyHeadline(
+                    detailsProperty,
+                    mL.detailsFallbackTitle
+                  )}{" "}
+                  — {detailsProperty.name}
+                </span>
               </DialogTitle>
               <DialogDescription className="sr-only">
                 {propActions.detailsBtn}
@@ -906,6 +1668,21 @@ export function PropertyDetailsDialog({
                 <ExternalLink className="size-3.5" />
                 <span>{publicSiteLabel}</span>
               </Link>
+
+              {onOpenEdit && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const target = detailsProperty
+                    onClose()
+                    onOpenEdit(target)
+                  }}
+                  className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-bold text-[#0f1d40] hover:bg-slate-50"
+                >
+                  <Edit3 className="size-3.5 text-[#007a5a]" />
+                  <span>{propActions.editDataBtn}</span>
+                </button>
+              )}
 
               <a
                 data-admin-client-wa="true"
@@ -948,6 +1725,12 @@ export function PropertyDetailsDialog({
             </div>
 
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              {waDocsOk && (
+                <span className="inline-flex items-center gap-1 rounded-md bg-[#007a5a] px-2.5 py-1 text-[10.5px] font-extrabold text-white">
+                  <FileCheck2 className="size-3" />
+                  <span>{mL.waDocsVerifiedBadge}</span>
+                </span>
+              )}
               {phoneOk && (
                 <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2.5 py-1 text-[10.5px] font-extrabold text-[#105C50]">
                   <CheckCircle2 className="size-3" />
@@ -979,7 +1762,7 @@ export function PropertyDetailsDialog({
             <div className="mt-2.5 grid grid-cols-2 gap-2.5 rounded-xl bg-gray-50 p-3 text-xs">
               <div>
                 <span className="block text-[10px] text-gray-400">
-                  {t.modals.areaLabel}
+                  {mL.areaLabel}
                 </span>
                 <strong className="text-[#0a1122]">
                   {cleanPropertyAreaDisplay(detailsProperty.area, locale)}
@@ -999,7 +1782,7 @@ export function PropertyDetailsDialog({
 
               <div>
                 <span className="block text-[10px] text-gray-400">
-                  {t.modals.developerLabel}
+                  {mL.developerLabel}
                 </span>
                 <strong className="text-[#0a1122]">
                   {detailsProperty.developer_name || "—"}
@@ -1041,7 +1824,7 @@ export function PropertyDetailsDialog({
 
               <div>
                 <span className="block text-[10px] text-gray-400">
-                  {t.modals.contractPriceLabel}
+                  {mL.contractPriceLabel}
                 </span>
                 <strong className="text-[#0a1122]">
                   <span dir="ltr">
@@ -1140,12 +1923,28 @@ export function PropertyDetailsDialog({
             )}
 
             <div className="mt-2.5 rounded-xl border border-gray-200 p-3 text-start text-xs">
-              <p className="mb-2 font-extrabold text-[#0a1122]">
-                {t.modals.uploadedDocsTitle} ({uploadedDocs.length}/4):
-              </p>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="font-extrabold text-[#0a1122]">
+                  {mL.uploadedDocsTitle} ({uploadedDocs.length}/4):
+                </p>
+                {onOpenDocs && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const target = detailsProperty
+                      onClose()
+                      onOpenDocs(target)
+                    }}
+                    className="inline-flex items-center gap-1 rounded-lg bg-[#eaf8f2] px-2.5 py-1 text-[11px] font-extrabold text-[#007a5a] hover:bg-[#007a5a] hover:text-white"
+                  >
+                    <UploadCloud className="size-3.5" />
+                    <span>{mL.manageDocsWaBtn}</span>
+                  </button>
+                )}
+              </div>
               {uploadedDocs.length === 0 ? (
                 <p className="text-[11px] text-gray-400">
-                  {t.modals.noDocsUploaded}
+                  {waDocsOk ? mL.waDocsVerifiedEmptyText : mL.noDocsUploaded}
                 </p>
               ) : (
                 <div className="space-y-1.5">

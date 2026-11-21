@@ -1,6 +1,8 @@
 "use client"
 
+import { useState, useTransition } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import {
   BarChart3,
   Check,
@@ -8,6 +10,7 @@ import {
   ClipboardList,
   Crown,
   Download,
+  Edit3,
   ExternalLink,
   Eye,
   EyeOff,
@@ -18,17 +21,24 @@ import {
   Info,
   Loader2,
   Lock,
+  MessageCircle,
   MoreVertical,
   PauseCircle,
   Phone,
   RefreshCw,
   RotateCcw,
+  ShieldAlert,
   Sparkles,
   Star,
   Trash2,
   Trophy,
+  UploadCloud,
   User,
 } from "lucide-react"
+import {
+  adminUploadUnitDocumentAction,
+  verifyUnitDocsViaWhatsAppAction,
+} from "@/actions/admin-actions"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -42,11 +52,15 @@ import {
   buildSellerWhatsAppMessage,
   cleanPropertyAreaDisplay,
   deriveShortUnitCode,
+  getPropertyHeadline,
   getRemainingDaysBeforePurge,
   isSellerEmailVerified,
   isSellerPhoneVerified,
+  isUnitWhatsAppDocsVerified,
+  REAL_UNIT_DOC_KEYS,
   type ConfirmPropertyAction,
   type SellRequest,
+  type UnitDocKey,
   type UserVerificationBadgeInfo,
 } from "./properties-helpers"
 import type { LocaleCode } from "@/lib/i18n"
@@ -129,11 +143,20 @@ export type SharedPropertyCardProps = {
   setOpenMenuId: (id: string | null) => void
   onConfirmAction: (action: ConfirmPropertyAction) => void
   onOpenDetails: (property: SellRequest) => void
+  onOpenEdit: (property: SellRequest) => void
   onOpenDocs: (property: SellRequest) => void
   onOpenSmartMatch: (property: SellRequest) => void
   onOpenOffersLog: (property: SellRequest) => void
-  onOpenDealSummary: (property: SellRequest, offer: any, waitlistCount: number) => void
-  onOpenBlockedStage: (property: SellRequest, stage: string, offerId?: string) => void
+  onOpenDealSummary: (
+    property: SellRequest,
+    offer: any,
+    waitlistCount: number
+  ) => void
+  onOpenBlockedStage: (
+    property: SellRequest,
+    stage: string,
+    offerId?: string
+  ) => void
   onExportSingle: (property: SellRequest, format: "excel" | "pdf") => void
   matchedBuyersCount: number
   validOffers: any[]
@@ -154,11 +177,23 @@ function UnitStatusControl(props: SharedPropertyCardProps) {
   } = props
 
   if (currentSt === "sold") {
+    const acceptedOffer = validOffers.find((o) => o.status === "accepted")
     return (
-      <div className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-xl border border-[#007a5a] bg-[#007a5a] px-3 text-center text-[11px] font-extrabold text-white select-none">
+      <button
+        type="button"
+        onClick={() =>
+          onOpenBlockedStage(
+            property,
+            "sold",
+            acceptedOffer ? String(acceptedOffer.id) : undefined
+          )
+        }
+        className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-xl border border-[#007a5a] bg-[#007a5a] px-3 text-center text-[11px] font-extrabold text-white transition hover:bg-[#006248]"
+      >
         <Lock className="size-3.5 shrink-0 opacity-85" />
         <span className="truncate">{stObj.label}</span>
-      </div>
+        <Info className="size-3.5 shrink-0 opacity-85" />
+      </button>
     )
   }
 
@@ -191,13 +226,16 @@ function UnitStatusControl(props: SharedPropertyCardProps) {
     )
   }
 
+  const selectValue =
+    currentSt === "incomplete" ? "pending" : currentSt
+
   return (
     <select
       disabled={pending}
-      value={currentSt}
+      value={selectValue}
       onChange={(e) => {
         const nextSt = e.target.value
-        if (nextSt !== currentSt) {
+        if (nextSt !== selectValue) {
           onConfirmAction({
             type: "status",
             property,
@@ -250,10 +288,10 @@ export function PropertyActivityBadges({
   )
   const waitlistOffers = validOffers.filter((o) => o.status === "unit_locked")
   const isVipPlus = property.boost_tier === "vip_plus"
+  const waDocsVerified = isUnitWhatsAppDocsVerified(property)
   const ds = (t.dealSummary as Record<string, string>) || {}
   const oL = (t.offersLog as Record<string, string>) || {}
 
-  // حالة البيع المكتمل: يظهر ملخص البيع ورابط ملف الصفقة فقط وتختفي أزرار التطابق
   if (currentSt === "sold") {
     const buyerName = acceptedOffer?.buyer_name || "—"
     const amountStr = `${unitCur}${Number(acceptedOffer?.offered_cash || property.paid_amount || 0).toLocaleString("en-US")}`
@@ -299,7 +337,7 @@ export function PropertyActivityBadges({
         onClick={() => onOpenDocs(property)}
         title={t.modals.uploadedDocsTitle}
         className={`inline-flex h-7 items-center gap-1.5 rounded-lg border px-2.5 text-[11px] font-extrabold shadow-2xs transition ${
-          docsCount >= 4
+          waDocsVerified || docsCount >= 4
             ? "border-emerald-200 bg-white text-[#007a5a] hover:bg-[#eaf8f2]"
             : docsCount > 0
               ? "border-amber-200 bg-amber-50/70 text-amber-900 hover:bg-amber-100"
@@ -308,13 +346,21 @@ export function PropertyActivityBadges({
       >
         <FileCheck2
           className={`size-3.5 shrink-0 ${
-            docsCount >= 4 ? "text-[#007a5a]" : "text-slate-400"
+            waDocsVerified || docsCount >= 4
+              ? "text-[#007a5a]"
+              : "text-slate-400"
           }`}
         />
-        <span dir="ltr" className="tabular-nums">
-          {docsCount}/4
-        </span>
-        <span>{propBadges.docWord}</span>
+        {waDocsVerified ? (
+          <span>{propBadges.waDocsVerifiedShort}</span>
+        ) : (
+          <>
+            <span dir="ltr" className="tabular-nums">
+              {docsCount}/4
+            </span>
+            <span>{propBadges.docWord}</span>
+          </>
+        )}
       </button>
 
       {currentSt === "in_deal" && acceptedOffer ? (
@@ -387,7 +433,6 @@ export function PropertyActivityBadges({
         </>
       )}
 
-      {/* طلبات التمييز المعلّقة تظهر فقط في صفحة طلبات الإعلان */}
       {isPromotionsPage &&
         !isFeaturedActive &&
         property.featured_status === "pending_payment" && (
@@ -419,6 +464,13 @@ export function PropertyActivityBadges({
             <span>{propBadges.editedBySeller}</span>
           </span>
         )}
+
+      {rawStatus === "paused_by_admin" && (
+        <span className="inline-flex h-7 items-center gap-1 rounded-lg bg-rose-50 px-2.5 text-[11px] font-bold text-rose-800">
+          <ShieldAlert className="size-3" />
+          <span>{propBadges.pausedByAdmin}</span>
+        </span>
+      )}
 
       {rawStatus === "paused_by_seller" && (
         <span className="inline-flex h-7 items-center gap-1 rounded-lg bg-orange-50 px-2.5 text-[11px] font-bold text-orange-800">
@@ -458,6 +510,7 @@ function PropertyThreeDotsMenu(props: SharedPropertyCardProps) {
     expL,
     pending,
     onOpenDocs,
+    onOpenEdit,
     onConfirmAction,
     onExportSingle,
   } = props
@@ -512,6 +565,21 @@ function PropertyThreeDotsMenu(props: SharedPropertyCardProps) {
               {docsCount}/4
             </span>
           </button>
+
+          {currentSt !== "sold" && currentSt !== "deleted_by_seller" && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                setOpenMenuId(null)
+                onOpenEdit(property)
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-[#0f1d40] transition hover:bg-slate-50"
+            >
+              <Edit3 className="size-3.5 text-[#007a5a]" />
+              <span>{t.actions.editDataBtn}</span>
+            </button>
+          )}
 
           <Link
             href={`/opportunities/${property.id}`}
@@ -580,12 +648,12 @@ function PropertyThreeDotsMenu(props: SharedPropertyCardProps) {
                       onConfirmAction({
                         type: "status",
                         property,
-                        newStatus: "paused_by_seller",
+                        newStatus: "paused_by_admin",
                       })
                     }}
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-orange-800 transition hover:bg-orange-50"
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-rose-700 transition hover:bg-rose-50"
                   >
-                    <EyeOff className="size-3.5 text-orange-600" />
+                    <EyeOff className="size-3.5 text-rose-600" />
                     <span>{t.actions.unpublishBtn}</span>
                   </button>
                 ) : (
@@ -696,15 +764,15 @@ function PublishToggleButton({
           onConfirmAction({
             type: "status",
             property,
-            newStatus: "paused_by_seller",
+            newStatus: "paused_by_admin",
           })
         }
-        className={`inline-flex items-center justify-center gap-1 rounded-xl border border-orange-200 bg-orange-50 px-2.5 text-xs font-extrabold text-orange-800 transition hover:bg-orange-100 disabled:opacity-50 ${
+        className={`inline-flex items-center justify-center gap-1 rounded-xl border border-rose-200 bg-rose-50 px-2.5 text-xs font-extrabold text-rose-800 transition hover:bg-rose-100 disabled:opacity-50 ${
           isMobile ? "h-8.5 flex-1" : "h-8 shrink-0"
         }`}
         title={t.actions.unpublishBtn}
       >
-        <EyeOff className="size-3.5 shrink-0 text-orange-600" />
+        <EyeOff className="size-3.5 shrink-0 text-rose-600" />
         <span className="truncate">{t.actions.unpublishBtn}</span>
       </button>
     )
@@ -772,9 +840,11 @@ export function PropertyMobileCard(props: SharedPropertyCardProps) {
               ? "border-emerald-200/90 bg-slate-50/40 border-s-4 border-s-[#0f1d40]"
               : currentSt === "deleted_by_seller"
                 ? "border-red-300 bg-red-50/20"
-                : isFeaturedActive
-                  ? "border-amber-300"
-                  : "border-slate-200/90"
+                : currentSt === "paused_by_admin"
+                  ? "border-rose-300 bg-rose-50/15"
+                  : isFeaturedActive
+                    ? "border-amber-300"
+                    : "border-slate-200/90"
       }`}
     >
       {isLoading && (
@@ -794,7 +864,7 @@ export function PropertyMobileCard(props: SharedPropertyCardProps) {
                 {deriveShortUnitCode(property.id, property.code)}
               </span>
               <h3 className="truncate text-sm font-black text-[#0f1d40]">
-                {property.project_name || t.table.unspecifiedProject}
+                {getPropertyHeadline(property, t.table.unspecifiedProject)}
               </h3>
               {isFeaturedActive && (
                 <span
@@ -982,11 +1052,15 @@ export function PropertyDesktopRow(props: SharedPropertyCardProps) {
                     ? "border-amber-200 border-s-4 border-s-amber-500"
                     : currentSt === "active"
                       ? "border-slate-200/90 border-s-4 border-s-[#007a5a]"
-                      : currentSt === "pending" || currentSt === "under_review"
-                        ? "border-amber-200/90 border-s-4 border-s-amber-500"
-                        : currentSt === "deleted_by_seller"
-                          ? "border-red-200 bg-red-50/20"
-                          : "border-slate-200/90"
+                      : currentSt === "paused_by_admin"
+                        ? "border-rose-200/90 border-s-4 border-s-rose-500"
+                        : currentSt === "pending" ||
+                            currentSt === "under_review" ||
+                            currentSt === "incomplete"
+                          ? "border-amber-200/90 border-s-4 border-s-amber-500"
+                          : currentSt === "deleted_by_seller"
+                            ? "border-red-200 bg-red-50/20"
+                            : "border-slate-200/90"
       }`}
     >
       <div className="grid grid-cols-[minmax(0,3.5fr)_minmax(0,2.5fr)_minmax(0,3fr)_215px] items-center gap-4 px-5 py-4">
@@ -1003,7 +1077,7 @@ export function PropertyDesktopRow(props: SharedPropertyCardProps) {
               target="_blank"
               className="truncate text-sm font-black text-[#0f1d40] hover:text-[#007a5a] hover:underline"
             >
-              {property.project_name || t.table.unspecifiedProject}
+              {getPropertyHeadline(property, t.table.unspecifiedProject)}
             </Link>
             {isFeaturedActive && (
               <span
@@ -1166,7 +1240,6 @@ export function PropertyDesktopRow(props: SharedPropertyCardProps) {
                 onConfirmAction={onConfirmAction}
               />
 
-              {/* زر التمييز المباشر يظهر في صفحة طلبات الإعلان فقط (ومتاح في الـ 3 نقط في طلبات البيع) */}
               {isPromotionsPage && currentSt !== "sold" && (
                 <button
                   type="button"
@@ -1242,108 +1315,258 @@ export function PropertyDocsQuickDialog({
   docsList,
   onClose,
   onOpenFullDetails,
+  onNotice,
 }: {
   dir: "rtl" | "ltr"
   t: Record<string, any>
   propBadges: Record<string, string>
   docsProperty: SellRequest | null
-  docsList: Array<{ label: string; url: string }>
+  docsList: Array<{ key: string; label: string; url: string }>
   onClose: () => void
   onOpenFullDetails: (property: SellRequest) => void
+  onNotice?: (msg: { text: string; isError?: boolean }) => void
 }) {
+  const router = useRouter()
+  const dm = (t.docsModal as Record<string, string>) || {}
+  const docsDict = (t.docs as Record<string, string>) || {}
+  const [busyKey, setBusyKey] = useState<string | null>(null)
+  const [waBusy, setWaBusy] = useState(false)
+  const [, startTransition] = useTransition()
+
+  if (!docsProperty) return null
+
+  const waDocsVerified = isUnitWhatsAppDocsVerified(docsProperty)
+  const existingByKey = new Map(docsList.map((d) => [d.key, d]))
+
+  function handleFileUpload(docKey: UnitDocKey, file: File | null) {
+    if (!file || !docsProperty) return
+    setBusyKey(docKey)
+    const fd = new FormData()
+    fd.append("propertyId", docsProperty.id)
+    fd.append("docKey", docKey)
+    fd.append("file", file)
+
+    startTransition(async () => {
+      try {
+        const res = await adminUploadUnitDocumentAction(fd)
+        if (res.success) {
+          onNotice?.({ text: dm.uploadSuccess })
+          router.refresh()
+        } else {
+          onNotice?.({ text: res.error || dm.uploadError, isError: true })
+        }
+      } finally {
+        setBusyKey(null)
+      }
+    })
+  }
+
+  function handleToggleWaDocsVerify(publishImmediately = false) {
+    if (!docsProperty) return
+    setWaBusy(true)
+    startTransition(async () => {
+      try {
+        const res = await verifyUnitDocsViaWhatsAppAction({
+          propertyId: docsProperty.id,
+          verified: publishImmediately ? true : !waDocsVerified,
+          publishImmediately,
+        })
+        if (res.success) {
+          onNotice?.({
+            text: publishImmediately
+              ? dm.waVerifiedAndPublishedSuccess
+              : waDocsVerified
+                ? dm.waVerifyRemovedSuccess
+                : dm.waVerifiedSuccess,
+          })
+          router.refresh()
+          if (publishImmediately) onClose()
+        } else {
+          onNotice?.({ text: res.error || t.loadError, isError: true })
+        }
+      } finally {
+        setWaBusy(false)
+      }
+    })
+  }
+
   return (
     <Dialog open={Boolean(docsProperty)} onOpenChange={(o) => !o && onClose()}>
       <DialogContent
         dir={dir}
-        className="max-h-[85vh] w-[95vw] max-w-2xl overflow-y-auto rounded-2xl p-5 text-start"
+        className="max-h-[88vh] w-[95vw] max-w-2xl overflow-y-auto rounded-2xl p-5 text-start"
       >
         <DialogHeader className="border-b border-slate-100 pb-3 text-start">
           <DialogTitle className="flex items-center gap-2 text-sm font-black text-[#0f1d40] sm:text-base">
             <FileCheck2 className="size-5 text-[#007a5a]" />
             <span>{t.modals.uploadedDocsTitle}</span>
-            {docsProperty && (
-              <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs font-bold text-[#0f1d40]">
-                {deriveShortUnitCode(docsProperty.id, docsProperty.code)}
-              </span>
-            )}
+            <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs font-bold text-[#0f1d40]">
+              {deriveShortUnitCode(docsProperty.id, docsProperty.code)}
+            </span>
           </DialogTitle>
-          {docsProperty && (
-            <DialogDescription className="text-start text-xs font-semibold text-slate-500">
-              {docsProperty.project_name || t.table.unspecifiedProject} ·{" "}
-              {docsProperty.name} ({docsList.length}/4 {propBadges.docWord})
-            </DialogDescription>
-          )}
+          <DialogDescription className="text-start text-xs font-semibold text-slate-500">
+            {getPropertyHeadline(docsProperty, t.table.unspecifiedProject)} ·{" "}
+            {docsProperty.name} ({docsList.length}/4 {propBadges.docWord})
+          </DialogDescription>
         </DialogHeader>
 
-        {docsList.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/70 py-10 text-center">
-            <FileText className="mb-2 size-8 text-slate-300" />
-            <p className="text-xs font-bold text-slate-500">
-              {t.modals.noDocsUploaded}
-            </p>
+        {/* شريط توثيق المستندات عبر واتساب من الأدمن */}
+        <div
+          className={`mt-2 flex flex-wrap items-center justify-between gap-2.5 rounded-xl border p-3 text-xs ${
+            waDocsVerified
+              ? "border-emerald-300 bg-[#eaf8f2]"
+              : "border-amber-200 bg-amber-50/70"
+          }`}
+        >
+          <div className="flex items-start gap-2">
+            <MessageCircle
+              className={`mt-0.5 size-4 shrink-0 ${
+                waDocsVerified ? "text-[#007a5a]" : "text-amber-600"
+              }`}
+            />
+            <div>
+              <strong className="block font-extrabold text-[#0f1d40]">
+                {waDocsVerified ? dm.waVerifiedTitle : dm.waVerifyBoxTitle}
+              </strong>
+              <p className="mt-0.5 text-[11px] text-slate-600">
+                {waDocsVerified ? dm.waVerifiedSub : dm.waVerifyBoxSub}
+              </p>
+            </div>
           </div>
-        ) : (
-          <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {docsList.map((docItem, i) => (
+
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              disabled={waBusy}
+              onClick={() => handleToggleWaDocsVerify(false)}
+              className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-[11px] font-extrabold transition disabled:opacity-50 ${
+                waDocsVerified
+                  ? "border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                  : "bg-[#25D366] text-white hover:opacity-95"
+              }`}
+            >
+              {waBusy && <Loader2 className="size-3.5 animate-spin" />}
+              <span>
+                {waDocsVerified ? dm.waVerifyUndoBtn : dm.waVerifyConfirmBtn}
+              </span>
+            </button>
+
+            {!waDocsVerified &&
+              String(docsProperty.status || "").toLowerCase() !== "active" && (
+                <button
+                  type="button"
+                  disabled={waBusy}
+                  onClick={() => handleToggleWaDocsVerify(true)}
+                  className="inline-flex h-8 items-center gap-1 rounded-lg bg-[#007a5a] px-3 text-[11px] font-extrabold text-white hover:bg-[#006248] disabled:opacity-50"
+                >
+                  <Check className="size-3.5" />
+                  <span>{dm.waVerifyAndPublishBtn}</span>
+                </button>
+              )}
+          </div>
+        </div>
+
+        {/* شبكة المستندات الـ 4 مع إمكانية الرفع أو الاستبدال من الأدمن */}
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {REAL_UNIT_DOC_KEYS.map((docKey) => {
+            const docItem = existingByKey.get(docKey)
+            const label = docsDict[docKey] || docKey
+            const isUploadingThis = busyKey === docKey
+
+            return (
               <div
-                key={`${docItem.url}-${i}`}
+                key={docKey}
                 className="flex flex-col justify-between overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xs"
               >
-                {isImageUrl(docItem.url) ? (
-                  <a
-                    href={docItem.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="block h-40 w-full overflow-hidden bg-slate-100"
-                  >
-                    <img
-                      src={docItem.url}
-                      alt={docItem.label}
-                      className="h-full w-full object-cover transition hover:scale-105"
-                    />
-                  </a>
+                {docItem ? (
+                  isImageUrl(docItem.url) ? (
+                    <a
+                      href={docItem.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block h-36 w-full overflow-hidden bg-slate-100"
+                    >
+                      <img
+                        src={docItem.url}
+                        alt={label}
+                        className="h-full w-full object-cover transition hover:scale-105"
+                      />
+                    </a>
+                  ) : (
+                    <div className="flex h-24 items-center justify-center bg-slate-50 text-slate-400">
+                      <FileText className="size-9 text-[#007a5a]/60" />
+                    </div>
+                  )
                 ) : (
-                  <div className="flex h-28 items-center justify-center bg-slate-50 text-slate-400">
-                    <FileText className="size-10 text-[#007a5a]/60" />
+                  <div className="flex h-24 flex-col items-center justify-center bg-slate-50/70 text-slate-400">
+                    <UploadCloud className="size-7 text-slate-300" />
+                    <span className="mt-1 text-[10.5px] font-semibold">
+                      {dm.notUploadedYet}
+                    </span>
                   </div>
                 )}
 
-                <div className="flex items-center justify-between gap-2 border-t border-slate-100 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 p-3">
                   <span className="truncate text-xs font-extrabold text-[#0f1d40]">
-                    {docItem.label}
+                    {label}
                   </span>
-                  <a
-                    href={docItem.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex h-7 shrink-0 items-center gap-1 rounded-lg bg-[#eaf8f2] px-2.5 text-[11px] font-extrabold text-[#007a5a] transition hover:bg-[#007a5a] hover:text-white"
-                  >
-                    <ExternalLink className="size-3" />
-                    <span>{t.actions.openDocBtn}</span>
-                  </a>
+
+                  <div className="flex items-center gap-1.5">
+                    {docItem && (
+                      <a
+                        href={docItem.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex h-7 shrink-0 items-center gap-1 rounded-lg bg-[#eaf8f2] px-2.5 text-[11px] font-extrabold text-[#007a5a] transition hover:bg-[#007a5a] hover:text-white"
+                      >
+                        <ExternalLink className="size-3" />
+                        <span>{t.actions.openDocBtn}</span>
+                      </a>
+                    )}
+
+                    <label className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 text-[11px] font-extrabold text-[#0f1d40] transition hover:border-[#007a5a] hover:text-[#007a5a]">
+                      {isUploadingThis ? (
+                        <Loader2 className="size-3 animate-spin" />
+                      ) : (
+                        <UploadCloud className="size-3" />
+                      )}
+                      <span>
+                        {docItem ? dm.replaceDocBtn : dm.uploadDocBtn}
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*,.pdf"
+                        disabled={isUploadingThis}
+                        onChange={(e) => {
+                          const f = e.target.files?.[0] || null
+                          e.target.value = ""
+                          handleFileUpload(docKey, f)
+                        }}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
+            )
+          })}
+        </div>
 
         <div className="mt-4 flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
-          {docsProperty && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="rounded-xl text-xs font-bold"
-              onClick={() => {
-                const target = docsProperty
-                onClose()
-                onOpenFullDetails(target)
-              }}
-            >
-              <Eye className="me-1.5 size-3.5 text-[#007a5a]" />
-              {t.actions.detailsBtn}
-            </Button>
-          )}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="rounded-xl text-xs font-bold"
+            onClick={() => {
+              const target = docsProperty
+              onClose()
+              onOpenFullDetails(target)
+            }}
+          >
+            <Eye className="me-1.5 size-3.5 text-[#007a5a]" />
+            {t.actions.detailsBtn}
+          </Button>
           <Button
             type="button"
             size="sm"

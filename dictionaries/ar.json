@@ -1,7 +1,7 @@
 {
   "brand": {
-    "name": "Aqar",
-    "exit": "Exit"
+    "name": "Dual",
+    "exit": "Dealz"
   },
   "navbar": {
     "sell": "بيع وحدتك",
@@ -329,7 +329,10 @@
       "bankTransferBtnTemplate": "تحويل بنكي {amt} ₾",
       "boostRecordedMsgTemplate": "تم تسجيل طلب تفعيل باقة ({tier} — {amt} ₾ لمدة {days} يوم){codePart}. بمجرد إتمام الدفع ومراجعة الأدمن للإعلان والدفع سيتم التفعيل تلقائياً.",
       "boostRecordedCodePart": " للوحدة {code}",
-      "coversLabelTemplate": "تغطي باقة {tier} لمدة {days} {dayWord}"
+      "coversLabelTemplate": "تغطي باقة {tier} لمدة {days} {dayWord}",
+      "homeBoostCtaLoggedInTemplate": "اختر وحدتك وميّزها الآن ({amount} ₾)",
+      "homeBoostCtaGuestTemplate": "سجّل دخول وميّز وحدتك ({amount} ₾)",
+      "homeBoostNote": "يتم ربط الإعلان بوحدتك مباشرة من داخل حسابك بعد التحقق من اكتمال بياناتها ومستنداتها."
     },
     "carouselTitles": {
       "categoriesTitle": "ماذا تبحث عنه للتنازل؟",
@@ -351,7 +354,7 @@
   "footer": {
     "description": "منصة التنازل عن وحدات التقسيط بدون أوفر — البايع يسترجع فلوسه كاش، والمشتري ياخد سعر التعاقد القديم، وإحنا بنسهّل الإجراءات خطوة بخطوة",
     "phone": "+201018595959",
-    "email": "info@aqarexit.com",
+    "email": "info@dualdealz.com",
     "platform": "المنصة",
     "company": "الشركة",
     "legal": "قانوني",
@@ -1670,7 +1673,27 @@
       "flittRedirectingBtn": "جاري التحويل لبوابة الدفع الآمنة (Flitt)...",
       "flittPaymentReturnedNotice": "تم استلام عودتك من بوابة الدفع (مرجع: {ref}) — يتم التحقق تلقائياً وتفعيل التمييز فور تأكيد العملية.",
       "flittNotConfiguredErr": "بوابة الدفع الإلكتروني (Flitt) قيد التفعيل النهائي حالياً — يرجى المحاولة لاحقاً أو التواصل مع الدعم.",
-      "flittInitFailedErr": "تعذر فتح صفحة الدفع بالبطاقة حالياً. يرجى المحاولة مرة أخرى بعد لحظات."
+      "flittInitFailedErr": "تعذر فتح صفحة الدفع بالبطاقة حالياً. يرجى المحاولة مرة أخرى بعد لحظات.",
+      "copyUnitCodeTitle": "نسخ كود الوحدة",
+      "pausedByAdminTitle": "تم إيقاف عرض وحدتك مؤقتاً من قِبل الإدارة",
+      "pausedByAdminDefaultDesc": "قامت الإدارة بإيقاف عرض هذه الوحدة مؤقتاً. يرجى التواصل معنا عبر واتساب لمعرفة التفاصيل وإعادة النشر.",
+      "contactAdminWaBtn": "تواصل مع الإدارة عبر واتساب",
+      "docsWaVerifiedTag": "تم التوثيق عبر واتساب ✓",
+      "cardDocumentsWaVerified": "موثّقة واتساب ✓",
+      "statusPausedByAdminBadge": "موقوفة من الإدارة",
+      "statusPausedByAdminHeadline": "تم إيقاف عرض وحدتك مؤقتاً من قِبل الإدارة — تواصل معنا لإعادة النشر",
+      "boostBookedDefaultMsg": "تم تسجيل طلب التمييز بنجاح بكود ({ref}). يمكنك الآن إرسال الكود عبر واتساب لتأكيد التحويل والتفعيل.",
+      "boostErrorFallback": "تعذّر تسجيل الطلب حالياً.",
+      "boostUnexpectedErr": "حدث خطأ غير متوقع، حاول مرة أخرى.",
+      "boostPriorityCtaTemplate": "حجز التمييز + أولوية مراجعة ({amount} ₾)",
+      "boostConfirmCtaTemplate": "تأكيد وحجز باقة الإعلان ({amount} ₾ — {tier})",
+      "boostIncompleteTitle": "أكمل بيانات وصور ومستندات وحدتك أولاً لتفعيل التمييز",
+      "boostIncompleteDesc": "يمكنك استعراض الباقات والأسعار هنا، وبمجرد استكمال ملف الوحدة سيُفتح لك حجز الإعلان وتفعيله فوراً.",
+      "boostIncompleteCtaBtn": "أكمل بيانات ومستندات وحدتك أولاً لطلب التمييز",
+      "boostPendingPriorityTitle": "⚡ أولوية مراجعة + حجز مبكّر للتمييز",
+      "boostPendingPriorityDesc": "وحدتك مكتملة وبانتظار اعتماد الإدارة. يمكنك طلب وحجز باقة التمييز الآن لإعطاء وحدتك أولوية في المراجعة، ولن يبدأ عدّاد أيام التمييز إلا لحظة نشر الوحدة في السوق.",
+      "boostSubmittingBtn": "جاري تسجيل طلب التمييز...",
+      "boostFooterProviders": "TBC Bank · Bank of Georgia · تفعيل سريع عبر واتساب"
     },
     "buyer": {
       "popularAreas": [
@@ -2570,7 +2593,7 @@
       "whatsappValue": "+201018595959",
       "whatsappDetail": "أسرع طريقة توصلنا",
       "emailTitle": "الإيميل",
-      "emailValue": "info@aqarexit.com",
+      "emailValue": "info@dualdealz.com",
       "hoursTitle": "مواعيد العمل",
       "hoursValue": "من السبت للخميس، 10 ص - 9 م",
       "hoursDetail": "بتوقيت القاهرة",
@@ -3026,7 +3049,11 @@
       "unitLockedByDeal": "لا يمكن إيقاف أو تعديل أو حذف الوحدة بعد قبول العرض وبدء إجراءات التنازل مع الإدارة.",
       "allDocsReadyNotifTitle": "اكتملت جميع مستندات وصور الوحدة",
       "closedByAccountDeletionNote": "تم إغلاق هذه الوحدة نهائياً بسبب طلب حذف الحساب. لعرض وحدة مرة أخرى يرجى إضافة وحدة جديدة.",
-      "boostOnlyActiveUnits": "لا يمكن تمييز الوحدة إلا بعد مراجعتها واعتماد نشرها في السوق أولاً."
+      "boostOnlyActiveUnits": "لا يمكن تمييز الوحدة إلا بعد مراجعتها واعتماد نشرها في السوق أولاً.",
+      "boostCompleteUnitFirstError": "يرجى استكمال بيانات وصور ومستندات وحدتك أولاً قبل طلب التمييز.",
+      "boostPriorityTag": "⚡ [أولوية مراجعة ونشر]",
+      "boostPendingUnitSuccess": "تم تسجيل طلب الإعلان ({ref}) وإعطاء وحدتك أولوية في المراجعة — سيبدأ عدّاد التمييز تلقائياً فور اعتماد ونشر الوحدة.",
+      "boostRecordedSimpleSuccess": "تم تسجيل طلب الإعلان بنجاح برقم مرجعي ({ref})."
     },
     "admin": {
       "unauthorizedLogin": "غير مصرح: يرجى تسجيل الدخول بحساب الإدارة.",
@@ -3102,7 +3129,30 @@
       "leadHasActiveDealBlocked": "لا يمكن تغيير حالة المشتري حالياً لأن لديه صفقة قيد التعاقد؛ يرجى إدارتها أولاً من قسم الصفقات.",
       "leadHasActiveOffersBlocked": "لا يمكن تغيير الحالة حالياً لوجود ({count}) عروض نشطة لهذا المشتري؛ يرجى سحبها أولاً من سجل عروضه أو قسم العروض.",
       "unitSoldLocked": "هذه الوحدة مباعة ومغلقة بصفقة مكتملة ولا يمكن تغيير حالتها يدوياً.",
-      "unitHasActiveDealBlocked": "لا يمكن تغيير حالة هذه الوحدة لأن عليها صفقة قيد التعاقد حالياً؛ يرجى إدارتها أولاً من قسم الصفقات."
+      "unitHasActiveDealBlocked": "لا يمكن تغيير حالة هذه الوحدة لأن عليها صفقة قيد التعاقد حالياً؛ يرجى إدارتها أولاً من قسم الصفقات.",
+      "docsIncompletePublishBlocked": "لا يمكن نشر هذه الوحدة في السوق قبل استكمال المستندات (4/4) أو تأكيد مراجعتها عبر واتساب.",
+      "notifUnderReviewTitle": "🔍 وحدتك قيد مراجعة المستندات",
+      "notifUnderReviewMsg": "تم تحويل وحدتك لمراجعة البيانات والمستندات من قِبل الإدارة.",
+      "notifPendingTitle": "⏳ وحدتك بانتظار المراجعة",
+      "notifPendingMsg": "تم تحويل وحدتك إلى قائمة انتظار المراجعة.",
+      "notifPausedAdminTitle": "⏸ تم إيقاف عرض وحدتك مؤقتاً من الإدارة",
+      "notifPausedAdminMsg": "تم إيقاف عرض وحدتك مؤقتاً من قِبل الإدارة. يمكنك التواصل معنا عبر واتساب لأي استفسار.",
+      "emailUnderReviewSubject": "مراجعة مستندات وحدتك — DualDealz",
+      "emailUnderReviewBody": "تم تحويل وحدتك إلى مرحلة مراجعة البيانات والمستندات من قِبل فريق الإدارة:",
+      "emailPendingSubject": "تحديث حالة وحدتك — DualDealz",
+      "emailPendingBody": "تم تحويل وحدتك إلى قائمة انتظار المراجعة:",
+      "emailPausedAdminSubject": "إيقاف عرض وحدتك مؤقتاً — DualDealz",
+      "emailPausedAdminBody": "تم إيقاف عرض وحدتك مؤقتاً من قِبل الإدارة. يمكنك مراجعة حسابك أو التواصل معنا عبر واتساب لإعادة نشرها:",
+      "emailTrackUnitBtn": "متابعة الوحدة في حسابك",
+      "emailReviewEditBtn": "مراجعة وتعديل الوحدة",
+      "emailAdminNoteSubject": "ملاحظة من فريق المراجعة على وحدتك — DualDealz",
+      "emailAdminNoteIntro": "أضاف فريق المراجعة ملاحظة على وحدتك:",
+      "notifWaDocsVerifiedTitle": "✅ تم توثيق مستندات وحدتك عبر واتساب",
+      "notifWaDocsVerifiedMsg": "قام فريق المراجعة بتأكيد استلام ومراجعة مستندات وحدتك عبر واتساب.",
+      "fileTooLargeError": "حجم الملف أكبر من الحد المسموح (12 ميجابايت).",
+      "storageUploadError": "تعذّر رفع الملف إلى مساحة التخزين. تأكد من صلاحيات الـ Storage Bucket في Supabase.",
+      "missingFileOrUrlError": "يرجى اختيار ملف أو إدخال رابط المستند.",
+      "boostUnitNotPublishedError": "لا يمكن تفعيل التمييز قبل اعتماد الوحدة ونشرها في السوق أولاً. يرجى مراجعتها ونشرها من طلبات البيع."
     },
     "forms": {
       "expiredLink": "الرابط منتهي الصلاحية.",
@@ -3969,7 +4019,9 @@
         "rejected": "٧. مرفوض",
         "has_offers": "💬 عليها عروض نشطة",
         "negotiating": "🔥 قيد التفاوض",
-        "in_deal": "🤝 في صفقة قيد التنازل"
+        "in_deal": "🤝 في صفقة قيد التنازل",
+        "incomplete": "٠. غير مكتملة",
+        "paused_by_admin": "⛔ موقوفة من الإدارة"
       },
       "docs": {
         "contract": "عقد شراء الوحدة الأصلي",
@@ -3992,7 +4044,9 @@
         "featuredPrefix": "مميزة",
         "promoReqPrefix": "طلب تمييز",
         "negotiable": "قابل للتفاوض",
-        "adCodeLabel": "كود الإعلان:"
+        "adCodeLabel": "كود الإعلان:",
+        "waDocsVerifiedShort": "واتساب ✓",
+        "pausedByAdmin": "موقوفة من الإدارة"
       },
       "header": {
         "promoAllTitle": "طلبات الإعلان والتمييز في كل الدول 🌍",
@@ -4017,7 +4071,9 @@
         "deletedTab": "محذوفة",
         "deletedBannerTitle": "الوحدات المحذوفة بواسطة الملاك",
         "purgeAllBtn": "مسح الكل",
-        "inDealTab": "في صفقة"
+        "inDealTab": "في صفقة",
+        "incompleteTab": "غير مكتملة",
+        "pausedByAdminTab": "موقوفة من الإدارة"
       },
       "table": {
         "emptyText": "لا توجد وحدات مطابقة حالياً.",
@@ -4048,7 +4104,8 @@
         "confirmBtn": "تأكيد",
         "cancelBtn": "إلغاء",
         "executingBtn": "جاري التنفيذ...",
-        "openDocBtn": "فتح"
+        "openDocBtn": "فتح",
+        "editDataBtn": "تعديل البيانات"
       },
       "modals": {
         "purgeTitle": "مسح الوحدات المحذوفة",
@@ -4096,7 +4153,50 @@
         "clearNoteBtn": "مسح الملاحظة",
         "noteSavedSuccess": "تم حفظ الملاحظة وإرسال إشعار للبائع ✓",
         "optionalNoteForSellerPlaceholder": "ملاحظة اختيارية لصاحب الوحدة (تظهر في حسابه)...",
-        "sendPerformanceReportBtn": "إرسال تقرير المشاهدات للمالك"
+        "sendPerformanceReportBtn": "إرسال تقرير المشاهدات للمالك",
+        "pausedByAdminConfirmTitle": "تأكيد إيقاف عرض الوحدة من الإدارة",
+        "pausedByAdminReasonPlaceholder": "اكتب سبب إيقاف عرض الوحدة (سيظهر للعميل في حسابه وفي الإيميل)...",
+        "statusEmailNotifyHint": "سيصل إشعار وإيميل تلقائي للعميل بهذه الحالة والملاحظة المكتوبة.",
+        "incompleteDocsGuardTitle": "مستندات هذه الوحدة غير مكتملة",
+        "incompleteDocsGuardDesc": "لا يمكن نشر الوحدة في السوق إلا بعد رفع المستندات أو تأكيد مراجعتها مع المالك عبر واتساب.",
+        "incompleteDocsGuardCheckbox": "✓ أؤكد أنه تمت مراجعة مستندات العميل عبر واتساب وأوافق على النشر",
+        "incompleteDocsGuardUploadBtn": "رفع المستندات نيابةً عن العميل بدلاً من ذلك",
+        "verifyWaAndPublishNowBtn": "توثيق واتساب + نشر الآن",
+        "stageTimelineTitlePrefix": "مسار مراحل الوحدة",
+        "stageTimelineSubtitle": "هذه الوحدة في مرحلة تلقائية محمية — يمكنك متابعة تسلسل كل المراحل السابقة والقادمة أدناه.",
+        "stageCurrentBadge": "المرحلة الحالية",
+        "stageDoneBadge": "مكتملة ✓",
+        "editModalTitle": "تعديل بيانات الوحدة",
+        "editModalDesc": "يمكنك تصحيح أي خطأ أدخله العميل في بيانات وحدته دون تغيير ملكية الطلب.",
+        "editSavedSuccess": "تم حفظ تعديلات الوحدة بنجاح ✓",
+        "editSaveError": "تعذّر حفظ تعديلات الوحدة.",
+        "editProjectLabel": "اسم المشروع / العنوان الرئيسي",
+        "editDeveloperLabel": "المطور العقاري",
+        "editAreaLabel": "المنطقة / الحي",
+        "editStreetLabel": "الشارع",
+        "editHouseNoLabel": "رقم المبنى",
+        "editCadastralLabel": "الكود المساحي (Cadastral Code)",
+        "editUnitTypeLabel": "نوع الوحدة",
+        "editSizeLabel": "المساحة (م²)",
+        "editRoomsLabel": "الغرف",
+        "editBedroomsLabel": "غرف النوم",
+        "editBathroomsLabel": "الحمامات",
+        "editFloorLabel": "الدور",
+        "editTotalFloorsLabel": "إجمالي الأدوار",
+        "editPaidAmountLabel": "المدفوع / الكاش المطلوب ($)",
+        "editContractPriceLabel": "سعر العقد الأصلي ($)",
+        "editMarketPriceLabel": "السعر السوقي الحالي ($)",
+        "editInstallmentLabel": "قيمة القسط ($)",
+        "editFrequencyLabel": "دورية القسط",
+        "editYearsLeftLabel": "الأشهر / السنوات المتبقية",
+        "editFinishingLabel": "حالة التشطيب",
+        "editDeliveryLabel": "حالة / موعد التسليم",
+        "editDescriptionLabel": "وصف الوحدة",
+        "editSaveBtn": "حفظ التعديلات",
+        "editSavingBtn": "جاري الحفظ...",
+        "waDocsVerifiedBadge": "✓ تم توثيق المستندات عبر واتساب",
+        "manageDocsWaBtn": "إدارة / رفع وتوثيق واتساب",
+        "waDocsVerifiedEmptyText": "تم توثيق مراجعة المستندات مع المالك عبر واتساب ✓"
       },
       "notices": {
         "purgedSuccess": "تم مسح جميع الوحدات المحذوفة نهائياً ✓",
@@ -4152,6 +4252,41 @@
         "gotItBtn": "فهمت",
         "openDealBtn": "فتح ملف الصفقة",
         "openOffersBtn": "عرض عروض الوحدة"
+      },
+      "docsModal": {
+        "uploadSuccess": "تم رفع المستند وحفظه بنجاح ✓",
+        "uploadError": "تعذّر رفع المستند حالياً.",
+        "waVerifiedAndPublishedSuccess": "تم توثيق المستندات عبر واتساب ونشر الوحدة في السوق بنجاح ✓",
+        "waVerifyRemovedSuccess": "تم إلغاء شارة توثيق الواتساب.",
+        "waVerifiedSuccess": "تم تأكيد مراجعة المستندات عبر واتساب بنجاح ✓",
+        "waVerifiedTitle": "تم توثيق مراجعة المستندات عبر واتساب ✓",
+        "waVerifyBoxTitle": "هل راجعت مستندات هذا العميل عبر واتساب؟",
+        "waVerifiedSub": "يمكنك نشر هذه الوحدة في السوق مباشرة دون الحاجة لرفع الـ 4 ملفات.",
+        "waVerifyBoxSub": "اضغط للتأكيد إذا أرسل لك العميل مستنداته على واتساب ولم يرفعها على الموقع.",
+        "waVerifyUndoBtn": "إلغاء التوثيق",
+        "waVerifyConfirmBtn": "تأكيد المراجعة واتساب ✓",
+        "waVerifyAndPublishBtn": "توثيق واتساب + نشر الآن",
+        "notUploadedYet": "لم يُرفع بعد",
+        "replaceDocBtn": "استبدال",
+        "uploadDocBtn": "رفع ملف"
+      },
+      "stageTimeline": {
+        "s1Label": "1. استكمال البيانات والمستندات",
+        "s1Sub": "بيانات الوحدة الأساسية + الصور + 4 مستندات (أو توثيق واتساب)",
+        "s2Label": "2. قيد مراجعة الإدارة والمستندات",
+        "s2Sub": "مراجعة الفريق الإداري واعتماد المستندات قبل النشر",
+        "s3Label": "3. معتمد ومعروض بالسوق",
+        "s3Sub": "الوحدة ظاهرة للمشترين ورادار التطابق شغال",
+        "s4Label": "4. استقبال عروض وتفاوض",
+        "s4Sub": "يتم التحديث تلقائياً عند وجود عروض أو تفاوض نشط",
+        "s5Label": "5. صفقة قيد التعاقد ونقل الملكية",
+        "s5Sub": "مقفولة تلقائياً وتُدار خطواتها من قسم الصفقات",
+        "s6Label": "6. تم البيع بنجاح",
+        "s6Sub": "الصفقة أُغلقت بالكامل وتم نقل الملكية",
+        "excPausedAdmin": "الوحدة موقوفة مؤقتاً بقرار من الإدارة (مفصولة عن مرحلة المراجعة).",
+        "excPausedSeller": "الوحدة موقوفة مؤقتاً بناءً على طلب المالك.",
+        "excRejected": "تم رفض الوحدة وإبلاغ المالك بالسبب.",
+        "excDeleted": "تم حذف الوحدة بواسطة المالك (سلة مهملات لمدة 7 أيام)."
       }
     },
     "contactVerification": {
@@ -4274,7 +4409,9 @@
       "confirmRejectBtn": "تأكيد الرفض",
       "activatedSuccess": "تم تفعيل باقة التمييز وإشعار المالك بنجاح ✓",
       "rejectedSuccess": "تم رفض طلب التمييز وإشعار المالك.",
-      "cancelledSuccess": "تم إيقاف التمييز وعادت الوحدة للعرض العادي."
+      "cancelledSuccess": "تم إيقاف التمييز وعادت الوحدة للعرض العادي.",
+      "unitNotPublishedNotice": "هذه الوحدة غير منشورة بالسوق بعد — يرجى مراجعتها ونشرها أولاً قبل تفعيل التمييز.",
+      "reviewAndPublishUnitBtn": "مراجعة ونشر الوحدة أولاً"
     }
   },
   "smartMatcher": {

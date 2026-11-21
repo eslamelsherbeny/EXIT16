@@ -1,7 +1,7 @@
 {
   "brand": {
-    "name": "Aqar",
-    "exit": "Exit"
+    "name": "Dual",
+    "exit": "Dealz"
   },
   "navbar": {
     "sell": "Sell Unit",
@@ -329,7 +329,10 @@
       "bankTransferBtnTemplate": "Bank Transfer {amt} ₾",
       "boostRecordedMsgTemplate": "Boost request ({tier} — {amt} ₾ for {days} days){codePart} recorded. It will activate automatically once payment and listing are approved by Admin.",
       "boostRecordedCodePart": " for unit {code}",
-      "coversLabelTemplate": "Covers {tier} for {days} {dayWord}"
+      "coversLabelTemplate": "Covers {tier} for {days} {dayWord}",
+      "homeBoostCtaLoggedInTemplate": "Select Your Unit & Boost Now ({amount} ₾)",
+      "homeBoostCtaGuestTemplate": "Sign In & Boost Your Unit ({amount} ₾)",
+      "homeBoostNote": "Boosts are linked directly to your unit from inside your account once its details and documents are verified."
     },
     "carouselTitles": {
       "categoriesTitle": "What are you looking for to take over?",
@@ -351,7 +354,7 @@
   "footer": {
     "description": "The zero-overprice installment unit assignment platform — sellers recover their paid cash, buyers get the original contract price, and we facilitate the process step by step",
     "phone": "+201018595959",
-    "email": "info@aqarexit.com",
+    "email": "info@dualdealz.com",
     "platform": "Platform",
     "company": "Company",
     "legal": "Legal",
@@ -1670,7 +1673,27 @@
       "flittRedirectingBtn": "Redirecting to Flitt secure checkout...",
       "flittPaymentReturnedNotice": "Returned from payment gateway (Ref: {ref}) — your boost will activate automatically once payment verification completes.",
       "flittNotConfiguredErr": "Online card checkout (Flitt) is currently being activated. Please try again shortly or contact support.",
-      "flittInitFailedErr": "Could not start card checkout right now. Please try again in a moment."
+      "flittInitFailedErr": "Could not start card checkout right now. Please try again in a moment.",
+      "copyUnitCodeTitle": "Copy Unit Code",
+      "pausedByAdminTitle": "Your Unit Listing Was Temporarily Paused by Admin",
+      "pausedByAdminDefaultDesc": "Administration has temporarily paused this listing. Please contact us via WhatsApp for details and republishing.",
+      "contactAdminWaBtn": "Contact Admin via WhatsApp",
+      "docsWaVerifiedTag": "Verified via WhatsApp ✓",
+      "cardDocumentsWaVerified": "WhatsApp Verified ✓",
+      "statusPausedByAdminBadge": "Paused by Admin",
+      "statusPausedByAdminHeadline": "Your listing was temporarily paused by Admin — contact us to republish",
+      "boostBookedDefaultMsg": "Boost request recorded with code ({ref}). Send this code via WhatsApp to confirm payment and activate.",
+      "boostErrorFallback": "Could not submit boost request right now.",
+      "boostUnexpectedErr": "An unexpected error occurred, please try again.",
+      "boostPriorityCtaTemplate": "Book Boost + Priority Review ({amount} ₾)",
+      "boostConfirmCtaTemplate": "Confirm & Book Boost Package ({amount} ₾ — {tier})",
+      "boostIncompleteTitle": "Complete Your Unit Details, Photos & Documents First",
+      "boostIncompleteDesc": "You can preview packages and pricing here. Once your unit file is complete, boost booking unlocks immediately.",
+      "boostIncompleteCtaBtn": "Complete Unit Details & Docs First to Boost",
+      "boostPendingPriorityTitle": "⚡ Priority Review + Early Boost Booking",
+      "boostPendingPriorityDesc": "Your unit is complete and awaiting Admin approval. Book a boost now for priority review — your boost days will only start counting once published.",
+      "boostSubmittingBtn": "Submitting boost request...",
+      "boostFooterProviders": "TBC Bank · Bank of Georgia · WhatsApp Fast Activation"
     },
     "buyer": {
       "popularAreas": [
@@ -2570,7 +2593,7 @@
       "whatsappValue": "+201018595959",
       "whatsappDetail": "Fastest way to reach us",
       "emailTitle": "Email",
-      "emailValue": "info@aqarexit.com",
+      "emailValue": "info@dualdealz.com",
       "hoursTitle": "Working Hours",
       "hoursValue": "Saturday to Thursday, 10 AM – 9 PM",
       "hoursDetail": "Cairo Time",
@@ -2786,7 +2809,7 @@
     },
     "login": {
       "title": "Sign In",
-      "subtitle": "Welcome back to Darak",
+      "subtitle": "Welcome back to DualDealz",
       "verifiedBanner": "Your account has been verified! You can sign in now.",
       "identifierLabel": "Email or Mobile Number",
       "identifierPlaceholder": "name@example.com or 01xxxxxxxxx",
@@ -2802,7 +2825,7 @@
     },
     "register": {
       "title": "Create Account",
-      "subtitle": "Start your real estate journey with Darak",
+      "subtitle": "Start your real estate journey with DualDealz",
       "nameLabel": "Name",
       "namePlaceholder": "Full Name",
       "countryLabel": "Country / Residence",
@@ -3102,7 +3125,7 @@
     "buyCta": "View Available Opportunities"
   },
   "systemPages": {
-    "metaTitle": "Darak | Your Smart Real Estate Platform",
+    "metaTitle": "DualDealz | Your Smart Real Estate Platform",
     "metaDesc": "An integrated platform for buying, selling, and investing in real estate with zero overprice.",
     "errorEyebrow": "Something Went Wrong",
     "errorTitle": "Let's Try Again",
@@ -3147,14 +3170,14 @@
       "accountNotFound": "Account not found.",
       "emailSenderName": "DualDealz",
       "dearUser": "Valued User",
-      "loginEmailSubject": "Security Alert: New sign-in to your Darak account",
+      "loginEmailSubject": "Security Alert: New sign-in to your DualDealz account",
       "loginEmailGreeting": "Welcome back,",
-      "loginEmailBody": "You have successfully signed in to your Darak platform account.",
-      "welcomeEmailSubject": "Welcome to Darak — Confirm Your Account",
-      "welcomeEmailGreeting": "Welcome to the Darak family,",
+      "loginEmailBody": "You have successfully signed in to your DualDealz platform account.",
+      "welcomeEmailSubject": "Welcome to DualDealz — Confirm Your Account",
+      "welcomeEmailGreeting": "Welcome to the DualDealz family,",
       "welcomeEmailBody": "Your account has been created successfully. To confirm your email and officially verify your account, click the button below:",
       "welcomeEmailBtn": "Confirm & Verify Account Now",
-      "otpEmailSubject": "Password Recovery Code - Darak",
+      "otpEmailSubject": "Password Recovery Code - DualDealz",
       "otpEmailGreeting": "Hello",
       "otpEmailBody": "Use the following verification code to set a new password for your account:"
     },
@@ -3215,7 +3238,11 @@
       "unitLockedByDeal": "Cannot pause, modify, or delete the unit after accepting an offer and starting transfer procedures.",
       "allDocsReadyNotifTitle": "All unit documents & photos completed",
       "closedByAccountDeletionNote": "This unit was permanently closed due to an account deletion request. To list a unit again, please add a new unit.",
-      "boostOnlyActiveUnits": "Only approved and published units on the marketplace can be boosted."
+      "boostOnlyActiveUnits": "Only approved and published units on the marketplace can be boosted.",
+      "boostCompleteUnitFirstError": "Please complete your unit details, photos, and documents first before requesting a boost.",
+      "boostPriorityTag": "⚡ [Priority Review & Publish]",
+      "boostPendingUnitSuccess": "Boost request ({ref}) recorded with priority review — boost days will start counting automatically once published.",
+      "boostRecordedSimpleSuccess": "Boost request recorded successfully with reference ({ref})."
     },
     "admin": {
       "unauthorizedLogin": "Unauthorized: Please sign in with an admin account.",
@@ -3224,7 +3251,7 @@
       "adminSuspended": "This administrative account has been suspended.",
       "insufficientRole": "Sorry, your current account does not have permission to perform this action.",
       "unauthorizedAction": "Unauthorized to perform this action.",
-      "adminSenderName": "Darak Platform Administration",
+      "adminSenderName": "DualDealz Platform Administration",
       "greetingWord": "Hello",
       "dearClient": "Valued Client",
       "defaultProjectWord": "your project",
@@ -3248,22 +3275,22 @@
       "notifRejectedReasonPrefix": "Please review your unit",
       "notifRejectedMsg": "Please review and update your unit details to republish in",
       "matchBuyerTitle": "New Opportunity Matching Your Request in",
-      "emailActiveSubject": "Your Unit Has Been Approved & Published on Darak 🎉",
+      "emailActiveSubject": "Your Unit Has Been Approved & Published on DualDealz 🎉",
       "emailActiveBody": "We are pleased to inform you that your unit has been reviewed, approved, and is now live for buyers in project",
-      "emailOfferSubject": "You Have a New Purchase Offer on Darak! 💰",
+      "emailOfferSubject": "You Have a New Purchase Offer on DualDealz! 💰",
       "emailOfferBody": "We have received a serious purchase offer for your unit. Your case manager will contact you immediately regarding project",
-      "emailTransferSubject": "Contract Assignment Initiated for Your Unit - Darak 📄",
+      "emailTransferSubject": "Contract Assignment Initiated for Your Unit - DualDealz 📄",
       "emailTransferBody": "Your unit has now entered the document verification and contract assignment stage in project",
-      "emailSoldSubject": "Congratulations! Your Unit Sale is Complete via Darak 🏆",
+      "emailSoldSubject": "Congratulations! Your Unit Sale is Complete via DualDealz 🏆",
       "emailSoldBody": "The exit and contract assignment process has been successfully completed for your unit in project",
-      "emailRejectedSubject": "Update Regarding Your Unit Listing on Darak",
+      "emailRejectedSubject": "Update Regarding Your Unit Listing on DualDealz",
       "emailRejectedBody": "We apologize, we could not publish your unit request at this time in project",
       "updateLeadFailed": "Could not update request status.",
       "deleteLeadFailed": "Could not delete buyer request.",
       "leadUpdateNotifTitle": "Update Regarding Your Purchase Request 🌟",
       "leadContactedNotifMsg": "Our sales team has reviewed your request and is reaching out to you.",
       "leadQualifiedNotifMsg": "A list of real estate opportunities matching your budget is ready in your account.",
-      "leadClosedNotifMsg": "Congratulations! Your contract assignment has been completed via Darak.",
+      "leadClosedNotifMsg": "Congratulations! Your contract assignment has been completed via DualDealz.",
       "updateInvestorFailed": "Could not update investor status in database.",
       "updateRoleFailed": "Could not update user role in database.",
       "fillAllUserFields": "Please fill in all fields and ensure the password is at least 8 characters.",
@@ -3274,8 +3301,8 @@
       "wrongCurrentPassword": "The current password you entered is incorrect.",
       "profileUpdatedSuccess": "Your profile details have been updated.",
       "profileUpdatedCheckEmail": "Details updated. Please check your new email to confirm and verify your account.",
-      "confirmNewEmailSubject": "Darak — Confirm Your New Email Address",
-      "confirmNewEmailBody": "You have updated your email address on Darak. Please confirm this email by clicking the button below:",
+      "confirmNewEmailSubject": "DualDealz — Confirm Your New Email Address",
+      "confirmNewEmailBody": "You have updated your email address on DualDealz. Please confirm this email by clicking the button below:",
       "confirmNewEmailBtn": "Confirm Email Address",
       "enterCurrentAndNewPass": "Please enter your current and new password (at least 8 characters).",
       "changePassFailed": "Could not change password.",
@@ -3291,7 +3318,30 @@
       "leadHasActiveDealBlocked": "Cannot change buyer status while they have an active deal in closing; manage it in Deals first.",
       "leadHasActiveOffersBlocked": "Cannot change status while ({count}) active offers exist for this buyer; withdraw them first.",
       "unitSoldLocked": "This unit is sold and closed; its status cannot be changed manually.",
-      "unitHasActiveDealBlocked": "Cannot change unit status while an active deal is in progress; manage it in Deals first."
+      "unitHasActiveDealBlocked": "Cannot change unit status while an active deal is in progress; manage it in Deals first.",
+      "docsIncompletePublishBlocked": "Cannot publish this unit before completing all 4 documents or verifying them via WhatsApp.",
+      "notifUnderReviewTitle": "🔍 Your Unit Is Under Document Review",
+      "notifUnderReviewMsg": "Your unit has been moved to Admin data and document review.",
+      "notifPendingTitle": "⏳ Your Unit Is Pending Review",
+      "notifPendingMsg": "Your unit has been moved to the review queue.",
+      "notifPausedAdminTitle": "⏸ Your Listing Was Temporarily Paused by Admin",
+      "notifPausedAdminMsg": "Your listing was temporarily paused by Admin. Contact us via WhatsApp for details.",
+      "emailUnderReviewSubject": "Document Review for Your Unit — DualDealz",
+      "emailUnderReviewBody": "Your unit has been moved to data and document review by our Admin team:",
+      "emailPendingSubject": "Status Update for Your Unit — DualDealz",
+      "emailPendingBody": "Your unit has been moved to the review queue:",
+      "emailPausedAdminSubject": "Your Listing Was Temporarily Paused — DualDealz",
+      "emailPausedAdminBody": "Your listing was temporarily paused by Admin. Check your account or contact us via WhatsApp to republish:",
+      "emailTrackUnitBtn": "Track Unit in Your Account",
+      "emailReviewEditBtn": "Review & Edit Unit",
+      "emailAdminNoteSubject": "Reviewer Note on Your Unit — DualDealz",
+      "emailAdminNoteIntro": "Our review team added a note to your unit:",
+      "notifWaDocsVerifiedTitle": "✅ Your Unit Documents Were Verified via WhatsApp",
+      "notifWaDocsVerifiedMsg": "Our review team confirmed receiving and verifying your unit documents via WhatsApp.",
+      "fileTooLargeError": "File size exceeds the maximum allowed limit (12 MB).",
+      "storageUploadError": "Could not upload file to storage. Check Supabase Storage Bucket permissions.",
+      "missingFileOrUrlError": "Please select a file or enter a document URL.",
+      "boostUnitNotPublishedError": "Cannot activate boost before approving and publishing the unit on the marketplace first."
     },
     "forms": {
       "expiredLink": "This link has expired.",
@@ -3537,7 +3587,7 @@
       "sendUnitWaBtn": "Send WhatsApp"
     },
     "shell": {
-      "brand": "Darak",
+      "brand": "DualDealz",
       "adminPanel": "Admin Panel",
       "welcome": "Hello,",
       "myProfile": "My Profile",
@@ -3745,10 +3795,10 @@
       "noticeDeletedPrefix": "Deleted buy request for",
       "noticeDeleteError": "Could not delete buy request.",
       "waUnitLeadPrefix": "Hello",
-      "waUnitLeadMiddle": "this is your case manager from Darak Real Estate regarding your interest in booking unit",
+      "waUnitLeadMiddle": "this is your case manager from DualDealz Real Estate regarding your interest in booking unit",
       "waUnitLeadSuffix": "I am ready to clarify all details and arrange viewing and assignment procedures.",
       "waGeneralPrefix": "Hello",
-      "waGeneralMiddle": "this is the advisory team from Darak Real Estate regarding your purchase request in",
+      "waGeneralMiddle": "this is the advisory team from DualDealz Real Estate regarding your purchase request in",
       "waGeneralSuffix": "We have verified zero-overprice opportunities matching your budget."
     },
     "settings": {
@@ -4158,7 +4208,9 @@
         "rejected": "7. Rejected",
         "has_offers": "💬 Active Offers",
         "negotiating": "🔥 Negotiating",
-        "in_deal": "🤝 In Active Deal"
+        "in_deal": "🤝 In Active Deal",
+        "incomplete": "0. Incomplete",
+        "paused_by_admin": "⛔ Paused by Admin"
       },
       "docs": {
         "contract": "Original Purchase Contract",
@@ -4181,7 +4233,9 @@
         "featuredPrefix": "Featured",
         "promoReqPrefix": "Promo Req",
         "negotiable": "Negotiable",
-        "adCodeLabel": "Ad Code:"
+        "adCodeLabel": "Ad Code:",
+        "waDocsVerifiedShort": "WhatsApp ✓",
+        "pausedByAdmin": "Paused by Admin"
       },
       "header": {
         "promoAllTitle": "Ad & Promotion Requests in All Countries 🌍",
@@ -4206,7 +4260,9 @@
         "deletedTab": "Deleted",
         "deletedBannerTitle": "Units Deleted by Owners",
         "purgeAllBtn": "Purge All",
-        "inDealTab": "In Deal"
+        "inDealTab": "In Deal",
+        "incompleteTab": "Incomplete",
+        "pausedByAdminTab": "Paused by Admin"
       },
       "table": {
         "emptyText": "No matching units found.",
@@ -4237,7 +4293,8 @@
         "confirmBtn": "Confirm",
         "cancelBtn": "Cancel",
         "executingBtn": "Executing...",
-        "openDocBtn": "Open"
+        "openDocBtn": "Open",
+        "editDataBtn": "Edit Details"
       },
       "modals": {
         "purgeTitle": "Purge Deleted Units",
@@ -4285,7 +4342,50 @@
         "clearNoteBtn": "Clear Note",
         "noteSavedSuccess": "Note saved and seller notified ✓",
         "optionalNoteForSellerPlaceholder": "Optional note for the unit owner (visible in their account)...",
-        "sendPerformanceReportBtn": "Send Views Report to Owner"
+        "sendPerformanceReportBtn": "Send Views Report to Owner",
+        "pausedByAdminConfirmTitle": "Confirm Pausing Listing by Admin",
+        "pausedByAdminReasonPlaceholder": "Write the reason for pausing (shown in seller's account & email)...",
+        "statusEmailNotifyHint": "An automatic notification and email will be sent to the seller with this status and note.",
+        "incompleteDocsGuardTitle": "Unit Documents Are Incomplete",
+        "incompleteDocsGuardDesc": "This unit cannot be published until all 4 documents are uploaded or verified via WhatsApp.",
+        "incompleteDocsGuardCheckbox": "✓ I confirm the client's documents were reviewed via WhatsApp and approve publishing",
+        "incompleteDocsGuardUploadBtn": "Upload documents on behalf of the client instead",
+        "verifyWaAndPublishNowBtn": "Verify WhatsApp + Publish Now",
+        "stageTimelineTitlePrefix": "Unit Lifecycle Stages",
+        "stageTimelineSubtitle": "This unit is in a protected automatic stage — review all past and upcoming stages below.",
+        "stageCurrentBadge": "Current Stage",
+        "stageDoneBadge": "Completed ✓",
+        "editModalTitle": "Edit Unit Details",
+        "editModalDesc": "Correct any data entry mistakes made by the seller without changing ownership.",
+        "editSavedSuccess": "Unit details updated successfully ✓",
+        "editSaveError": "Could not save unit updates.",
+        "editProjectLabel": "Project Name / Main Title",
+        "editDeveloperLabel": "Developer",
+        "editAreaLabel": "District / Area",
+        "editStreetLabel": "Street",
+        "editHouseNoLabel": "Building No.",
+        "editCadastralLabel": "Cadastral Code (NAPR)",
+        "editUnitTypeLabel": "Unit Type",
+        "editSizeLabel": "Area (m²)",
+        "editRoomsLabel": "Rooms",
+        "editBedroomsLabel": "Bedrooms",
+        "editBathroomsLabel": "Bathrooms",
+        "editFloorLabel": "Floor",
+        "editTotalFloorsLabel": "Total Floors",
+        "editPaidAmountLabel": "Paid / Required Cash ($)",
+        "editContractPriceLabel": "Original Contract Price ($)",
+        "editMarketPriceLabel": "Current Market Price ($)",
+        "editInstallmentLabel": "Installment Amount ($)",
+        "editFrequencyLabel": "Installment Frequency",
+        "editYearsLeftLabel": "Remaining Months / Years",
+        "editFinishingLabel": "Finishing Condition",
+        "editDeliveryLabel": "Delivery Status / Date",
+        "editDescriptionLabel": "Unit Description",
+        "editSaveBtn": "Save Changes",
+        "editSavingBtn": "Saving...",
+        "waDocsVerifiedBadge": "✓ Documents Verified via WhatsApp",
+        "manageDocsWaBtn": "Manage / Upload & WA Verify",
+        "waDocsVerifiedEmptyText": "Documents verified with the owner via WhatsApp ✓"
       },
       "notices": {
         "purgedSuccess": "All deleted units have been permanently purged ✓",
@@ -4341,6 +4441,41 @@
         "gotItBtn": "Got It",
         "openDealBtn": "Open Deal File",
         "openOffersBtn": "Open Unit Offers"
+      },
+      "docsModal": {
+        "uploadSuccess": "Document uploaded and saved successfully ✓",
+        "uploadError": "Could not upload document right now.",
+        "waVerifiedAndPublishedSuccess": "Documents verified via WhatsApp & unit published ✓",
+        "waVerifyRemovedSuccess": "WhatsApp verification badge removed.",
+        "waVerifiedSuccess": "Documents marked as verified via WhatsApp ✓",
+        "waVerifiedTitle": "Documents Verified via WhatsApp ✓",
+        "waVerifyBoxTitle": "Did you review this client's documents on WhatsApp?",
+        "waVerifiedSub": "You can publish this unit directly without requiring all 4 file uploads.",
+        "waVerifyBoxSub": "Click to confirm if the seller sent their documents via WhatsApp instead of uploading them.",
+        "waVerifyUndoBtn": "Undo Verification",
+        "waVerifyConfirmBtn": "Confirm WhatsApp Review ✓",
+        "waVerifyAndPublishBtn": "Verify WA + Publish Now",
+        "notUploadedYet": "Not uploaded yet",
+        "replaceDocBtn": "Replace",
+        "uploadDocBtn": "Upload"
+      },
+      "stageTimeline": {
+        "s1Label": "1. Complete Details & Documents",
+        "s1Sub": "Core unit details + photos + 4 documents (or WhatsApp verification)",
+        "s2Label": "2. Admin & Document Review",
+        "s2Sub": "Admin team reviews and verifies documents before publishing",
+        "s3Label": "3. Approved & Live on Market",
+        "s3Sub": "Unit is visible to buyers and smart matching radar is active",
+        "s4Label": "4. Receiving Offers & Negotiation",
+        "s4Sub": "Automatically updated when active offers or negotiations exist",
+        "s5Label": "5. Active Deal & Contract Transfer",
+        "s5Sub": "Automatically locked and managed from the Deals section",
+        "s6Label": "6. Sold Successfully",
+        "s6Sub": "Deal closed completely and ownership transferred",
+        "excPausedAdmin": "Unit is temporarily paused by Admin (separate from review stage).",
+        "excPausedSeller": "Unit is temporarily paused at the owner's request.",
+        "excRejected": "Unit was rejected and the owner was notified with the reason.",
+        "excDeleted": "Unit was deleted by the owner (trash bin for 7 days)."
       }
     },
     "contactVerification": {
@@ -4463,7 +4598,9 @@
       "confirmRejectBtn": "Confirm Rejection",
       "activatedSuccess": "Boost activated and owner notified ✓",
       "rejectedSuccess": "Boost request rejected and owner notified.",
-      "cancelledSuccess": "Boost stopped and unit returned to standard listing."
+      "cancelledSuccess": "Boost stopped and unit returned to standard listing.",
+      "unitNotPublishedNotice": "This unit is not published yet — review and publish it first before activating the boost.",
+      "reviewAndPublishUnitBtn": "Review & Publish Unit First"
     }
   },
   "smartMatcher": {

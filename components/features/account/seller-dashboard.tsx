@@ -5,10 +5,12 @@ import { useRouter } from 'next/navigation'
 import {
   AlertCircle,
   Building2,
+  Check,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
   Clock,
+  Copy,
   Edit3,
   FileCheck2,
   ImagePlus,
@@ -40,6 +42,8 @@ import { AccountActionLinks } from './delete-account-modal'
 import {
   calculateUnitCompletion,
   getSellerTimelineAndStatus,
+  getUnifiedUnitCode,
+  getUnifiedUnitHeadline,
   getVisibleSellerAdminNote,
   type ConfirmModalState,
   type SellerUnitItem,
@@ -98,8 +102,12 @@ export function SellerDashboard({
   const [navigatingToHref, setNavigatingToHref] = useState<string | null>(null)
 
   const [isPromoCollapsed, setIsPromoCollapsed] = useState(false)
+  const [initialBoostAmount, setInitialBoostAmount] = useState<
+    number | undefined
+  >(undefined)
   const [confirmModal, setConfirmModal] = useState<ConfirmModalState>(null)
   const [copiedAdRef, setCopiedAdRef] = useState(false)
+  const [copiedUnitCode, setCopiedUnitCode] = useState(false)
   const [actionMessage, setActionMessage] = useState('')
   const [isPending, startTransition] = useTransition()
 
@@ -113,10 +121,21 @@ export function SellerDashboard({
   const activeUnit =
     localSells.find((s) => s.id === selectedId) || localSells[0]
 
-  // التقاط العودة من بوابة الدفع Flitt لعرض رسالة التأكيد للمالك
   useEffect(() => {
     if (typeof window === 'undefined') return
     const params = new URLSearchParams(window.location.search)
+
+    const boostAmtRaw = Number(params.get('boostAmount') || 0)
+    if (boostAmtRaw >= 5) {
+      setInitialBoostAmount(boostAmtRaw)
+      setIsPromoCollapsed(false)
+      setTimeout(() => {
+        document
+          .getElementById('promo-section')
+          ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 300)
+    }
+
     if (params.get('payment') === 'returned') {
       const ref = params.get('ref') || 'FLITT'
       const msg = String(t.flittPaymentReturnedNotice || '').replace(
@@ -169,7 +188,7 @@ export function SellerDashboard({
     if (!unitSearchQuery.trim()) return orderedUnits
     const q = unitSearchQuery.trim().toLowerCase()
     return orderedUnits.filter((u) =>
-      `${u.project_name || ''} ${u.area || ''} ${u.developer_name || ''} ${u.unit_type || ''}`
+      `${getUnifiedUnitCode(u.id, u.code)} ${u.project_name || ''} ${u.area || ''} ${u.developer_name || ''} ${u.unit_type || ''}`
         .toLowerCase()
         .includes(q)
     )
@@ -221,11 +240,24 @@ export function SellerDashboard({
   const comp = calculateUnitCompletion(activeUnit, t)
   const meta = getSellerTimelineAndStatus(activeUnit, comp, t)
   const isPausedBySeller = meta.code === 'paused_by_seller'
+  const isPausedByAdmin = meta.code === 'paused_by_admin'
   const isLockedInTransferOrSold =
     meta.code === 'transferring' || meta.code === 'sold'
-  const isUnitActiveForBoost =
+
+  const boostState: 'active' | 'pending_review' | 'incomplete' =
     meta.code === 'active' || meta.code === 'offer_received'
-  const visibleAdminNote = getVisibleSellerAdminNote(activeUnit.admin_note)
+      ? 'active'
+      : (meta.code === 'pending_review' || meta.code === 'under_review') &&
+          comp.hasAllCoreDetails &&
+          comp.hasImages &&
+          comp.hasAllDocuments
+        ? 'pending_review'
+        : 'incomplete'
+
+  const visibleAdminNote = getVisibleSellerAdminNote(
+    activeUnit.admin_note,
+    activeUnit.status
+  )
 
   const needsEmailVerificationToSubmit =
     comp.isDraftUnverified && !userEmailVerified
@@ -233,6 +265,12 @@ export function SellerDashboard({
   const realMatchedBuyersCount = matchedBuyersCountMap[activeUnit.id] ?? 0
   const uploadedDocsCount = comp.uploadedDocsCount
   const unitOffersCount = offersCountMap[activeUnit.id] || 0
+
+  const activeUnitCode = getUnifiedUnitCode(activeUnit.id, activeUnit.code)
+  const activeUnitHeadline = getUnifiedUnitHeadline(
+    activeUnit,
+    t.defaultProjectName
+  )
 
   const activeUnitRawArea =
     activeUnit.area || activeUnit.documents?.__unit_meta?.area
@@ -247,21 +285,24 @@ export function SellerDashboard({
   const editDocsHref = `/account/documents?unitId=${activeUnit.id}`
   const verifyUnitHref = `/sell?editUnitId=${activeUnit.id}&verifyEmail=1`
 
+  const firstMissingHref = !comp.hasAllCoreDetails
+    ? editUnitHref
+    : !comp.hasImages
+      ? editPhotosHref
+      : editDocsHref
+
   const siteOrigin =
     typeof window !== 'undefined'
       ? window.location.origin
-      : 'https://exit-16.vercel.app'
-  const unitRef =
-    (activeUnit as any).code ||
-    `AE-${activeUnit.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase()}`
+      : 'https://dualdealz.com'
   const targetSellerUserId = activeUnit.user_id || currentUserId
   const adminVerifyUnitLink = `${siteOrigin}/api/verify?u=${encodeURIComponent(targetSellerUserId)}&unitId=${encodeURIComponent(activeUnit.id)}`
 
-  const sellerFastTrackWaMsg = `${t.waFastTrackSellerMsgPrefix} (${unitRef}) — ${activeUnit.project_name || t.defaultProjectName} (${activeUnitLocalizedArea}) — ${t.paidAmountLabel}: ${money(activeUnit.paid_amount)}.\n${adminVerifyUnitLink}`
+  const sellerFastTrackWaMsg = `${t.waFastTrackSellerMsgPrefix} (${activeUnitCode}) — ${activeUnitHeadline} (${activeUnitLocalizedArea}) — ${t.paidAmountLabel}: ${money(activeUnit.paid_amount)}.\n${adminVerifyUnitLink}`
 
   const adminNoteReplyWaMsg = visibleAdminNote
-    ? `${t.adminNoteWaMsgPrefix} (${unitRef}) ${t.adminNoteWaMsgMiddle} (${activeUnit.project_name || t.defaultProjectName}):\n"${visibleAdminNote}"`
-    : ''
+    ? `${t.adminNoteWaMsgPrefix} (${activeUnitCode}) ${t.adminNoteWaMsgMiddle} (${activeUnitHeadline}):\n"${visibleAdminNote}"`
+    : `${t.adminNoteWaMsgPrefix} (${activeUnitCode}) ${t.adminNoteWaMsgMiddle} (${activeUnitHeadline})`
 
   const isWaFastTrackHidden =
     needsEmailVerificationToSubmit ||
@@ -391,7 +432,9 @@ export function SellerDashboard({
                 : u
             )
           )
-          setActionMessage(`${t.msgPromoSuccessPrefix} ${code}`)
+          setActionMessage(
+            res.message || `${t.msgPromoSuccessPrefix} ${code}`
+          )
           router.refresh()
         } else {
           setActionMessage(res.error || t.msgPromoError)
@@ -488,6 +531,11 @@ export function SellerDashboard({
                 const itemComp = calculateUnitCompletion(item, t)
                 const itemMeta = getSellerTimelineAndStatus(item, itemComp, t)
                 const isSelected = item.id === activeUnit.id
+                const itemCode = getUnifiedUnitCode(item.id, item.code)
+                const itemTitle = getUnifiedUnitHeadline(
+                  item,
+                  t.defaultProjectName
+                )
                 const itemRawArea =
                   item.area || item.documents?.__unit_meta?.area
                 const itemAreaName = itemRawArea
@@ -522,8 +570,14 @@ export function SellerDashboard({
                       </span>
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-1.5">
+                          <span
+                            dir="ltr"
+                            className="rounded-md bg-slate-900/90 px-1.5 py-0.5 font-mono text-[10px] font-bold text-white"
+                          >
+                            {itemCode}
+                          </span>
                           <span className="truncate text-xs font-extrabold text-[var(--brand-navy,#0a1122)] sm:text-sm">
-                            {item.project_name || t.defaultProjectName}
+                            {itemTitle}
                           </span>
                           <span className="truncate text-[11px] text-gray-500">
                             · {itemAreaName}
@@ -620,8 +674,27 @@ export function SellerDashboard({
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="text-base font-black text-[var(--brand-navy,#0a1122)] sm:text-lg">
-                    {activeUnit.project_name || t.defaultProjectName}
+                    {activeUnitHeadline}
                   </h2>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard?.writeText(activeUnitCode)
+                      setCopiedUnitCode(true)
+                      setTimeout(() => setCopiedUnitCode(false), 1800)
+                    }}
+                    title={t.copyUnitCodeTitle}
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-100 px-2 py-0.5 font-mono text-[11px] font-black text-[#0f1d40] transition hover:border-[#007a5a] hover:bg-[#eaf8f2] hover:text-[#007a5a]"
+                  >
+                    <span dir="ltr">{activeUnitCode}</span>
+                    {copiedUnitCode ? (
+                      <Check className="size-3 text-[#007a5a]" />
+                    ) : (
+                      <Copy className="size-3 text-slate-400" />
+                    )}
+                  </button>
+
                   {meta.headerBadge && (
                     <span
                       className={`rounded-full px-2.5 py-0.5 text-[10.5px] font-extrabold ${meta.headerBadge.cls}`}
@@ -633,6 +706,7 @@ export function SellerDashboard({
                 <p className="mt-0.5 text-xs text-gray-500">
                   {activeUnitLocalizedArea}
                   {activeUnitType ? ` · ${activeUnitType}` : ''}
+                  {activeUnit.size ? ` · ${activeUnit.size} m²` : ''}
                 </p>
               </div>
             </div>
@@ -649,7 +723,42 @@ export function SellerDashboard({
             )}
           </div>
 
-          {visibleAdminNote && (
+          {isPausedByAdmin && (
+            <div className="mt-4 rounded-2xl border-2 border-rose-300 bg-rose-50/90 p-4 text-start shadow-2xs">
+              <div className="flex items-start gap-2.5">
+                <ShieldAlert className="mt-0.5 size-5 shrink-0 text-rose-600" />
+                <div className="flex-1">
+                  <strong className="block text-xs font-black text-rose-950 sm:text-sm">
+                    {t.pausedByAdminTitle}
+                  </strong>
+                  <p className="mt-1 whitespace-pre-line text-xs leading-relaxed font-semibold text-rose-900">
+                    {visibleAdminNote || t.pausedByAdminDefaultDesc}
+                  </p>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <a
+                      href={`https://wa.me/${supportWhatsApp}?text=${encodeURIComponent(adminNoteReplyWaMsg)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[#25D366] px-4 text-xs font-extrabold text-white shadow-2xs transition hover:opacity-95"
+                    >
+                      <MessageCircle className="size-3.5" />
+                      <span>{t.contactAdminWaBtn}</span>
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => handleNavigateWithLoading(editUnitHref)}
+                      className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-white px-4 text-xs font-extrabold text-[#0a1122] hover:bg-rose-50"
+                    >
+                      <Edit3 className="size-3.5" />
+                      <span>{t.editDataBtn}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {visibleAdminNote && !isPausedByAdmin && (
             <div className="mt-4 rounded-2xl border-2 border-amber-300 bg-[#fffbeb] p-4 text-start shadow-2xs">
               <div className="flex items-start gap-2.5">
                 <AlertCircle className="mt-0.5 size-5 shrink-0 text-amber-600" />
@@ -763,7 +872,12 @@ export function SellerDashboard({
                   <span className="font-extrabold text-[#0a1122]">
                     {t.reqItemDocs} ({comp.uploadedDocsCount}/4)
                   </span>
-                  {comp.hasAllDocuments ? (
+                  {comp.whatsappDocsVerified ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 font-extrabold text-[#007a5a]">
+                      <CheckCircle2 className="size-3.5" />
+                      <span>{t.docsWaVerifiedTag}</span>
+                    </span>
+                  ) : comp.hasAllDocuments ? (
                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 font-extrabold text-[#007a5a]">
                       <CheckCircle2 className="size-3.5" />
                       <span>{t.doneTag}</span>
@@ -855,34 +969,36 @@ export function SellerDashboard({
               </button>
             )}
 
-            {!isLockedInTransferOrSold && !needsEmailVerificationToSubmit && (
-              <button
-                type="button"
-                disabled={isPending}
-                onClick={() =>
-                  setConfirmModal({
-                    type: isPausedBySeller ? 'resume' : 'pause',
-                  })
-                }
-                className={`inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border px-3.5 text-xs font-bold transition ${
-                  isPausedBySeller
-                    ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]'
-                    : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                {isPausedBySeller ? (
-                  <>
-                    <PlayCircle className="size-4" />
-                    <span>{t.resumeBtn}</span>
-                  </>
-                ) : (
-                  <>
-                    <PauseCircle className="size-4 text-amber-600" />
-                    <span>{t.pauseBtn}</span>
-                  </>
-                )}
-              </button>
-            )}
+            {!isLockedInTransferOrSold &&
+              !needsEmailVerificationToSubmit &&
+              !isPausedByAdmin && (
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={() =>
+                    setConfirmModal({
+                      type: isPausedBySeller ? 'resume' : 'pause',
+                    })
+                  }
+                  className={`inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border px-3.5 text-xs font-bold transition ${
+                    isPausedBySeller
+                      ? 'border-[var(--brand-primary,#007a5a)] bg-[var(--brand-primary-light,#eaf8f2)] text-[var(--brand-primary,#007a5a)]'
+                      : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  {isPausedBySeller ? (
+                    <>
+                      <PlayCircle className="size-4" />
+                      <span>{t.resumeBtn}</span>
+                    </>
+                  ) : (
+                    <>
+                      <PauseCircle className="size-4 text-amber-600" />
+                      <span>{t.pauseBtn}</span>
+                    </>
+                  )}
+                </button>
+              )}
 
             {!isLockedInTransferOrSold && (
               <button
@@ -954,9 +1070,11 @@ export function SellerDashboard({
                   : 'text-amber-700'
               }`}
             >
-              {uploadedDocsCount > 0
-                ? `${uploadedDocsCount}/4 ${t.cardDocumentsUploaded}`
-                : t.cardDocumentsEmpty}
+              {comp.whatsappDocsVerified
+                ? t.cardDocumentsWaVerified
+                : uploadedDocsCount > 0
+                  ? `${uploadedDocsCount}/4 ${t.cardDocumentsUploaded}`
+                  : t.cardDocumentsEmpty}
             </p>
           </button>
 
@@ -1006,8 +1124,7 @@ export function SellerDashboard({
       <ScrollReveal delay={140}>
         <section className="mt-5 rounded-[20px] border border-gray-200/80 bg-white p-5 shadow-2xs sm:p-6">
           <h3 className="mb-4 text-start text-xs font-extrabold text-gray-500">
-            {t.timelineTitle} ({activeUnit.project_name || t.defaultProjectName}
-            ):
+            {t.timelineTitle} ({activeUnitHeadline} · {activeUnitCode}):
           </h3>
           <div className="ps-1">
             <Timeline
@@ -1018,31 +1135,55 @@ export function SellerDashboard({
           </div>
         </section>
 
-        {!isLockedInTransferOrSold && (
-          <SellerPromoSection
-            t={t}
-            activeUnit={activeUnit}
-            supportWhatsApp={supportWhatsApp}
-            isUnitActiveForBoost={isUnitActiveForBoost}
-            isPromoCollapsed={isPromoCollapsed}
-            setIsPromoCollapsed={setIsPromoCollapsed}
-            isCurrentlyFeatured={isCurrentlyFeatured}
-            isPendingPromo={isPendingPromo}
-            remainingFeaturedDays={remainingFeaturedDays}
-            activePromoDays={activePromoDays}
-            activePromoPrice={activePromoPrice}
-            currentAdRef={currentAdRef}
-            copiedAdRef={copiedAdRef}
-            setCopiedAdRef={setCopiedAdRef}
-            dynamicPackages={dynamicPackages}
-            currencySymbol={promoCurrencySymbol}
-            isPending={isPending}
-            onCancelPromo={() => setConfirmModal({ type: 'cancel_promo' })}
-          />
-        )}
+        {!isLockedInTransferOrSold &&
+          meta.code !== 'rejected' &&
+          !isPausedByAdmin && (
+            <SellerPromoSection
+              t={t}
+              activeUnit={activeUnit}
+              supportWhatsApp={supportWhatsApp}
+              boostState={boostState}
+              initialAmount={initialBoostAmount}
+              missingActionHref={firstMissingHref}
+              onNavigateMissing={() =>
+                handleNavigateWithLoading(firstMissingHref)
+              }
+              isPromoCollapsed={isPromoCollapsed}
+              setIsPromoCollapsed={setIsPromoCollapsed}
+              isCurrentlyFeatured={isCurrentlyFeatured}
+              isPendingPromo={isPendingPromo}
+              remainingFeaturedDays={remainingFeaturedDays}
+              activePromoDays={activePromoDays}
+              activePromoPrice={activePromoPrice}
+              currentAdRef={currentAdRef}
+              copiedAdRef={copiedAdRef}
+              setCopiedAdRef={setCopiedAdRef}
+              dynamicPackages={dynamicPackages}
+              currencySymbol={promoCurrencySymbol}
+              isPending={isPending}
+              onBoostRequested={(info) => {
+                setLocalSells((prev) =>
+                  prev.map((u) =>
+                    u.id === activeUnit.id
+                      ? {
+                          ...u,
+                          featured_days: info.days,
+                          featured_price: info.price,
+                          featured_status: 'pending_payment',
+                          featured_fawry_code: info.orderRef,
+                          boost_tier: info.tier,
+                        }
+                      : u
+                  )
+                )
+                if (info.message) setActionMessage(info.message)
+                router.refresh()
+              }}
+              onCancelPromo={() => setConfirmModal({ type: 'cancel_promo' })}
+            />
+          )}
       </ScrollReveal>
 
-      {/* زر تسريع المراجعة وتأكيد الهاتف عبر واتساب — قبل أزرار بياناتي وحذف الحساب مباشرة */}
       {!isWaFastTrackHidden && (
         <div className="mt-6 flex flex-col justify-between gap-3 rounded-2xl border border-[#25D366]/40 bg-[#f0fdf4] p-4 text-start shadow-2xs sm:flex-row sm:items-center">
           <p className="text-xs leading-relaxed font-extrabold text-[#0a1122]">

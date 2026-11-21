@@ -2,12 +2,12 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
+  ArrowUpRight,
   Building2,
   Check,
-  CheckCircle2,
   CreditCard,
-  Landmark,
   Lock,
   Sparkles,
   Wallet,
@@ -16,7 +16,6 @@ import {
 import { ScrollReveal } from '@/components/shared/scroll-reveal'
 import enDict from '@/dictionaries/en.json'
 import { DICTIONARIES, useTranslation, type LocaleCode } from '@/lib/i18n'
-import { createBoostRequestAction } from '@/actions/account-actions'
 
 function getMarketDict(localeOrIsAr: LocaleCode | boolean) {
   const lang: LocaleCode =
@@ -320,19 +319,16 @@ export function LeadingDevelopersSection({
 }
 
 export function TopUpBalanceGelSection() {
-  const { t: dict, locale, siteSettings } = useTranslation() as Record<
-    string,
-    any
-  >
-  const activeLocale = (locale as LocaleCode) || 'ar'
-  const mT = dict.home.marketSections
+  const router = useRouter()
+  const i18nCtx = useTranslation() as Record<string, any>
+  const dict = i18nCtx.t
+  const activeLocale = (i18nCtx.locale as LocaleCode) || 'ar'
+  const hasSession = Boolean(i18nCtx.hasSession ?? i18nCtx.isLoggedIn)
+  const mT = (dict.home.marketSections || {}) as Record<string, any>
   const GEL = '₾'
 
   const [selectedPreset, setSelectedPreset] = useState<number | 'custom'>(10)
   const [topUpAmount, setTopUpAmount] = useState<number>(10)
-  const [unitCodeInput, setUnitCodeInput] = useState<string>('')
-  const [submittingBoost, setSubmittingBoost] = useState(false)
-  const [boostNotice, setBoostNotice] = useState<string | null>(null)
 
   const pkgDetails = useMemo(
     () => calculateGelBoostPackage(topUpAmount, activeLocale),
@@ -380,73 +376,28 @@ export function TopUpBalanceGelSection() {
   ]
 
   const formatUpsellAdvice = (target: number, discount: string, days: number) =>
-    mT.upsellAdviceTemplate
+    String(mT.upsellAdviceTemplate || '')
       .replace('{target}', String(target))
       .replace('{discount}', discount)
       .replace('{days}', String(days))
 
   const formatTopUpToBtn = (target: number) =>
-    mT.topUpToBtnTemplate.replace('{target}', String(target))
+    String(mT.topUpToBtnTemplate || '').replace('{target}', String(target))
 
-  const formatPayWithCardBtn = (amt: number) =>
-    mT.payWithCardBtnTemplate.replace('{amt}', String(amt))
-
-  const formatBankTransferBtn = (amt: number) =>
-    mT.bankTransferBtnTemplate.replace('{amt}', String(amt))
-
-  const formatBoostRecordedMsg = (
-    tier: string,
-    amt: number,
-    days: number,
-    code?: string | null
-  ) => {
-    const codePart = code
-      ? mT.boostRecordedCodePart.replace('{code}', code)
-      : ''
-    return mT.boostRecordedMsgTemplate
-      .replace('{tier}', tier)
-      .replace('{amt}', String(amt))
-      .replace('{days}', String(days))
-      .replace('{codePart}', codePart)
-  }
-
-  const handleProceedToPayment = async (method: 'card' | 'bank') => {
-    setSubmittingBoost(true)
-    setBoostNotice(null)
-
-    const res = await createBoostRequestAction({
-      amountGel: pkgDetails.amount,
-      packageTier: pkgDetails.tier,
-      durationDays: pkgDetails.days,
-      paymentMethod: method,
-      unitCode: unitCodeInput.trim() || undefined,
-    })
-
-    setSubmittingBoost(false)
-
-    const configuredPaymentUrl =
-      res?.paymentUrl ||
-      siteSettings?.boostPaymentUrl ||
-      process.env.NEXT_PUBLIC_BOOST_PAYMENT_URL ||
-      ''
-
-    if (configuredPaymentUrl) {
-      const sep = configuredPaymentUrl.includes('?') ? '&' : '?'
-      window.open(
-        `${configuredPaymentUrl}${sep}amount=${pkgDetails.amount}&currency=GEL&tier=${encodeURIComponent(pkgDetails.tier)}&days=${pkgDetails.days}&reqId=${encodeURIComponent(res?.boostRequestId || '')}`,
-        '_blank'
-      )
+  const handleStartBoostFlow = () => {
+    const targetAccountUrl = `/account?view=seller&boostAmount=${pkgDetails.amount}#promo-section`
+    if (hasSession) {
+      router.push(targetAccountUrl)
+    } else {
+      router.push(`/login?next=${encodeURIComponent(targetAccountUrl)}`)
     }
-
-    setBoostNotice(
-      formatBoostRecordedMsg(
-        pkgDetails.tier,
-        pkgDetails.amount,
-        pkgDetails.days,
-        res?.unitCode || undefined
-      )
-    )
   }
+
+  const ctaBtnText = (
+    hasSession
+      ? String(mT.homeBoostCtaLoggedInTemplate || '')
+      : String(mT.homeBoostCtaGuestTemplate || '')
+  ).replace('{amount}', String(pkgDetails.amount))
 
   return (
     <section
@@ -544,7 +495,6 @@ export function TopUpBalanceGelSection() {
                         setSelectedPreset(item.val)
                         setTopUpAmount(item.val)
                       }
-                      setBoostNotice(null)
                     }}
                     className={`relative flex min-h-[68px] flex-col items-center justify-center rounded-2xl border px-1.5 py-2 text-center transition ${
                       isActive
@@ -684,16 +634,6 @@ export function TopUpBalanceGelSection() {
               )}
             </div>
 
-            <div className="mt-3">
-              <input
-                type="text"
-                value={unitCodeInput}
-                onChange={(e) => setUnitCodeInput(e.target.value)}
-                placeholder={mT.unitCodePlaceholder}
-                className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3 text-xs font-medium text-[#0f1d40] placeholder:text-slate-400 focus:border-[#2563eb] focus:bg-white focus:outline-none"
-              />
-            </div>
-
             <div className="mt-3.5 flex flex-wrap items-center justify-between gap-1 text-[10.5px] font-semibold text-slate-500">
               <span>⚡ {mT.zeroFeeBadge}</span>
               <span>✓ {mT.neverExpires}</span>
@@ -702,33 +642,20 @@ export function TopUpBalanceGelSection() {
 
             <button
               type="button"
-              disabled={submittingBoost}
-              onClick={() => handleProceedToPayment('card')}
-              className="mt-3.5 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] text-xs font-bold text-white shadow-[0_8px_20px_rgba(255,100,55,0.3)] transition hover:opacity-95 disabled:opacity-60 sm:text-sm"
+              onClick={handleStartBoostFlow}
+              className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-5 text-xs font-bold text-white shadow-[0_8px_20px_rgba(255,100,55,0.3)] transition hover:opacity-95 sm:text-sm"
             >
-              <CreditCard className="size-4" />
-              <span>{formatPayWithCardBtn(pkgDetails.amount)}</span>
+              <Sparkles className="size-4" />
+              <span>{ctaBtnText}</span>
+              <ArrowUpRight className="size-4" />
             </button>
 
-            <button
-              type="button"
-              disabled={submittingBoost}
-              onClick={() => handleProceedToPayment('bank')}
-              className="mt-2.5 flex h-10 w-full items-center justify-center gap-2 rounded-full border border-slate-200 bg-white text-xs font-bold text-[#0f1d40] transition hover:bg-slate-50 disabled:opacity-60"
-            >
-              <Landmark className="size-3.5 text-slate-500" />
-              <span>{formatBankTransferBtn(pkgDetails.amount)}</span>
-            </button>
+            <p className="mt-2.5 text-center text-[11px] leading-relaxed font-medium text-slate-500">
+              {mT.homeBoostNote}
+            </p>
 
-            {boostNotice && (
-              <div className="mt-3 flex items-start gap-2 rounded-xl border border-emerald-200 bg-[#eaf8f2] p-3 text-xs font-semibold text-[#007a5a]">
-                <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
-                <span>{boostNotice}</span>
-              </div>
-            )}
-
-            <div className="mt-3.5 flex items-center justify-between text-[10px] text-slate-400">
-              <span>Visa · Mastercard · Apple Pay · TBC · BOG</span>
+            <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3 text-[10px] text-slate-400">
+              <span>TBC Bank · Bank of Georgia · Instant Activation</span>
               <span className="inline-flex items-center gap-1">
                 <Lock className="size-3" /> 256-bit SSL
               </span>

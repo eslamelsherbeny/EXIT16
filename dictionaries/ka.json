@@ -1,7 +1,7 @@
 {
   "brand": {
-    "name": "Aqar",
-    "exit": "Exit"
+    "name": "Dual",
+    "exit": "Dealz"
   },
   "navbar": {
     "sell": "გაყიდვა",
@@ -329,7 +329,10 @@
       "bankTransferBtnTemplate": "საბანკო გადარიცხვა {amt} ₾",
       "boostRecordedMsgTemplate": "მოთხოვნა ({tier} — {amt} ₾, {days} დღე){codePart} მიღებულია და ჩაირთვება გადახდის დადასტურებისთანავე.",
       "boostRecordedCodePart": " ობიექტზე {code}",
-      "coversLabelTemplate": "ფარავს {tier} პაკეტს {days} დღით"
+      "coversLabelTemplate": "ფარავს {tier} პაკეტს {days} დღით",
+      "homeBoostCtaLoggedInTemplate": "აირჩიეთ ობიექტი და გაააქტიურეთ ({amount} ₾)",
+      "homeBoostCtaGuestTemplate": "შესვლა და VIP გააქტიურება ({amount} ₾)",
+      "homeBoostNote": "VIP სტატუსი ებმება თქვენს ობიექტს პირადი კაბინეტიდან მონაცემებისა და დოკუმენტების შემოწმების შემდეგ."
     },
     "carouselTitles": {
       "categoriesTitle": "რა ტიპის ქონებას ეძებთ გადასაბარებლად?",
@@ -351,7 +354,7 @@
   "footer": {
     "description": "განვადებიანი ქონების გადაფორმების პლატფორმა ფასნამატის გარეშე — გამყიდველი იბრუნებს გადახდილ ქეშს, მყიდველი კი იღებს ძველ ფასს.",
     "phone": "+201018595959",
-    "email": "info@aqarexit.com",
+    "email": "info@dualdealz.com",
     "platform": "პლატფორმა",
     "company": "კომპანია",
     "legal": "სამართლებრივი",
@@ -1670,7 +1673,27 @@
       "flittRedirectingBtn": "გადამისამართება Flitt-ის გადახდის გვერდზე...",
       "flittPaymentReturnedNotice": "დაბრუნება გადახდის გვერდიდან (კოდი: {ref}) — VIP სტატუსი ჩაირთვება გადახდის დადასტურებისთანავე.",
       "flittNotConfiguredErr": "ბარათით ონლაინ გადახდა (Flitt) აქტივაციის პროცესშია — გთხოვთ სცადოთ მოგვიანებით ან დაუკავშირდეთ მხარდაჭერას.",
-      "flittInitFailedErr": "ბარათით გადახდის დაწყება ვერ მოხერხდა. გთხოვთ სცადოთ ხელახლა."
+      "flittInitFailedErr": "ბარათით გადახდის დაწყება ვერ მოხერხდა. გთხოვთ სცადოთ ხელახლა.",
+      "copyUnitCodeTitle": "კოდის კოპირება",
+      "pausedByAdminTitle": "ობიექტის ჩვენება დროებით შეჩერებულია ადმინისტრაციის მიერ",
+      "pausedByAdminDefaultDesc": "ადმინისტრაციამ დროებით შეაჩერა განცხადება. დეტალებისთვის დაგვიკავშირდით WhatsApp-ზე.",
+      "contactAdminWaBtn": "ადმინისტრაციასთან კავშირი WhatsApp-ით",
+      "docsWaVerifiedTag": "დადასტურებულია WhatsApp-ით ✓",
+      "cardDocumentsWaVerified": "WhatsApp დამოწმებული ✓",
+      "statusPausedByAdminBadge": "შეჩერებულია ადმინის მიერ",
+      "statusPausedByAdminHeadline": "ობიექტი დროებით შეჩერებულია ადმინისტრაციის მიერ — დაგვიკავშირდით",
+      "boostBookedDefaultMsg": "VIP მოთხოვნა დაფიქსირდა კოდით ({ref}). გამოგვიგზავნეთ კოდი WhatsApp-ზე გასააქტიურებლად.",
+      "boostErrorFallback": "მოთხოვნის გაგზავნა ვერ მოხერხდა.",
+      "boostUnexpectedErr": "დაფიქსირდა შეცდომა, სცადეთ თავიდან.",
+      "boostPriorityCtaTemplate": "VIP ჯავშანი + პრიორიტეტული შემოწმება ({amount} ₾)",
+      "boostConfirmCtaTemplate": "პაკეტის დადასტურება ({amount} ₾ — {tier})",
+      "boostIncompleteTitle": "ჯერ შეავსეთ მონაცემები, ფოტოები და დოკუმენტები",
+      "boostIncompleteDesc": "შეგიძლიათ იხილოთ ტარიფები აქ. ფაილების შევსებისთანავე VIP ჯავშანი გაიხსნება.",
+      "boostIncompleteCtaBtn": "შეავსეთ მონაცემები და დოკუმენტები VIP-ისთვის",
+      "boostPendingPriorityTitle": "⚡ პრიორიტეტული შემოწმება + წინასწარი VIP ჯავშანი",
+      "boostPendingPriorityDesc": "თქვენი ობიექტი სრულია და ელოდება დადასტურებას. დაჯავშნეთ VIP პრიორიტეტისთვის — დღეების ათვლა დაიწყება გამოქვეყნებისთანავე.",
+      "boostSubmittingBtn": "მოთხოვნა იგზავნება...",
+      "boostFooterProviders": "TBC Bank · Bank of Georgia · სწრაფი აქტივაცია WhatsApp-ით"
     },
     "buyer": {
       "popularAreas": [
@@ -2570,7 +2593,7 @@
       "whatsappValue": "+201018595959",
       "whatsappDetail": "ყველაზე სწრაფი კავშირი",
       "emailTitle": "ელ.ფოსტა",
-      "emailValue": "info@aqarexit.com",
+      "emailValue": "info@dualdealz.com",
       "hoursTitle": "სამუშაო საათები",
       "hoursValue": "შაბათი – ხუთშაბათი, 10:00 – 21:00",
       "hoursDetail": "კაიროს დროით",
@@ -2802,7 +2825,7 @@
     },
     "register": {
       "title": "რეგისტრაცია",
-      "subtitle": "შექმენით ანგარიში Darak-ზე",
+      "subtitle": "შექმენით ანგარიში DualDealz-ზე",
       "nameLabel": "სახელი და გვარი",
       "namePlaceholder": "სრული სახელი",
       "countryLabel": "საცხოვრებელი ქვეყანა",
@@ -3102,7 +3125,7 @@
     "buyCta": "ობიექტების ნახვა"
   },
   "systemPages": {
-    "metaTitle": "Darak | უძრავი ქონების პლატფორმა",
+    "metaTitle": "DualDealz | უძრავი ქონების პლატფორმა",
     "metaDesc": "განვადებიანი უძრავი ქონების ყიდვა, გაყიდვა და ინვესტირება ფასნამატის გარეშე.",
     "errorEyebrow": "დაფიქსირდა შეცდომა",
     "errorTitle": "სცადეთ თავიდან",
@@ -3147,14 +3170,14 @@
       "accountNotFound": "ანგარიში ვერ მოიძებნა.",
       "emailSenderName": "DualDealz",
       "dearUser": "მომხმარებელო",
-      "loginEmailSubject": "უსაფრთხოების შეტყობინება: შესვლა Darak-ზე",
+      "loginEmailSubject": "უსაფრთხოების შეტყობინება: შესვლა DualDealz-ზე",
       "loginEmailGreeting": "გამარჯობა,",
       "loginEmailBody": "თქვენს ანგარიშზე განხორციელდა წარმატებული შესვლა.",
-      "welcomeEmailSubject": "კეთილი იყოს თქვენი მობრძანება Darak-ზე — დადასტურება",
-      "welcomeEmailGreeting": "მოგესალმებით Darak-ზე,",
+      "welcomeEmailSubject": "კეთილი იყოს თქვენი მობრძანება DualDealz-ზე — დადასტურება",
+      "welcomeEmailGreeting": "მოგესალმებით DualDealz-ზე,",
       "welcomeEmailBody": "თქვენი ანგარიში შეიქმნა. ელ.ფოსტის დასადასტურებლად დააჭირეთ ღილაკს:",
       "welcomeEmailBtn": "ანგარიშის დადასტურება",
-      "otpEmailSubject": "პაროლის აღდგენის კოდი - Darak",
+      "otpEmailSubject": "პაროლის აღდგენის კოდი - DualDealz",
       "otpEmailGreeting": "გამარჯობა,",
       "otpEmailBody": "გამოიყენეთ ეს კოდი ახალი პაროლის დასაყენებლად:"
     },
@@ -3215,7 +3238,11 @@
       "unitLockedByDeal": "შეთავაზების მიღებისა და გადაფორმების დაწყების შემდეგ ობიექტის შეჩერება ან წაშლა შეუძლებელია.",
       "allDocsReadyNotifTitle": "ობიექტის ყველა დოკუმენტი და ფოტო ატვირთულია",
       "closedByAccountDeletionNote": "ეს ობიექტი საბოლოოდ დაიხურა ანგარიშის წაშლის მოთხოვნის გამო. ახალი ობიექტის განსათავსებლად დაამატეთ ახალი განცხადება.",
-      "boostOnlyActiveUnits": "VIP რეკლამის ჩართვა შესაძლებელია მხოლოდ გამოქვეყნებულ და დამტკიცებულ ობიექტებზე."
+      "boostOnlyActiveUnits": "VIP რეკლამის ჩართვა შესაძლებელია მხოლოდ გამოქვეყნებულ და დამტკიცებულ ობიექტებზე.",
+      "boostCompleteUnitFirstError": "VIP-ის მოთხოვნამდე გთხოვთ შეავსოთ მონაცემები, ფოტოები და დოკუმენტები.",
+      "boostPriorityTag": "⚡ [პრიორიტეტული შემოწმება]",
+      "boostPendingUnitSuccess": "VIP მოთხოვნა ({ref}) დაფიქსირდა პრიორიტეტული შემოწმებით — დღეების ათვლა დაიწყება გამოქვეყნებისთანავე.",
+      "boostRecordedSimpleSuccess": "VIP მოთხოვნა წარმატებით დაფიქსირდა კოდით ({ref})."
     },
     "admin": {
       "unauthorizedLogin": "წვდომა შეზღუდულია: შედით ადმინის ანგარიშით.",
@@ -3224,7 +3251,7 @@
       "adminSuspended": "ადმინისტრატორის ანგარიში შეჩერებულია.",
       "insufficientRole": "არ გაქვთ ამ მოქმედების უფლება.",
       "unauthorizedAction": "არაავტორიზებული მოქმედება.",
-      "adminSenderName": "Darak ადმინისტრაცია",
+      "adminSenderName": "DualDealz ადმინისტრაცია",
       "greetingWord": "გამარჯობა,",
       "dearClient": "მომხმარებელო",
       "defaultProjectWord": "თქვენი პროექტი",
@@ -3248,13 +3275,13 @@
       "notifRejectedReasonPrefix": "გთხოვთ გადახედოთ ობიექტს",
       "notifRejectedMsg": "განაახლეთ მონაცემები ხელახლა გამოსაქვეყნებლად:",
       "matchBuyerTitle": "ახალი შესაბამისი ობიექტი უბანში",
-      "emailActiveSubject": "თქვენი ობიექტი გამოქვეყნდა Darak-ზე 🎉",
+      "emailActiveSubject": "თქვენი ობიექტი გამოქვეყნდა DualDealz-ზე 🎉",
       "emailActiveBody": "თქვენი ობიექტი დადასტურდა და გამოქვეყნდა პროექტში",
       "emailOfferSubject": "ახალი შეთავაზება თქვენს ობიექტზე! 💰",
       "emailOfferBody": "მიღებულია შეთავაზება თქვენს ობიექტზე. მენეჯერი დაგიკავშირდებათ პროექტზე",
-      "emailTransferSubject": "კონტრაქტის გადაფორმების დაწყება - Darak 📄",
+      "emailTransferSubject": "კონტრაქტის გადაფორმების დაწყება - DualDealz 📄",
       "emailTransferBody": "თქვენი ობიექტი გადავიდა გადაფორმების ეტაპზე პროექტში",
-      "emailSoldSubject": "გილოცავთ! ობიექტი გაიყიდა Darak-ის მეშვეობით 🏆",
+      "emailSoldSubject": "გილოცავთ! ობიექტი გაიყიდა DualDealz-ის მეშვეობით 🏆",
       "emailSoldBody": "კონტრაქტის გადაფორმება წარმატებით დასრულდა პროექტში",
       "emailRejectedSubject": "განახლება თქვენს ობიექტთან დაკავშირებით",
       "emailRejectedBody": "სამწუხაროდ, ობიექტის გამოქვეყნება ვერ მოხერხდა პროექტში",
@@ -3274,8 +3301,8 @@
       "wrongCurrentPassword": "მიმდინარე პაროლი არასწორია.",
       "profileUpdatedSuccess": "მონაცემები წარმატებით განახლდა.",
       "profileUpdatedCheckEmail": "მონაცემები განახლდა. შეამოწმეთ ახალი ელ.ფოსტა.",
-      "confirmNewEmailSubject": "Darak — ახალი ელ.ფოსტის დადასტურება",
-      "confirmNewEmailBody": "თქვენ შეცვალეთ ელ.ფოსტა Darak-ზე. დასადასტურებლად დააჭირეთ ქვემოთ:",
+      "confirmNewEmailSubject": "DualDealz — ახალი ელ.ფოსტის დადასტურება",
+      "confirmNewEmailBody": "თქვენ შეცვალეთ ელ.ფოსტა DualDealz-ზე. დასადასტურებლად დააჭირეთ ქვემოთ:",
       "confirmNewEmailBtn": "ელ.ფოსტის დადასტურება",
       "enterCurrentAndNewPass": "შეიყვანეთ მიმდინარე და ახალი პაროლი (მინ. 8 სიმბოლო).",
       "changePassFailed": "პაროლის შეცვლა ვერ მოხერხდა.",
@@ -3291,7 +3318,30 @@
       "leadHasActiveDealBlocked": "სტატუსის შეცვლა შეუძლებელია მიმდინარე გარიგების დროს; ჯერ მართეთ გარიგებებში.",
       "leadHasActiveOffersBlocked": "სტატუსის შეცვლა შეუძლებელია ({count}) აქტიური შეთავაზების გამო; ჯერ გააუქმეთ შეთავაზებები.",
       "unitSoldLocked": "ეს ობიექტი გაყიდულია და სტატუსი ხელით არ იცვლება.",
-      "unitHasActiveDealBlocked": "ობიექტზე მიმდინარეობს გარიგება; ჯერ მართეთ გარიგებების განყოფილებაში."
+      "unitHasActiveDealBlocked": "ობიექტზე მიმდინარეობს გარიგება; ჯერ მართეთ გარიგებების განყოფილებაში.",
+      "docsIncompletePublishBlocked": "ობიექტის გამოქვეყნება შეუძლებელია 4 დოკუმენტის ატვირთვამდე ან WhatsApp-ით დადასტურებამდე.",
+      "notifUnderReviewTitle": "🔍 თქვენი ობიექტი დოკუმენტების შემოწმებაზეა",
+      "notifUnderReviewMsg": "ობიექტი გადავიდა მონაცემებისა და დოკუმენტების შემოწმების ეტაპზე.",
+      "notifPendingTitle": "⏳ თქვენი ობიექტი ელოდება შემოწმებას",
+      "notifPendingMsg": "ობიექტი გადავიდა შემოწმების რიგში.",
+      "notifPausedAdminTitle": "⏸ ობიექტის ჩვენება შეჩერებულია ადმინისტრაციის მიერ",
+      "notifPausedAdminMsg": "ობიექტის ჩვენება დროებით შეჩერებულია ადმინისტრაციის მიერ. დაგვიკავშირდით WhatsApp-ზე.",
+      "emailUnderReviewSubject": "ობიექტის დოკუმენტების შემოწმება — DualDealz",
+      "emailUnderReviewBody": "თქვენი ობიექტი გადავიდა მონაცემებისა და დოკუმენტების შემოწმების ეტაპზე:",
+      "emailPendingSubject": "ობიექტის სტატუსის განახლება — DualDealz",
+      "emailPendingBody": "თქვენი ობიექტი გადავიდა შემოწმების რიგში:",
+      "emailPausedAdminSubject": "ობიექტის ჩვენება დროებით შეჩერებულია — DualDealz",
+      "emailPausedAdminBody": "თქვენი ობიექტის ჩვენება დროებით შეჩერებულია ადმინისტრაციის მიერ. დაგვიკავშირდით WhatsApp-ზე:",
+      "emailTrackUnitBtn": "ობიექტის ნახვა ანგარიშში",
+      "emailReviewEditBtn": "ობიექტის შემოწმება და შეცვლა",
+      "emailAdminNoteSubject": "ადმინისტრაციის შენიშვნა თქვენს ობიექტზე — DualDealz",
+      "emailAdminNoteIntro": "შემოწმების გუნდმა დაამატა შენიშვნა თქვენს ობიექტზე:",
+      "notifWaDocsVerifiedTitle": "✅ დოკუმენტები დადასტურდა WhatsApp-ით",
+      "notifWaDocsVerifiedMsg": "გუნდმა დაადასტურა თქვენი ობიექტის დოკუმენტების შემოწმება WhatsApp-ით.",
+      "fileTooLargeError": "ფაილის ზომა აღემატება დასაშვებ ლიმიტს (12 მბ).",
+      "storageUploadError": "ფაილის ატვირთვა ვერ მოხერხდა. შეამოწმეთ Supabase Storage-ის უფლებები.",
+      "missingFileOrUrlError": "აირჩიეთ ფაილი ან შეიყვანეთ ბმული.",
+      "boostUnitNotPublishedError": "VIP პაკეტის ჩართვა შეუძლებელია ობიექტის გამოქვეყნებამდე."
     },
     "forms": {
       "expiredLink": "ბმულის ვადა გავიდა.",
@@ -3537,7 +3587,7 @@
       "sendUnitWaBtn": "WhatsApp გაგზავნა"
     },
     "shell": {
-      "brand": "Darak",
+      "brand": "DualDealz",
       "adminPanel": "ადმინ პანელი",
       "welcome": "გამარჯობა,",
       "myProfile": "პროფილი",
@@ -4158,7 +4208,9 @@
         "rejected": "7. უარყოფილი",
         "has_offers": "💬 აქტიური შეთავაზებები",
         "negotiating": "🔥 მოლაპარაკება",
-        "in_deal": "🤝 მიმდინარე გარიგება"
+        "in_deal": "🤝 მიმდინარე გარიგება",
+        "incomplete": "0. დაუსრულებელი",
+        "paused_by_admin": "⛔ შეჩერებულია ადმინის მიერ"
       },
       "docs": {
         "contract": "ნასყიდობის კონტრაქტი",
@@ -4181,7 +4233,9 @@
         "featuredPrefix": "VIP",
         "promoReqPrefix": "VIP მოთხოვნა",
         "negotiable": "ფასდაკლებით",
-        "adCodeLabel": "VIP კოდი:"
+        "adCodeLabel": "VIP კოდი:",
+        "waDocsVerifiedShort": "WhatsApp ✓",
+        "pausedByAdmin": "შეჩერებულია ადმინის მიერ"
       },
       "header": {
         "promoAllTitle": "VIP რეკლამის მოთხოვნები — ყველა ქვეყანა 🌍",
@@ -4206,7 +4260,9 @@
         "deletedTab": "წაშლილი",
         "deletedBannerTitle": "მესაკუთრის მიერ წაშლილი ობიექტები",
         "purgeAllBtn": "ყველას წაშლა",
-        "inDealTab": "გარიგებაშია"
+        "inDealTab": "გარიგებაშია",
+        "incompleteTab": "დაუსრულებელი",
+        "pausedByAdminTab": "შეჩერებულია ადმინის მიერ"
       },
       "table": {
         "emptyText": "შესაბამისი ობიექტები ვერ მოიძებნა.",
@@ -4237,7 +4293,8 @@
         "confirmBtn": "დადასტურება",
         "cancelBtn": "გაუქმება",
         "executingBtn": "სრულდება...",
-        "openDocBtn": "გახსნა"
+        "openDocBtn": "გახსნა",
+        "editDataBtn": "მონაცემების შეცვლა"
       },
       "modals": {
         "purgeTitle": "წაშლილი ობიექტების გასუფთავება",
@@ -4285,7 +4342,50 @@
         "clearNoteBtn": "გასუფთავება",
         "noteSavedSuccess": "შენიშვნა შენახულია ✓",
         "optionalNoteForSellerPlaceholder": "შენიშვნა მესაკუთრისთვის (არასავალდებულო)...",
-        "sendPerformanceReportBtn": "ნახვების რეპორტის გაგზავნა"
+        "sendPerformanceReportBtn": "ნახვების რეპორტის გაგზავნა",
+        "pausedByAdminConfirmTitle": "ობიექტის შეჩერება ადმინისტრაციის მიერ",
+        "pausedByAdminReasonPlaceholder": "მიუთითეთ შეჩერების მიზეზი (გამოჩნდება კლიენტის ანგარიშსა და მეილში)...",
+        "statusEmailNotifyHint": "კლიენტს ავტომატურად გაეგზავნება შეტყობინება და ელ-ფოსტა ამ სტატუსით.",
+        "incompleteDocsGuardTitle": "ობიექტის დოკუმენტები არასრულია",
+        "incompleteDocsGuardDesc": "ობიექტის გამოქვეყნება შესაძლებელია მხოლოდ 4 დოკუმენტის ატვირთვის ან WhatsApp-ით გადამოწმების შემდეგ.",
+        "incompleteDocsGuardCheckbox": "✓ ვადასტურებ, რომ დოკუმენტები შემოწმდა WhatsApp-ში და ვეთანხმები გამოქვეყნებას",
+        "incompleteDocsGuardUploadBtn": "დოკუმენტების ატვირთვა კლიენტის ნაცვლად",
+        "verifyWaAndPublishNowBtn": "WA დასტური + გამოქვეყნება",
+        "stageTimelineTitlePrefix": "ობიექტის ეტაპების თანმიმდევრობა",
+        "stageTimelineSubtitle": "ობიექტი დაცულ ავტომატურ ეტაპზეა — იხილეთ ყველა გავლილი და მომავალი ეტაპი ქვემოთ.",
+        "stageCurrentBadge": "მიმდინარე ეტაპი",
+        "stageDoneBadge": "დასრულებულია ✓",
+        "editModalTitle": "ობიექტის მონაცემების რედაქტირება",
+        "editModalDesc": "შეასწორეთ მესაკუთრის მიერ შეყვანილი უზუსტობები მფლობელობის შეცვლის გარეშე.",
+        "editSavedSuccess": "ობიექტის მონაცემები განახლდა ✓",
+        "editSaveError": "ცვლილებების შენახვა ვერ მოხერხდა.",
+        "editProjectLabel": "პროექტის სახელი / სათაური",
+        "editDeveloperLabel": "დეველოპერი",
+        "editAreaLabel": "უბანი / რაიონი",
+        "editStreetLabel": "ქუჩა",
+        "editHouseNoLabel": "კორპუსის ნომერი",
+        "editCadastralLabel": "საკადასტრო კოდი (NAPR)",
+        "editUnitTypeLabel": "ობიექტის ტიპი",
+        "editSizeLabel": "ფართობი (მ²)",
+        "editRoomsLabel": "ოთახები",
+        "editBedroomsLabel": "საძინებელი",
+        "editBathroomsLabel": "სველი წერტილი",
+        "editFloorLabel": "სართული",
+        "editTotalFloorsLabel": "სულ სართულები",
+        "editPaidAmountLabel": "გადახდილი / ხელზე ($)",
+        "editContractPriceLabel": "კონტრაქტის ფასი ($)",
+        "editMarketPriceLabel": "საბაზრო ფასი ($)",
+        "editInstallmentLabel": "განვადების შენატანი ($)",
+        "editFrequencyLabel": "პერიოდულობა",
+        "editYearsLeftLabel": "დარჩენილი თვე / წელი",
+        "editFinishingLabel": "რემონტის მდგომარეობა",
+        "editDeliveryLabel": "ჩაბარების სტატუსი",
+        "editDescriptionLabel": "ობიექტის აღწერა",
+        "editSaveBtn": "ცვლილებების შენახვა",
+        "editSavingBtn": "ინახება...",
+        "waDocsVerifiedBadge": "✓ დოკუმენტები დამოწმებულია WhatsApp-ით",
+        "manageDocsWaBtn": "ატვირთვა / WA დამოწმება",
+        "waDocsVerifiedEmptyText": "დოკუმენტები გადამოწმებულია მესაკუთრესთან WhatsApp-ით ✓"
       },
       "notices": {
         "purgedSuccess": "ყველა წაშლილი ობიექტი გასუფთავდა ✓",
@@ -4341,6 +4441,41 @@
         "gotItBtn": "გასაგებია",
         "openDealBtn": "გარიგების ფაილი",
         "openOffersBtn": "ობიექტის შეთავაზებები"
+      },
+      "docsModal": {
+        "uploadSuccess": "დოკუმენტი წარმატებით აიტვირთა ✓",
+        "uploadError": "დოკუმენტის ატვირთვა ვერ მოხერხდა.",
+        "waVerifiedAndPublishedSuccess": "დოკუმენტები დადასტურდა WhatsApp-ით და ობიექტი გამოქვეყნდა ✓",
+        "waVerifyRemovedSuccess": "WhatsApp დადასტურება მოხსნილია.",
+        "waVerifiedSuccess": "დოკუმენტების შემოწმება WhatsApp-ით დადასტურდა ✓",
+        "waVerifiedTitle": "დოკუმენტები დადასტურებულია WhatsApp-ით ✓",
+        "waVerifyBoxTitle": "შეამოწმეთ კლიენტის დოკუმენტები WhatsApp-ში?",
+        "waVerifiedSub": "შეგიძლიათ გამოაქვეყნოთ ობიექტი 4 ფაილის ატვირთვის გარეშე.",
+        "waVerifyBoxSub": "დააჭირეთ, თუ მესაკუთრემ დოკუმენტები WhatsApp-ში გამოგზავნა.",
+        "waVerifyUndoBtn": "გაუქმება",
+        "waVerifyConfirmBtn": "WhatsApp შემოწმების დასტური ✓",
+        "waVerifyAndPublishBtn": "WA დასტური + გამოქვეყნება",
+        "notUploadedYet": "არ არის ატვირთული",
+        "replaceDocBtn": "შეცვლა",
+        "uploadDocBtn": "ატვირთვა"
+      },
+      "stageTimeline": {
+        "s1Label": "1. მონაცემებისა და დოკუმენტების შევსება",
+        "s1Sub": "ძირითადი მონაცემები + ფოტოები + 4 დოკუმენტი (ან WhatsApp შემოწმება)",
+        "s2Label": "2. ადმინისტრაციისა და დოკუმენტების შემოწმება",
+        "s2Sub": "გუნდი ამოწმებს დოკუმენტებს გამოქვეყნებამდე",
+        "s3Label": "3. დამტკიცებულია და ბაზარზეა",
+        "s3Sub": "ობიექტი ჩანს მყიდველებისთვის და რადარი აქტიურია",
+        "s4Label": "4. შეთავაზებები და მოლაპარაკება",
+        "s4Sub": "ავტომატურად ახლდება აქტიური შეთავაზებებისას",
+        "s5Label": "5. გარიგება და გადაფორმება",
+        "s5Sub": "ავტომატურად დაცულია და იმართება გარიგებების განყოფილებიდან",
+        "s6Label": "6. წარმატებით გაიყიდა",
+        "s6Sub": "გარიგება დასრულდა და საკუთრება გადაფორმდა",
+        "excPausedAdmin": "ობიექტი დროებით შეჩერებულია ადმინისტრაციის მიერ.",
+        "excPausedSeller": "ობიექტი დროებით შეჩერებულია მესაკუთრის მიერ.",
+        "excRejected": "ობიექტი უარყოფილია და მესაკუთრეს ეცნობა მიზეზი.",
+        "excDeleted": "ობიექტი წაშლილია მესაკუთრის მიერ (7 დღიანი არქივი)."
       }
     },
     "contactVerification": {
@@ -4463,7 +4598,9 @@
       "confirmRejectBtn": "უარყოფის დადასტურება",
       "activatedSuccess": "VIP პაკეტი გააქტიურდა ✓",
       "rejectedSuccess": "VIP მოთხოვნა უარყოფილია.",
-      "cancelledSuccess": "VIP შეჩერდა."
+      "cancelledSuccess": "VIP შეჩერდა.",
+      "unitNotPublishedNotice": "ეს ობიექტი ჯერ არ გამოქვეყნებულა — ჯერ გადაამოწმეთ და გამოაქვეყნეთ VIP-ის ჩართვამდე.",
+      "reviewAndPublishUnitBtn": "ობიექტის შემოწმება და გამოქვეყნება"
     }
   },
   "smartMatcher": {

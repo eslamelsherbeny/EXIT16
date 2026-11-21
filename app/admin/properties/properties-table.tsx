@@ -1,29 +1,18 @@
 "use client"
 
 import { useEffect, useMemo, useState, useTransition } from "react"
-import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import {
   AlertTriangle,
   CheckCircle2,
-  ClipboardList,
   Download,
   Eye,
   FileText,
-  Handshake,
   Search,
   Trash2,
   X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import {
   downloadExcelCsv,
   downloadOfficialPdfReport,
@@ -51,8 +40,10 @@ import {
   buildSellerWhatsAppMessage,
   cleanPropertyAreaDisplay,
   deriveShortUnitCode,
+  getPropertyHeadline,
   getUploadedDocsList,
   isSelfOfferOnProperty,
+  isUnitCompleteForReview,
   normalizeOfferStatus,
   type ConfirmPropertyAction,
   type SellRequest,
@@ -62,7 +53,9 @@ import {
   PropertyConfirmDialog,
   PropertyDealQuickSummaryDialog,
   PropertyDetailsDialog,
+  PropertyEditDataDialog,
   PropertyOffersLogDialog,
+  PropertyStageTimelineDialog,
 } from "./properties-modals"
 import {
   PropertyActivityBadges,
@@ -134,6 +127,9 @@ export default function PropertiesTable({
 
   function getEffectiveUnitStage(property: SellRequest): string {
     const rawSt = normalizeRowStatus(property.status)
+    if (rawSt === "pending" && !isUnitCompleteForReview(property)) {
+      return "incomplete"
+    }
     if (!isUnitEligibleForOffers(rawSt) || rawSt === "sold") return rawSt
     const validOffers = getValidOffersForUnit(property)
     if (validOffers.some((o) => o.status === "accepted")) return "in_deal"
@@ -190,6 +186,11 @@ export default function PropertiesTable({
   }
 
   const allStatusBadges: Record<string, StatusOptionItem> = {
+    incomplete: {
+      value: "incomplete",
+      label: t.statuses.incomplete,
+      badge: "bg-amber-50 text-amber-950 border-amber-300",
+    },
     pending: {
       value: "pending",
       label: t.statuses.pending,
@@ -225,6 +226,11 @@ export default function PropertiesTable({
       label: t.statuses.sold,
       badge: "bg-[#007a5a] text-white border-[#007a5a]",
     },
+    paused_by_admin: {
+      value: "paused_by_admin",
+      label: t.statuses.paused_by_admin,
+      badge: "bg-rose-50 text-rose-900 border-rose-300",
+    },
     paused_by_seller: {
       value: "paused_by_seller",
       label: t.statuses.paused_by_seller,
@@ -246,6 +252,7 @@ export default function PropertiesTable({
     allStatusBadges.pending,
     allStatusBadges.under_review,
     allStatusBadges.active,
+    allStatusBadges.paused_by_admin,
     allStatusBadges.paused_by_seller,
     allStatusBadges.rejected,
   ]
@@ -280,6 +287,7 @@ export default function PropertiesTable({
   const [detailsProperty, setDetailsProperty] = useState<SellRequest | null>(
     null
   )
+  const [editProperty, setEditProperty] = useState<SellRequest | null>(null)
   const [docsProperty, setDocsProperty] = useState<SellRequest | null>(null)
   const [smartMatchProperty, setSmartMatchProperty] =
     useState<SellRequest | null>(null)
@@ -407,11 +415,16 @@ export default function PropertiesTable({
           const res = await updatePropertyStatusAction(
             target.id,
             confirmAction.newStatus,
-            reason.trim() ? reason.trim() : undefined
+            reason.trim() ? reason.trim() : undefined,
+            {
+              allowWhatsAppDocsVerify: Boolean(
+                confirmAction.allowWhatsAppDocsVerify
+              ),
+            }
           )
           if (res.success) {
             setNotice({
-              text: `${propNotices.statusUpdated} ("${target.project_name || target.name}" → ${getStatusLabel(confirmAction.newStatus)})`,
+              text: `${propNotices.statusUpdated} ("${getPropertyHeadline(target, target.name)}" → ${getStatusLabel(confirmAction.newStatus)})`,
             })
             router.refresh()
           } else {
@@ -421,7 +434,7 @@ export default function PropertiesTable({
           const res = await deletePropertyAction(target.id)
           if (res.success) {
             setNotice({
-              text: `${propNotices.deletedSuccess} ("${target.project_name || target.name}")`,
+              text: `${propNotices.deletedSuccess} ("${getPropertyHeadline(target, target.name)}")`,
             })
             router.refresh()
           } else {
@@ -441,8 +454,8 @@ export default function PropertiesTable({
             setNotice({
               text:
                 confirmAction.promoAction === "activate"
-                  ? `${propNotices.promoActivated} ("${target.project_name || target.name}" - ${resolvedTier === "vip_plus" ? "VIP+" : "SUPER VIP"} · ${confirmAction.days} ${propBadges.dayWord})`
-                  : `${propNotices.promoCancelled} ("${target.project_name || target.name}")`,
+                  ? `${propNotices.promoActivated} ("${getPropertyHeadline(target, target.name)}" - ${resolvedTier === "vip_plus" ? "VIP+" : "SUPER VIP"} · ${confirmAction.days} ${propBadges.dayWord})`
+                  : `${propNotices.promoCancelled} ("${getPropertyHeadline(target, target.name)}")`,
             })
             router.refresh()
           } else {
@@ -488,22 +501,26 @@ export default function PropertiesTable({
 
   const tabCounts = useMemo(() => {
     const counts = {
+      incomplete: 0,
       pending: 0,
       active: 0,
       offers_group: 0,
       in_deal: 0,
       sold: 0,
+      paused_by_admin: 0,
       rejected: 0,
     }
     for (const p of properties) {
       const st = getEffectiveUnitStage(p)
       if (st === "deleted_by_seller") continue
-      if (st === "pending" || st === "under_review") counts.pending++
+      if (st === "incomplete") counts.incomplete++
+      else if (st === "pending" || st === "under_review") counts.pending++
       else if (st === "active") counts.active++
       else if (st === "has_offers" || st === "negotiating")
         counts.offers_group++
       else if (st === "in_deal") counts.in_deal++
       else if (st === "sold") counts.sold++
+      else if (st === "paused_by_admin") counts.paused_by_admin++
       else if (st === "rejected") counts.rejected++
     }
     return counts
@@ -547,6 +564,10 @@ export default function PropertiesTable({
         return currentStatus === "deleted_by_seller"
       if (currentStatus === "deleted_by_seller") return false
 
+      if (statusFilter === "incomplete") return currentStatus === "incomplete"
+      if (statusFilter === "paused_by_admin")
+        return currentStatus === "paused_by_admin"
+
       if (statusFilter === "seller_actions") {
         return (
           currentStatus === "paused_by_seller" ||
@@ -569,9 +590,10 @@ export default function PropertiesTable({
       const stA = getEffectiveUnitStage(a)
       const stB = getEffectiveUnitStage(b)
       const rank = (s: string) => {
-        if (s === "rejected") return 6
-        if (s === "sold") return 5
-        if (s === "paused_by_seller") return 4
+        if (s === "rejected") return 7
+        if (s === "sold") return 6
+        if (s === "paused_by_seller" || s === "paused_by_admin") return 5
+        if (s === "incomplete") return 4
         if (s === "in_deal") return 1
         if (s === "negotiating" || s === "has_offers") return 2
         return 3
@@ -598,7 +620,7 @@ export default function PropertiesTable({
     const resolvedTitle =
       customTitle ||
       (rowsToExport.length === 1
-        ? `${expL.singlePropertyReportTitle} — ${rowsToExport[0].project_name || rowsToExport[0].name} (${deriveShortUnitCode(rowsToExport[0].id, rowsToExport[0].code)})`
+        ? `${expL.singlePropertyReportTitle} — ${getPropertyHeadline(rowsToExport[0], rowsToExport[0].name)} (${deriveShortUnitCode(rowsToExport[0].id, rowsToExport[0].code)})`
         : isPromotionsPage
           ? expL.promotionsReportTitle
           : expL.propertiesReportTitle)
@@ -612,7 +634,7 @@ export default function PropertiesTable({
       {
         header: c.projectName,
         accessor: (p: SellRequest) =>
-          p.project_name || t.table.unspecifiedProject,
+          getPropertyHeadline(p, t.table.unspecifiedProject),
       },
       {
         header: c.developer,
@@ -709,7 +731,7 @@ export default function PropertiesTable({
       [property],
       format,
       `DualDealz_Unit_${uCode}`,
-      `${expL.singlePropertyReportTitle} (${uCode} — ${property.project_name || property.name})`
+      `${expL.singlePropertyReportTitle} (${uCode} — ${getPropertyHeadline(property, property.name)})`
     )
   }
 
@@ -760,6 +782,7 @@ export default function PropertiesTable({
       setOpenMenuId,
       onConfirmAction: setConfirmAction,
       onOpenDetails: setDetailsProperty,
+      onOpenEdit: setEditProperty,
       onOpenDocs: setDocsProperty,
       onOpenSmartMatch: setSmartMatchProperty,
       onOpenOffersLog: setOffersLogProperty,
@@ -819,7 +842,6 @@ export default function PropertiesTable({
         </div>
       )}
 
-      {/* شريط الأدوات: صف علوي للبحث وفلتر المدن والتصدير + صف سفلي للتبويبات بدون أي تداخل */}
       <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-2xs">
         <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center">
           <div className="relative min-w-[220px] flex-1">
@@ -928,6 +950,10 @@ export default function PropertiesTable({
               {[
                 { id: "all", label: `${t.filters.allTab} (${activeCount})` },
                 {
+                  id: "incomplete",
+                  label: `${t.filters.incompleteTab} (${tabCounts.incomplete})`,
+                },
+                {
                   id: "pending",
                   label: `${t.filters.pendingReviewTab} (${tabCounts.pending})`,
                 },
@@ -946,6 +972,10 @@ export default function PropertiesTable({
                 {
                   id: "sold",
                   label: `${t.filters.soldTab} (${tabCounts.sold})`,
+                },
+                {
+                  id: "paused_by_admin",
+                  label: `${t.filters.pausedByAdminTab} (${tabCounts.paused_by_admin})`,
                 },
                 {
                   id: "seller_actions",
@@ -968,7 +998,9 @@ export default function PropertiesTable({
                     statusFilter === tab.id
                       ? tab.id === "deleted"
                         ? "bg-red-600 text-white"
-                        : "bg-[#007a5a] text-white"
+                        : tab.id === "paused_by_admin"
+                          ? "bg-rose-600 text-white"
+                          : "bg-[#007a5a] text-white"
                       : tab.id === "deleted" && deletedBySellerList.length > 0
                         ? "bg-red-50 text-red-700 hover:bg-red-100"
                         : "bg-slate-100 text-slate-600 hover:bg-slate-200"
@@ -1006,7 +1038,6 @@ export default function PropertiesTable({
           </div>
         )}
 
-      {/* 1. عرض الموبايل */}
       <div className="space-y-3.5 md:hidden">
         {filtered.length === 0 ? (
           <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-xs text-slate-500">
@@ -1022,7 +1053,6 @@ export default function PropertiesTable({
         )}
       </div>
 
-      {/* 2. عرض الكمبيوتر */}
       <div className="hidden md:block">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/90 bg-white px-5 py-3.5 shadow-2xs">
           <h2 className="text-sm font-black text-[#0f1d40] sm:text-base">
@@ -1080,80 +1110,22 @@ export default function PropertiesTable({
         )}
       </div>
 
-      {/* نافذة التوجيه عند الضغط على حالة تلقائية (صفقة أو عروض نشطة) */}
-      <Dialog
-        open={Boolean(blockedStageModal)}
-        onOpenChange={(o) => !o && setBlockedStageModal(null)}
-      >
-        <DialogContent
-          dir={dir}
-          className="w-[92vw] max-w-[430px] rounded-2xl p-5 text-start"
-        >
-          {blockedStageModal && (
-            <>
-              <DialogHeader className="pr-9 text-start">
-                <div className="mb-2 flex items-center gap-2.5">
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
-                    <AlertTriangle className="size-4.5" />
-                  </span>
-                  <DialogTitle className="text-sm font-black text-[#0f1d40] sm:text-base">
-                    {blockedDict.title}
-                  </DialogTitle>
-                </div>
-                <DialogDescription className="text-start text-xs leading-relaxed text-slate-600">
-                  {blockedStageModal.stage === "in_deal"
-                    ? String(blockedDict.activeDealDesc || "").replace(
-                        "{unit}",
-                        blockedStageModal.property.project_name ||
-                          blockedStageModal.property.name
-                      )
-                    : String(blockedDict.activeOffersDesc || "").replace(
-                        "{unit}",
-                        blockedStageModal.property.project_name ||
-                          blockedStageModal.property.name
-                      )}
-                </DialogDescription>
-              </DialogHeader>
+      <PropertyStageTimelineDialog
+        dir={dir}
+        t={t}
+        blockedDict={blockedDict}
+        data={blockedStageModal}
+        onClose={() => setBlockedStageModal(null)}
+        onOpenOffersLog={(prop) => setOffersLogProperty(prop)}
+      />
 
-              <DialogFooter className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setBlockedStageModal(null)}
-                  className="h-9 rounded-xl text-xs font-bold"
-                >
-                  {blockedDict.gotItBtn}
-                </Button>
-
-                {blockedStageModal.stage === "in_deal" &&
-                blockedStageModal.offerId ? (
-                  <Link
-                    href={`/admin/deals?offerId=${blockedStageModal.offerId}`}
-                    onClick={() => setBlockedStageModal(null)}
-                    className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-4 text-xs font-extrabold text-white hover:bg-[#006248]"
-                  >
-                    <Handshake className="size-3.5" />
-                    <span>{blockedDict.openDealBtn}</span>
-                  </Link>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const targetProp = blockedStageModal.property
-                      setBlockedStageModal(null)
-                      setOffersLogProperty(targetProp)
-                    }}
-                    className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[#0f1d40] px-4 text-xs font-extrabold text-white hover:bg-[#1e293b]"
-                  >
-                    <ClipboardList className="size-3.5 text-emerald-300" />
-                    <span>{blockedDict.openOffersBtn}</span>
-                  </button>
-                )}
-              </DialogFooter>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+      <PropertyEditDataDialog
+        dir={dir}
+        t={t}
+        property={editProperty}
+        onClose={() => setEditProperty(null)}
+        onNotice={(msg) => setNotice(msg)}
+      />
 
       <PropertyOffersLogDialog
         dir={dir}
@@ -1189,6 +1161,7 @@ export default function PropertiesTable({
         docsList={modalDocsList}
         onClose={() => setDocsProperty(null)}
         onOpenFullDetails={(prop) => setDetailsProperty(prop)}
+        onNotice={(msg) => setNotice(msg)}
       />
 
       <UnitSmartMatchModal
@@ -1208,6 +1181,7 @@ export default function PropertiesTable({
         setReason={setReason}
         pending={pending}
         getStatusLabel={getStatusLabel}
+        onOpenDocs={(prop) => setDocsProperty(prop)}
         onClose={closeConfirmModal}
         onExecute={executeConfirmedAction}
       />
@@ -1220,6 +1194,8 @@ export default function PropertiesTable({
         whatsappBtnLabel={dict.admin?.leads?.whatsappBtn || ""}
         detailsProperty={detailsProperty}
         onClose={() => setDetailsProperty(null)}
+        onOpenEdit={(prop) => setEditProperty(prop)}
+        onOpenDocs={(prop) => setDocsProperty(prop)}
         unitCur={unitCur}
         waMessage={
           detailsProperty

@@ -2,17 +2,13 @@ import { Suspense } from "react"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { createServerClient } from "@supabase/ssr"
-import { sanitizeGeorgiaProjectTitle } from "@/lib/offer-helpers"
 import {
   extractUserIdFromCookie,
   parseAndVerifySessionCookie,
 } from "@/lib/session-security"
 import { getServerI18n } from "@/lib/get-server-dictionary"
 import type { SellRequest } from "../properties/properties-helpers"
-import {
-  PromotionsManager,
-  type BoostRequestRow,
-} from "./promotions-manager"
+import { PromotionsManager, type BoostRequestRow } from "./promotions-manager"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
@@ -99,7 +95,7 @@ export default async function AdminPromotionsPage() {
       ...p,
       code: p.code || meta.code || null,
       status: normalizeAdminStatus(p.status),
-      project_name: sanitizeGeorgiaProjectTitle(p.project_name),
+      project_name: p.project_name ? String(p.project_name).trim() : null,
       area: p.area || meta.area || null,
       unit_type: p.unit_type || meta.unit_type || null,
       size: p.size ?? meta.size ?? null,

@@ -42,6 +42,10 @@ import {
   isNonGeorgianLegacyArea,
   toMonthlyEquivalent,
 } from '@/lib/smart-matcher'
+import {
+  getUnifiedUnitCode,
+  getUnifiedUnitHeadline,
+} from '@/lib/unit-display-helpers'
 
 export type BuyerRequestItem = {
   id: string
@@ -228,8 +232,11 @@ function PurchasedUnitsSection({
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="rounded-md bg-[#0a1122] px-2 py-0.5 font-mono text-[10px] font-bold text-white">
-                    {u.code}
+                  <span
+                    dir="ltr"
+                    className="rounded-md bg-[#0a1122] px-2 py-0.5 font-mono text-[10px] font-bold text-white"
+                  >
+                    {getUnifiedUnitCode(u.id, u.code)}
                   </span>
                   <span className="inline-flex items-center gap-1 rounded-md bg-[#007a5a] px-2 py-0.5 text-[10px] font-extrabold text-white">
                     <CheckCircle2 className="size-3" />
@@ -516,17 +523,8 @@ export function BuyerDashboard({
           u.unit_type || meta.unit_type || localizedUnitTypes[0] || ''
         const unitCurrency = getCurrencySymbol('GE', locale)
 
-        const dbCode = (u as any).code || meta.code
-        const numericCode = String(u.id || '')
-          .replace(/\D/g, '')
-          .slice(0, 5)
-        const fallbackCode = String(u.id || '')
-          .slice(0, 5)
-          .toUpperCase()
-        const code =
-          dbCode && String(dbCode).trim()
-            ? String(dbCode).trim()
-            : `U-${numericCode.length >= 4 ? numericCode : fallbackCode}`
+        const code = getUnifiedUnitCode(u.id, (u as any).code || meta.code)
+        const title = getUnifiedUnitHeadline(u, t.defaultUnitTitle)
 
         const geoEval = evaluateGeorgiaAreaProximity(rawAreaId, bAreas)
         const smartRes = calculateSmartMatch(
@@ -577,7 +575,7 @@ export function BuyerDashboard({
         return {
           id: String(u.id),
           code,
-          title: u.project_name || t.defaultUnitTitle,
+          title,
           developer: u.developer_name || t.defaultDeveloper,
           area: rawAreaId,
           localizedArea,
@@ -802,7 +800,7 @@ export function BuyerDashboard({
   const siteOrigin =
     typeof window !== 'undefined'
       ? window.location.origin
-      : 'https://exit-16.vercel.app'
+      : 'https://dualdealz.com'
   const targetBuyerUserId = buyReq?.user_id || currentUserId
   const adminVerifyLeadLink = `${siteOrigin}/api/verify?u=${encodeURIComponent(targetBuyerUserId)}&leadId=${encodeURIComponent(buyReq?.id || '')}`
 
@@ -1060,7 +1058,6 @@ export function BuyerDashboard({
           )}
         </section>
 
-        {/* قسم ترشيحات مستشار المبيعات لك (يظهر تلقائياً في الصدارة عند وجود وحدات مرشحة يدوياً من السيلز) */}
         {advisorPickedUnits.length > 0 && (
           <section className="mt-6 rounded-[22px] border-2 border-amber-300/90 bg-amber-50/40 p-4 text-start shadow-xs sm:p-6">
             <div className="mb-4 flex items-start gap-3 border-b border-amber-200/70 pb-3.5">

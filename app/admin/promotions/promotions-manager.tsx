@@ -14,6 +14,7 @@ import {
   Flame,
   Landmark,
   Loader2,
+  Lock,
   Search,
   Sparkles,
   Star,
@@ -39,6 +40,7 @@ import { useTranslation } from "@/lib/i18n"
 import {
   cleanPropertyAreaDisplay,
   deriveShortUnitCode,
+  getPropertyHeadline,
   type SellRequest,
 } from "../properties/properties-helpers"
 
@@ -68,6 +70,12 @@ function getRemainingDays(untilIso?: string | null, fallbackDays = 1): number {
   return Math.max(1, fallbackDays)
 }
 
+function isUnitLiveForBoost(unit?: SellRequest | null): boolean {
+  if (!unit) return false
+  const st = String(unit.status || "").trim().toLowerCase()
+  return st === "active" || st === "offer_received"
+}
+
 export function PromotionsManager({
   properties,
   boostRequests,
@@ -82,6 +90,7 @@ export function PromotionsManager({
   const propDict = ((dict.admin as Record<string, any>)?.propertiesAdmin ||
     {}) as Record<string, any>
   const propBadges = (propDict.badges as Record<string, string>) || {}
+  const propStatuses = (propDict.statuses as Record<string, string>) || {}
 
   const [tab, setTab] = useState<"pending" | "active" | "history" | "manual">(
     "pending"
@@ -112,7 +121,6 @@ export function PromotionsManager({
     [properties]
   )
 
-  // الطلبات المعلّقة من boost_requests + أي طلبات قديمة على sell_requests ليس لها سجل في boost_requests
   const pendingBoostRows = useMemo(
     () =>
       boostRequests.filter(
@@ -160,15 +168,11 @@ export function PromotionsManager({
     [boostRequests]
   )
 
-  // الوحدات المؤهلة للتمييز اليدوي: الوحدات النشطة والمنشورة فقط (ممنوع تمييز وحدة قيد المراجعة أو مباعة)
   const eligibleManualUnits = useMemo(
     () =>
-      properties.filter((p) => {
-        const st = String(p.status || "").toLowerCase()
-        return (
-          (st === "active" || st === "offer_received") && !Boolean(p.is_featured)
-        )
-      }),
+      properties.filter(
+        (p) => isUnitLiveForBoost(p) && !Boolean(p.is_featured)
+      ),
     [properties]
   )
 
@@ -177,6 +181,32 @@ export function PromotionsManager({
     !q || haystack.toLowerCase().includes(q)
 
   const pendingTotalCount = pendingBoostRows.length + legacyPendingUnits.length
+
+  function renderUnitStatusBadge(unit?: SellRequest | null) {
+    if (!unit) return null
+    const st = String(unit.status || "pending").trim().toLowerCase()
+    const isLive = isUnitLiveForBoost(unit)
+    const label = propStatuses[st] || st
+
+    return (
+      <span
+        className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10.5px] font-extrabold ${
+          isLive
+            ? "border-emerald-200 bg-[#eaf8f2] text-[#007a5a]"
+            : st === "paused_by_admin" || st === "rejected"
+              ? "border-rose-200 bg-rose-50 text-rose-800"
+              : "border-amber-300 bg-amber-50 text-amber-900"
+        }`}
+      >
+        {isLive ? (
+          <CheckCircle2 className="size-3 shrink-0" />
+        ) : (
+          <Clock className="size-3 shrink-0" />
+        )}
+        <span>{label}</span>
+      </span>
+    )
+  }
 
   function handleApproveBoostRow(req: BoostRequestRow) {
     setBusyId(req.id)
@@ -342,7 +372,6 @@ export function PromotionsManager({
         </div>
       )}
 
-      {/* البحث والتبويبات */}
       <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-2xs sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="relative w-full sm:max-w-xs sm:flex-1">
           <Search className="pointer-events-none absolute top-1/2 end-3 size-4 -translate-y-1/2 text-slate-400" />
@@ -358,7 +387,10 @@ export function PromotionsManager({
         <div className="flex flex-wrap gap-1.5">
           {(
             [
-              { id: "pending", label: `${pm.tabPending} (${pendingTotalCount})` },
+              {
+                id: "pending",
+                label: `${pm.tabPending} (${pendingTotalCount})`,
+              },
               {
                 id: "active",
                 label: `${pm.tabActive} (${activeFeaturedUnits.length})`,
@@ -389,7 +421,6 @@ export function PromotionsManager({
         </div>
       </div>
 
-      {/* 1. طلبات بانتظار التفعيل / مراجعة الدفع */}
       {tab === "pending" && (
         <div className="space-y-3">
           {pendingTotalCount === 0 ? (
@@ -410,26 +441,35 @@ export function PromotionsManager({
                   const uCode =
                     req.unit_code ||
                     (unit ? deriveShortUnitCode(unit.id, unit.code) : "—")
+                  const unitTitle = unit
+                    ? getPropertyHeadline(
+                        unit,
+                        propDict.table?.unspecifiedProject
+                      )
+                    : uCode
                   const isFlittPaid = req.status === "paid_pending_approval"
+                  const canActivateNow = isUnitLiveForBoost(unit)
                   const isBusy = isPending && busyId === req.id
 
                   return (
                     <div
                       key={req.id}
                       className={`rounded-2xl border bg-white p-4 shadow-2xs ${
-                        isFlittPaid
-                          ? "border-2 border-emerald-300"
-                          : "border-amber-200"
+                        !canActivateNow
+                          ? "border-2 border-amber-300"
+                          : isFlittPaid
+                            ? "border-2 border-emerald-300"
+                            : "border-amber-200"
                       }`}
                     >
                       <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1 space-y-1">
+                        <div className="min-w-0 flex-1 space-y-1.5">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="rounded-md bg-[#0f1d40] px-2 py-0.5 font-mono text-[10.5px] font-bold text-white">
                               {uCode}
                             </span>
                             <h3 className="text-sm font-black text-[#0f1d40]">
-                              {unit?.project_name || uCode}
+                              {unitTitle}
                             </h3>
                             <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-[10.5px] font-black text-amber-900">
                               <Sparkles className="size-3" />
@@ -438,6 +478,7 @@ export function PromotionsManager({
                                 {propBadges.dayWord}
                               </span>
                             </span>
+                            {renderUnitStatusBadge(unit)}
                           </div>
 
                           <p className="text-xs font-semibold text-slate-500">
@@ -487,6 +528,22 @@ export function PromotionsManager({
                         </div>
                       </div>
 
+                      {!canActivateNow && unit && (
+                        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300 bg-amber-50/90 px-3.5 py-2.5 text-xs">
+                          <div className="flex items-center gap-2 font-bold text-amber-950">
+                            <Lock className="size-4 shrink-0 text-amber-600" />
+                            <span>{pm.unitNotPublishedNotice}</span>
+                          </div>
+                          <Link
+                            href={`/admin/properties?unitId=${unit.id}`}
+                            className="inline-flex h-7.5 items-center gap-1 rounded-lg bg-[#0f1d40] px-3 text-[11px] font-extrabold text-white hover:bg-[#1e293b]"
+                          >
+                            <ExternalLink className="size-3 text-emerald-300" />
+                            <span>{pm.reviewAndPublishUnitBtn}</span>
+                          </Link>
+                        </div>
+                      )}
+
                       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
                         <span
                           dir="ltr"
@@ -513,7 +570,7 @@ export function PromotionsManager({
                               setRejectTarget({
                                 kind: "boost_row",
                                 id: req.id,
-                                title: `${unit?.project_name || uCode} (${req.package_tier})`,
+                                title: `${unitTitle} (${req.package_tier})`,
                               })
                             }
                             className="inline-flex h-8.5 items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 text-xs font-extrabold text-red-700 hover:bg-red-100 disabled:opacity-50"
@@ -524,14 +581,16 @@ export function PromotionsManager({
 
                           <button
                             type="button"
-                            disabled={isBusy}
+                            disabled={isBusy || !canActivateNow}
                             onClick={() => handleApproveBoostRow(req)}
-                            className="inline-flex h-8.5 items-center gap-1.5 rounded-xl bg-[#007a5a] px-4 text-xs font-extrabold text-white shadow-2xs hover:bg-[#006248] disabled:opacity-50"
+                            className="inline-flex h-8.5 items-center gap-1.5 rounded-xl bg-[#007a5a] px-4 text-xs font-extrabold text-white shadow-2xs hover:bg-[#006248] disabled:cursor-not-allowed disabled:opacity-45"
                           >
                             {isBusy ? (
                               <Loader2 className="size-3.5 animate-spin" />
-                            ) : (
+                            ) : canActivateNow ? (
                               <Check className="size-3.5" />
+                            ) : (
+                              <Lock className="size-3.5" />
                             )}
                             <span>{pm.activateBtn}</span>
                           </button>
@@ -549,8 +608,13 @@ export function PromotionsManager({
                 )
                 .map((unit) => {
                   const uCode = deriveShortUnitCode(unit.id, unit.code)
+                  const unitTitle = getPropertyHeadline(
+                    unit,
+                    propDict.table?.unspecifiedProject
+                  )
                   const tierLabel =
                     unit.boost_tier === "vip_plus" ? "+VIP" : "SUPER VIP"
+                  const canActivateNow = isUnitLiveForBoost(unit)
                   const isBusy = isPending && busyId === unit.id
 
                   return (
@@ -559,14 +623,13 @@ export function PromotionsManager({
                       className="rounded-2xl border border-amber-200 bg-white p-4 shadow-2xs"
                     >
                       <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1 space-y-1">
+                        <div className="min-w-0 flex-1 space-y-1.5">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="rounded-md bg-[#0f1d40] px-2 py-0.5 font-mono text-[10.5px] font-bold text-white">
                               {uCode}
                             </span>
                             <h3 className="text-sm font-black text-[#0f1d40]">
-                              {unit.project_name ||
-                                propDict.table?.unspecifiedProject}
+                              {unitTitle}
                             </h3>
                             <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-[10.5px] font-black text-amber-900">
                               <Sparkles className="size-3" />
@@ -575,6 +638,7 @@ export function PromotionsManager({
                                 {propBadges.dayWord}
                               </span>
                             </span>
+                            {renderUnitStatusBadge(unit)}
                           </div>
                           <p className="text-xs font-semibold text-slate-500">
                             {pm.sellerLabel}:{" "}
@@ -594,6 +658,22 @@ export function PromotionsManager({
                         </span>
                       </div>
 
+                      {!canActivateNow && (
+                        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300 bg-amber-50/90 px-3.5 py-2.5 text-xs">
+                          <div className="flex items-center gap-2 font-bold text-amber-950">
+                            <Lock className="size-4 shrink-0 text-amber-600" />
+                            <span>{pm.unitNotPublishedNotice}</span>
+                          </div>
+                          <Link
+                            href={`/admin/properties?unitId=${unit.id}`}
+                            className="inline-flex h-7.5 items-center gap-1 rounded-lg bg-[#0f1d40] px-3 text-[11px] font-extrabold text-white hover:bg-[#1e293b]"
+                          >
+                            <ExternalLink className="size-3 text-emerald-300" />
+                            <span>{pm.reviewAndPublishUnitBtn}</span>
+                          </Link>
+                        </div>
+                      )}
+
                       <div className="mt-3 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-3">
                         <button
                           type="button"
@@ -602,7 +682,7 @@ export function PromotionsManager({
                             setRejectTarget({
                               kind: "legacy_unit",
                               id: unit.id,
-                              title: `${unit.project_name || uCode} (${tierLabel})`,
+                              title: `${unitTitle} (${tierLabel})`,
                             })
                           }
                           className="inline-flex h-8.5 items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 text-xs font-extrabold text-red-700 hover:bg-red-100 disabled:opacity-50"
@@ -613,14 +693,16 @@ export function PromotionsManager({
 
                         <button
                           type="button"
-                          disabled={isBusy}
+                          disabled={isBusy || !canActivateNow}
                           onClick={() => handleApproveLegacyUnit(unit)}
-                          className="inline-flex h-8.5 items-center gap-1.5 rounded-xl bg-[#007a5a] px-4 text-xs font-extrabold text-white hover:bg-[#006248] disabled:opacity-50"
+                          className="inline-flex h-8.5 items-center gap-1.5 rounded-xl bg-[#007a5a] px-4 text-xs font-extrabold text-white hover:bg-[#006248] disabled:cursor-not-allowed disabled:opacity-45"
                         >
                           {isBusy ? (
                             <Loader2 className="size-3.5 animate-spin" />
-                          ) : (
+                          ) : canActivateNow ? (
                             <Check className="size-3.5" />
+                          ) : (
+                            <Lock className="size-3.5" />
                           )}
                           <span>{pm.activateBtn}</span>
                         </button>
@@ -633,7 +715,6 @@ export function PromotionsManager({
         </div>
       )}
 
-      {/* 2. الإعلانات المميزة النشطة حالياً مع عداد الأيام المتبقية */}
       {tab === "active" && (
         <div className="space-y-3">
           {activeFeaturedUnits.length === 0 ? (
@@ -671,8 +752,10 @@ export function PromotionsManager({
                           target="_blank"
                           className="text-sm font-black text-[#0f1d40] hover:text-[#007a5a] hover:underline"
                         >
-                          {unit.project_name ||
-                            propDict.table?.unspecifiedProject}
+                          {getPropertyHeadline(
+                            unit,
+                            propDict.table?.unspecifiedProject
+                          )}
                         </Link>
                         <span
                           className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10.5px] font-black ${
@@ -688,6 +771,7 @@ export function PromotionsManager({
                           )}
                           <span>{isVipPlus ? "+VIP" : "SUPER VIP"}</span>
                         </span>
+                        {renderUnitStatusBadge(unit)}
                       </div>
 
                       <p className="text-xs font-semibold text-slate-500">
@@ -741,7 +825,6 @@ export function PromotionsManager({
         </div>
       )}
 
-      {/* 3. السجل التاريخي (المفعّلة والمرفوضة) */}
       {tab === "history" && (
         <div className="space-y-2.5">
           {historyBoostRows.length === 0 ? (
@@ -773,7 +856,7 @@ export function PromotionsManager({
                               : "—")}
                         </span>
                         <strong className="text-[#0f1d40]">
-                          {unit?.project_name || "—"}
+                          {unit ? getPropertyHeadline(unit, "—") : "—"}
                         </strong>
                         <span className="font-bold text-slate-500">
                           {req.package_tier} · {req.duration_days}{" "}
@@ -817,7 +900,6 @@ export function PromotionsManager({
         </div>
       )}
 
-      {/* 4. التمييز اليدوي (للوحدات النشطة والمنشورة فقط) */}
       {tab === "manual" && (
         <div className="space-y-2.5">
           <div className="rounded-xl border border-blue-100 bg-blue-50/70 px-4 py-2.5 text-xs font-semibold text-blue-950">
@@ -842,8 +924,10 @@ export function PromotionsManager({
                         {uCode}
                       </span>
                       <strong className="text-sm text-[#0f1d40]">
-                        {unit.project_name ||
-                          propDict.table?.unspecifiedProject}
+                        {getPropertyHeadline(
+                          unit,
+                          propDict.table?.unspecifiedProject
+                        )}
                       </strong>
                     </div>
                     <p className="mt-0.5 text-[11px] font-semibold text-slate-500">
@@ -870,7 +954,6 @@ export function PromotionsManager({
         </div>
       )}
 
-      {/* نافذة رفض / إلغاء طلب التمييز */}
       <Dialog
         open={Boolean(rejectTarget)}
         onOpenChange={(o) => !o && setRejectTarget(null)}
@@ -928,7 +1011,6 @@ export function PromotionsManager({
         </DialogContent>
       </Dialog>
 
-      {/* نافذة التمييز اليدوي */}
       <Dialog
         open={Boolean(manualModalUnit)}
         onOpenChange={(o) => !o && setManualModalUnit(null)}
@@ -944,7 +1026,7 @@ export function PromotionsManager({
                   {propDict.modals?.activatePromoTitle}
                 </DialogTitle>
                 <DialogDescription className="text-start text-xs text-slate-600">
-                  {manualModalUnit.project_name || manualModalUnit.name}
+                  {getPropertyHeadline(manualModalUnit, manualModalUnit.name)}
                 </DialogDescription>
               </DialogHeader>
 

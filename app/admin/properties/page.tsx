@@ -3,7 +3,6 @@ import { cookies } from "next/headers"
 import { createServerClient } from "@supabase/ssr"
 import { getUsersVerificationMapAction } from "@/actions/submit-forms"
 import { getServerI18n } from "@/lib/get-server-dictionary"
-import { sanitizeGeorgiaProjectTitle } from "@/lib/offer-helpers"
 import type { MatchableBuyer } from "@/lib/smart-matcher"
 import PropertiesTable, { type SellRequest } from "./properties-table"
 
@@ -52,10 +51,7 @@ export default async function PropertiesPage() {
         .delete()
         .in("property_id", expiredIds)
 
-      await supabase
-        .from("sell_requests")
-        .delete()
-        .in("id", expiredIds)
+      await supabase.from("sell_requests").delete().in("id", expiredIds)
     }
   } catch {}
 
@@ -85,8 +81,9 @@ export default async function PropertiesPage() {
           : {}
       return {
         ...p,
+        code: p.code || meta.code || null,
         status: normalizeAdminUnitStatus(p.status),
-        project_name: sanitizeGeorgiaProjectTitle(p.project_name),
+        project_name: p.project_name ? String(p.project_name).trim() : null,
         developer_name: p.developer_name || meta.developer_name || null,
         area: p.area || meta.area || null,
         exact_street: p.exact_street || meta.exact_street || null,

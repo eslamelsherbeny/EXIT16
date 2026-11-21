@@ -1,7 +1,7 @@
 {
   "brand": {
-    "name": "Aqar",
-    "exit": "Exit"
+    "name": "Dual",
+    "exit": "Dealz"
   },
   "navbar": {
     "sell": "Продать объект",
@@ -329,7 +329,10 @@
       "bankTransferBtnTemplate": "Банковский перевод {amt} ₾",
       "boostRecordedMsgTemplate": "Заявка на продвижение ({tier} — {amt} ₾ на {days} дн.){codePart} сохранена и будет активирована после проверки оплаты.",
       "boostRecordedCodePart": " для объекта {code}",
-      "coversLabelTemplate": "Покрывает пакет {tier} на {days} {dayWord}"
+      "coversLabelTemplate": "Покрывает пакет {tier} на {days} {dayWord}",
+      "homeBoostCtaLoggedInTemplate": "Выбрать объект и продвинуть ({amount} ₾)",
+      "homeBoostCtaGuestTemplate": "Войти и продвинуть объект ({amount} ₾)",
+      "homeBoostNote": "Продвижение привязывается к вашему объекту в личном кабинете после проверки данных и документов."
     },
     "carouselTitles": {
       "categoriesTitle": "Какой объект переуступки вы ищете?",
@@ -351,7 +354,7 @@
   "footer": {
     "description": "Платформа переуступки недвижимости в рассрочку без наценки — продавец возвращает вложенные наличные, покупатель получает старую цену договора, а мы сопровождаем сделку на каждом этапе",
     "phone": "+201018595959",
-    "email": "info@aqarexit.com",
+    "email": "info@dualdealz.com",
     "platform": "Платформа",
     "company": "Компания",
     "legal": "Правовая информация",
@@ -1670,7 +1673,27 @@
       "flittRedirectingBtn": "Переход на защищенную оплату Flitt...",
       "flittPaymentReturnedNotice": "Возврат со страницы оплаты (Код: {ref}) — VIP-продвижение активируется автоматически после подтверждения платежа.",
       "flittNotConfiguredErr": "Онлайн-оплата картой (Flitt) сейчас на финальной активации — попробуйте позже или напишите в поддержку.",
-      "flittInitFailedErr": "Не удалось открыть страницу оплаты картой. Пожалуйста, попробуйте снова через минуту."
+      "flittInitFailedErr": "Не удалось открыть страницу оплаты картой. Пожалуйста, попробуйте снова через минуту.",
+      "copyUnitCodeTitle": "Скопировать код объекта",
+      "pausedByAdminTitle": "Показ объекта временно приостановлен администрацией",
+      "pausedByAdminDefaultDesc": "Администрация временно приостановила публикацию объекта. Свяжитесь с нами в WhatsApp для уточнения деталей.",
+      "contactAdminWaBtn": "Связаться с администрацией в WhatsApp",
+      "docsWaVerifiedTag": "Проверено через WhatsApp ✓",
+      "cardDocumentsWaVerified": "Проверено WhatsApp ✓",
+      "statusPausedByAdminBadge": "Приостановлено админом",
+      "statusPausedByAdminHeadline": "Показ объекта временно приостановлен администрацией — свяжитесь с нами",
+      "boostBookedDefaultMsg": "Заявка на продвижение оформлена (код: {ref}). Отправьте код в WhatsApp для подтверждения и активации.",
+      "boostErrorFallback": "Не удалось оформить заявку сейчас.",
+      "boostUnexpectedErr": "Произошла ошибка, попробуйте еще раз.",
+      "boostPriorityCtaTemplate": "Забронировать VIP + Приоритетная проверка ({amount} ₾)",
+      "boostConfirmCtaTemplate": "Подтвердить и забронировать ({amount} ₾ — {tier})",
+      "boostIncompleteTitle": "Сначала заполните данные, фото и документы объекта",
+      "boostIncompleteDesc": "Вы можете ознакомиться с тарифами здесь. Как только карточка объекта будет заполнена, продвижение станет доступно.",
+      "boostIncompleteCtaBtn": "Заполните данные и документы для продвижения",
+      "boostPendingPriorityTitle": "⚡ Приоритетная проверка + Раннее бронирование VIP",
+      "boostPendingPriorityDesc": "Ваш объект заполнен и ждет проверки. Забронируйте VIP сейчас для приоритета — дни продвижения начнут считаться только после публикации.",
+      "boostSubmittingBtn": "Отправка заявки...",
+      "boostFooterProviders": "TBC Bank · Bank of Georgia · Быстрая активация WhatsApp"
     },
     "buyer": {
       "popularAreas": [
@@ -2570,7 +2593,7 @@
       "whatsappValue": "+201018595959",
       "whatsappDetail": "Самый быстрый способ связи",
       "emailTitle": "Email",
-      "emailValue": "info@aqarexit.com",
+      "emailValue": "info@dualdealz.com",
       "hoursTitle": "Часы работы",
       "hoursValue": "Суббота – Четверг, 10:00 – 21:00",
       "hoursDetail": "По каирскому времени",
@@ -2786,7 +2809,7 @@
     },
     "login": {
       "title": "Вход в кабинет",
-      "subtitle": "С возвращением на платформу Darak",
+      "subtitle": "С возвращением на платформу DualDealz",
       "verifiedBanner": "Ваш аккаунт успешно подтвержден! Теперь вы можете войти.",
       "identifierLabel": "Email или номер телефона",
       "identifierPlaceholder": "name@example.com или 01xxxxxxxxx",
@@ -2802,7 +2825,7 @@
     },
     "register": {
       "title": "Создание аккаунта",
-      "subtitle": "Начните работу с недвижимостью на платформе Darak",
+      "subtitle": "Начните работу с недвижимостью на платформе DualDealz",
       "nameLabel": "Имя",
       "namePlaceholder": "Полное имя",
       "countryLabel": "Страна проживания",
@@ -3102,7 +3125,7 @@
     "buyCta": "Смотреть доступные объекты"
   },
   "systemPages": {
-    "metaTitle": "Darak | Умная платформа недвижимости",
+    "metaTitle": "DualDealz | Умная платформа недвижимости",
     "metaDesc": "Комплексная платформа для покупки, продажи и инвестиций в недвижимость без наценки.",
     "errorEyebrow": "Произошла ошибка",
     "errorTitle": "Давайте попробуем еще раз",
@@ -3147,14 +3170,14 @@
       "accountNotFound": "Аккаунт не найден.",
       "emailSenderName": "DualDealz",
       "dearUser": "Уважаемый пользователь",
-      "loginEmailSubject": "Уведомление безопасности: вход в ваш аккаунт Darak",
+      "loginEmailSubject": "Уведомление безопасности: вход в ваш аккаунт DualDealz",
       "loginEmailGreeting": "С возвращением,",
-      "loginEmailBody": "Выполнен успешный вход в ваш личный кабинет на платформе Darak.",
-      "welcomeEmailSubject": "Добро пожаловать в Darak — Подтверждение аккаунта",
-      "welcomeEmailGreeting": "Добро пожаловать в семью Darak,",
+      "loginEmailBody": "Выполнен успешный вход в ваш личный кабинет на платформе DualDealz.",
+      "welcomeEmailSubject": "Добро пожаловать в DualDealz — Подтверждение аккаунта",
+      "welcomeEmailGreeting": "Добро пожаловать в семью DualDealz,",
       "welcomeEmailBody": "Ваш аккаунт успешно создан. Чтобы подтвердить email и верифицировать профиль, нажмите на кнопку ниже:",
       "welcomeEmailBtn": "Подтвердить аккаунт сейчас",
-      "otpEmailSubject": "Код восстановления пароля - Darak",
+      "otpEmailSubject": "Код восстановления пароля - DualDealz",
       "otpEmailGreeting": "Здравствуйте,",
       "otpEmailBody": "Используйте следующий код подтверждения для установки нового пароля:"
     },
@@ -3215,7 +3238,11 @@
       "unitLockedByDeal": "Нельзя приостановить, изменить или удалить объект после принятия предложения и начала переоформления.",
       "allDocsReadyNotifTitle": "Все документы и фото объекта загружены",
       "closedByAccountDeletionNote": "Этот объект был окончательно закрыт из-за запроса на удаление аккаунта. Чтобы разместить объект снова, добавьте новое объявление.",
-      "boostOnlyActiveUnits": "Продвигать можно только одобренные и опубликованные на витрине объекты."
+      "boostOnlyActiveUnits": "Продвигать можно только одобренные и опубликованные на витрине объекты.",
+      "boostCompleteUnitFirstError": "Сначала заполните данные, фото и документы объекта перед запросом VIP.",
+      "boostPriorityTag": "⚡ [Приоритетная проверка]",
+      "boostPendingUnitSuccess": "Заявка на VIP ({ref}) оформлена с приоритетной проверкой — дни начнут считаться после публикации.",
+      "boostRecordedSimpleSuccess": "Заявка на продвижение успешно оформлена (код: {ref})."
     },
     "admin": {
       "unauthorizedLogin": "Нет доступа: пожалуйста, войдите под аккаунтом администратора.",
@@ -3224,7 +3251,7 @@
       "adminSuspended": "Этот административный аккаунт приостановлен.",
       "insufficientRole": "У вашего аккаунта недостаточно прав для выполнения этого действия.",
       "unauthorizedAction": "Нет прав для выполнения этого действия.",
-      "adminSenderName": "Администрация платформы Darak",
+      "adminSenderName": "Администрация платформы DualDealz",
       "greetingWord": "Здравствуйте,",
       "dearClient": "Уважаемый клиент",
       "defaultProjectWord": "ваш проект",
@@ -3248,22 +3275,22 @@
       "notifRejectedReasonPrefix": "Пожалуйста, проверьте данные объекта",
       "notifRejectedMsg": "Пожалуйста, проверьте и обновите данные вашего объекта для публикации:",
       "matchBuyerTitle": "Новый объект под ваш запрос в районе",
-      "emailActiveSubject": "Ваш объект одобрен и опубликован на платформе Darak 🎉",
+      "emailActiveSubject": "Ваш объект одобрен и опубликован на платформе DualDealz 🎉",
       "emailActiveBody": "Рады сообщить, что ваш объект прошел проверку и опубликован для покупателей в проекте",
-      "emailOfferSubject": "Новое предложение о покупке вашего объекта на Darak! 💰",
+      "emailOfferSubject": "Новое предложение о покупке вашего объекта на DualDealz! 💰",
       "emailOfferBody": "Поступило серьезное предложение о покупке вашего объекта. Персональный менеджер свяжется с вами по проекту",
-      "emailTransferSubject": "Начало процедуры переуступки договора - Darak 📄",
+      "emailTransferSubject": "Начало процедуры переуступки договора - DualDealz 📄",
       "emailTransferBody": "Ваш объект перешел на стадию проверки документов и переоформления договора в проекте",
-      "emailSoldSubject": "Поздравляем! Продажа вашего объекта через Darak завершена 🏆",
+      "emailSoldSubject": "Поздравляем! Продажа вашего объекта через DualDealz завершена 🏆",
       "emailSoldBody": "Процедура выхода и переуступки договора успешно завершена по вашему объекту в проекте",
-      "emailRejectedSubject": "Обновление по вашей заявке на размещение объекта в Darak",
+      "emailRejectedSubject": "Обновление по вашей заявке на размещение объекта в DualDealz",
       "emailRejectedBody": "К сожалению, мы пока не смогли опубликовать ваш объект в проекте",
       "updateLeadFailed": "Не удалось обновить статус заявки.",
       "deleteLeadFailed": "Не удалось удалить заявку покупателя.",
       "leadUpdateNotifTitle": "Обновление по вашей заявке на покупку 🌟",
       "leadContactedNotifMsg": "Отдел продаж рассмотрел вашу заявку и связывается с вами.",
       "leadQualifiedNotifMsg": "В вашем кабинете готов список проверенных объектов под ваш бюджет.",
-      "leadClosedNotifMsg": "Поздравляем! Переуступка договора через платформу Darak успешно завершена.",
+      "leadClosedNotifMsg": "Поздравляем! Переуступка договора через платформу DualDealz успешно завершена.",
       "updateInvestorFailed": "Не удалось обновить статус инвестора в базе данных.",
       "updateRoleFailed": "Не удалось обновить роль пользователя в базе данных.",
       "fillAllUserFields": "Пожалуйста, заполните все поля и укажите пароль не менее 8 символов.",
@@ -3274,8 +3301,8 @@
       "wrongCurrentPassword": "Введенный текущий пароль недействителен.",
       "profileUpdatedSuccess": "Данные вашего профиля успешно обновлены.",
       "profileUpdatedCheckEmail": "Данные обновлены. Проверьте новую почту для подтверждения аккаунта.",
-      "confirmNewEmailSubject": "Darak — Подтверждение нового Email",
-      "confirmNewEmailBody": "Вы изменили email на платформе Darak. Пожалуйста, подтвердите новый адрес по ссылке ниже:",
+      "confirmNewEmailSubject": "DualDealz — Подтверждение нового Email",
+      "confirmNewEmailBody": "Вы изменили email на платформе DualDealz. Пожалуйста, подтвердите новый адрес по ссылке ниже:",
       "confirmNewEmailBtn": "Подтвердить Email",
       "enterCurrentAndNewPass": "Введите текущий и новый пароль (минимум 8 символов).",
       "changePassFailed": "Не удалось изменить пароль.",
@@ -3291,7 +3318,30 @@
       "leadHasActiveDealBlocked": "Нельзя изменить статус, пока у покупателя есть активная сделка; сначала закройте её в разделе Сделки.",
       "leadHasActiveOffersBlocked": "Нельзя изменить статус при наличии ({count}) активных офферов; сначала отзовите их.",
       "unitSoldLocked": "Объект продан, его статус нельзя изменить вручную.",
-      "unitHasActiveDealBlocked": "По объекту идет активная сделка; сначала управляйте ею в разделе Сделки."
+      "unitHasActiveDealBlocked": "По объекту идет активная сделка; сначала управляйте ею в разделе Сделки.",
+      "docsIncompletePublishBlocked": "Нельзя опубликовать объект без загрузки 4 документов или подтверждения проверки в WhatsApp.",
+      "notifUnderReviewTitle": "🔍 Ваш объект на проверке документов",
+      "notifUnderReviewMsg": "Ваш объект переведен на проверку данных и документов администрацией.",
+      "notifPendingTitle": "⏳ Ваш объект ожидает проверки",
+      "notifPendingMsg": "Ваш объект переведен в очередь на проверку.",
+      "notifPausedAdminTitle": "⏸ Показ объекта приостановлен администрацией",
+      "notifPausedAdminMsg": "Показ вашего объекта временно приостановлен администрацией. Свяжитесь с нами в WhatsApp.",
+      "emailUnderReviewSubject": "Проверка документов объекта — DualDealz",
+      "emailUnderReviewBody": "Ваш объект переведен на этап проверки данных и документов администрацией:",
+      "emailPendingSubject": "Обновление статуса объекта — DualDealz",
+      "emailPendingBody": "Ваш объект переведен в очередь на проверку:",
+      "emailPausedAdminSubject": "Показ объекта временно приостановлен — DualDealz",
+      "emailPausedAdminBody": "Показ вашего объекта временно приостановлен администрацией. Свяжитесь с нами в WhatsApp для возобновления:",
+      "emailTrackUnitBtn": "Открыть объект в кабинете",
+      "emailReviewEditBtn": "Проверить и изменить объект",
+      "emailAdminNoteSubject": "Примечание модератора по вашему объекту — DualDealz",
+      "emailAdminNoteIntro": "Команда проверки оставила примечание к вашему объекту:",
+      "notifWaDocsVerifiedTitle": "✅ Документы объекта подтверждены через WhatsApp",
+      "notifWaDocsVerifiedMsg": "Команда проверки подтвердила получение и проверку документов через WhatsApp.",
+      "fileTooLargeError": "Размер файла превышает допустимый лимит (12 МБ).",
+      "storageUploadError": "Не удалось загрузить файл в хранилище. Проверьте права Supabase Storage.",
+      "missingFileOrUrlError": "Выберите файл или укажите ссылку на документ.",
+      "boostUnitNotPublishedError": "Нельзя активировать VIP до одобрения и публикации объекта на витрине."
     },
     "forms": {
       "expiredLink": "Срок действия ссылки истек.",
@@ -3537,7 +3587,7 @@
       "sendUnitWaBtn": "Отправить в WhatsApp"
     },
     "shell": {
-      "brand": "Darak",
+      "brand": "DualDealz",
       "adminPanel": "Панель управления",
       "welcome": "Здравствуйте,",
       "defaultAdminName": "Админ",
@@ -3745,10 +3795,10 @@
       "noticeDeletedPrefix": "Удалена заявка покупателя:",
       "noticeDeleteError": "Не удалось удалить заявку.",
       "waUnitLeadPrefix": "Здравствуйте,",
-      "waUnitLeadMiddle": "это ваш персональный менеджер платформы недвижимости Darak по поводу вашей заявки на бронирование объекта",
+      "waUnitLeadMiddle": "это ваш персональный менеджер платформы недвижимости DualDealz по поводу вашей заявки на бронирование объекта",
       "waUnitLeadSuffix": "Готов ответить на все вопросы и организовать просмотр и процедуру переуступки.",
       "waGeneralPrefix": "Здравствуйте,",
-      "waGeneralMiddle": "это команда консультантов платформы недвижимости Darak по вашей заявке на подбор объекта в районе",
+      "waGeneralMiddle": "это команда консультантов платформы недвижимости DualDealz по вашей заявке на подбор объекта в районе",
       "waGeneralSuffix": "У нас есть отличные проверенные варианты без наценки под ваш бюджет."
     },
     "settings": {
@@ -4158,7 +4208,9 @@
         "rejected": "7. Отклонено",
         "has_offers": "💬 Есть активные офферы",
         "negotiating": "🔥 Идут переговоры",
-        "in_deal": "🤝 В сделке (Переоформление)"
+        "in_deal": "🤝 В сделке (Переоформление)",
+        "incomplete": "0. Не заполнено",
+        "paused_by_admin": "⛔ Приостановлено админом"
       },
       "docs": {
         "contract": "Договор купли-продажи",
@@ -4181,7 +4233,9 @@
         "featuredPrefix": "VIP",
         "promoReqPrefix": "Запрос VIP",
         "negotiable": "Торг уместен",
-        "adCodeLabel": "Код рекламы:"
+        "adCodeLabel": "Код рекламы:",
+        "waDocsVerifiedShort": "WhatsApp ✓",
+        "pausedByAdmin": "Приостановлено админом"
       },
       "header": {
         "promoAllTitle": "Заявки на рекламу и VIP-продвижение во всех странах 🌍",
@@ -4206,7 +4260,9 @@
         "deletedTab": "Удаленные",
         "deletedBannerTitle": "Объекты, удаленные владельцами",
         "purgeAllBtn": "Очистить все",
-        "inDealTab": "В сделке"
+        "inDealTab": "В сделке",
+        "incompleteTab": "Не заполнено",
+        "pausedByAdminTab": "Остановлено админом"
       },
       "table": {
         "emptyText": "Подходящих объектов сейчас нет.",
@@ -4237,7 +4293,8 @@
         "confirmBtn": "Подтвердить",
         "cancelBtn": "Отмена",
         "executingBtn": "Выполнение...",
-        "openDocBtn": "Открыть"
+        "openDocBtn": "Открыть",
+        "editDataBtn": "Редактировать данные"
       },
       "modals": {
         "purgeTitle": "Очистить удаленные объекты",
@@ -4285,7 +4342,50 @@
         "clearNoteBtn": "Очистить",
         "noteSavedSuccess": "Примечание сохранено, продавец уведомлен ✓",
         "optionalNoteForSellerPlaceholder": "Примечание для собственника (необязательно)...",
-        "sendPerformanceReportBtn": "Отправить отчет о просмотрах"
+        "sendPerformanceReportBtn": "Отправить отчет о просмотрах",
+        "pausedByAdminConfirmTitle": "Подтверждение снятия с публикации админом",
+        "pausedByAdminReasonPlaceholder": "Укажите причину приостановки (отобразится в кабинете и письме клиента)...",
+        "statusEmailNotifyHint": "Клиент автоматически получит уведомление и Email с этим статусом и примечанием.",
+        "incompleteDocsGuardTitle": "Документы объекта неполные",
+        "incompleteDocsGuardDesc": "Нельзя опубликовать объект без загрузки 4 документов или подтверждения проверки в WhatsApp.",
+        "incompleteDocsGuardCheckbox": "✓ Подтверждаю, что документы клиента проверены через WhatsApp, и одобряю публикацию",
+        "incompleteDocsGuardUploadBtn": "Загрузить документы за клиента",
+        "verifyWaAndPublishNowBtn": "Подтвердить WA + Опубликовать",
+        "stageTimelineTitlePrefix": "Этапы жизненного цикла объекта",
+        "stageTimelineSubtitle": "Объект находится на защищенном автоматическом этапе — ниже показана вся последовательность этапов.",
+        "stageCurrentBadge": "Текущий этап",
+        "stageDoneBadge": "Завершено ✓",
+        "editModalTitle": "Редактировать данные объекта",
+        "editModalDesc": "Исправьте ошибки ввода клиента без изменения владельца заявки.",
+        "editSavedSuccess": "Изменения объекта успешно сохранены ✓",
+        "editSaveError": "Не удалось сохранить изменения.",
+        "editProjectLabel": "Название ЖК / Заголовок",
+        "editDeveloperLabel": "Застройщик",
+        "editAreaLabel": "Район",
+        "editStreetLabel": "Улица",
+        "editHouseNoLabel": "Номер дома",
+        "editCadastralLabel": "Кадастровый код (NAPR)",
+        "editUnitTypeLabel": "Тип объекта",
+        "editSizeLabel": "Площадь (м²)",
+        "editRoomsLabel": "Комнат",
+        "editBedroomsLabel": "Спален",
+        "editBathroomsLabel": "Санузлов",
+        "editFloorLabel": "Этаж",
+        "editTotalFloorsLabel": "Всего этажей",
+        "editPaidAmountLabel": "Выплачено / На руки ($)",
+        "editContractPriceLabel": "Цена по договору ($)",
+        "editMarketPriceLabel": "Рыночная цена ($)",
+        "editInstallmentLabel": "Платеж по рассрочке ($)",
+        "editFrequencyLabel": "Периодичность",
+        "editYearsLeftLabel": "Остаток месяцев / лет",
+        "editFinishingLabel": "Состояние ремонта",
+        "editDeliveryLabel": "Статус / Срок сдачи",
+        "editDescriptionLabel": "Описание объекта",
+        "editSaveBtn": "Сохранить изменения",
+        "editSavingBtn": "Сохранение...",
+        "waDocsVerifiedBadge": "✓ Документы проверены в WhatsApp",
+        "manageDocsWaBtn": "Загрузить / Проверить WA",
+        "waDocsVerifiedEmptyText": "Документы проверены с владельцем через WhatsApp ✓"
       },
       "notices": {
         "purgedSuccess": "Все удаленные объекты безвозвратно очищены ✓",
@@ -4341,6 +4441,41 @@
         "gotItBtn": "Понятно",
         "openDealBtn": "Карточка сделки",
         "openOffersBtn": "Офферы по объекту"
+      },
+      "docsModal": {
+        "uploadSuccess": "Документ успешно загружен и сохранен ✓",
+        "uploadError": "Не удалось загрузить документ.",
+        "waVerifiedAndPublishedSuccess": "Документы подтверждены через WhatsApp, объект опубликован ✓",
+        "waVerifyRemovedSuccess": "Статус проверки через WhatsApp снят.",
+        "waVerifiedSuccess": "Проверка документов через WhatsApp подтверждена ✓",
+        "waVerifiedTitle": "Документы проверены через WhatsApp ✓",
+        "waVerifyBoxTitle": "Вы проверили документы клиента в WhatsApp?",
+        "waVerifiedSub": "Вы можете опубликовать объект напрямую без загрузки всех 4 файлов.",
+        "waVerifyBoxSub": "Нажмите для подтверждения, если клиент прислал документы в WhatsApp.",
+        "waVerifyUndoBtn": "Отменить проверку",
+        "waVerifyConfirmBtn": "Подтвердить проверку WA ✓",
+        "waVerifyAndPublishBtn": "Подтвердить WA + Опубликовать",
+        "notUploadedYet": "Не загружено",
+        "replaceDocBtn": "Заменить",
+        "uploadDocBtn": "Загрузить"
+      },
+      "stageTimeline": {
+        "s1Label": "1. Заполнение данных и документов",
+        "s1Sub": "Основные данные + фото + 4 документа (или проверка в WhatsApp)",
+        "s2Label": "2. Проверка администрацией и документов",
+        "s2Sub": "Команда проверяет и подтверждает документы перед публикацией",
+        "s3Label": "3. Одобрено и на витрине",
+        "s3Sub": "Объект виден покупателям, радар подбора активен",
+        "s4Label": "4. Получение офферов и торг",
+        "s4Sub": "Обновляется автоматически при наличии активных офферов",
+        "s5Label": "5. Сделка и переоформление договора",
+        "s5Sub": "Заблокировано автоматически и управляется в разделе Сделки",
+        "s6Label": "6. Успешно продано",
+        "s6Sub": "Сделка полностью закрыта, права переданы",
+        "excPausedAdmin": "Объект временно приостановлен администрацией (отдельно от проверки).",
+        "excPausedSeller": "Объект временно приостановлен по запросу владельца.",
+        "excRejected": "Объект отклонен, владелец уведомлен о причине.",
+        "excDeleted": "Объект удален владельцем (корзина на 7 дней)."
       }
     },
     "contactVerification": {
@@ -4463,7 +4598,9 @@
       "confirmRejectBtn": "Подтвердить отказ",
       "activatedSuccess": "VIP-пакет активирован, владелец уведомлен ✓",
       "rejectedSuccess": "Заявка на продвижение отклонена.",
-      "cancelledSuccess": "VIP-продвижение остановлено."
+      "cancelledSuccess": "VIP-продвижение остановлено.",
+      "unitNotPublishedNotice": "Объект еще не опубликован — сначала проверьте и опубликуйте его перед активацией VIP.",
+      "reviewAndPublishUnitBtn": "Проверить и опубликовать объект"
     }
   },
   "smartMatcher": {

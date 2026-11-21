@@ -14,6 +14,10 @@ import {
   type MatchableUnit,
 } from '@/lib/smart-matcher'
 import { toEnglishDigits } from '@/components/features/seller/seller-shared'
+import {
+  getUnifiedUnitCode,
+  getUnifiedUnitHeadline,
+} from '@/lib/unit-display-helpers'
 
 export function getOfferRef(id: string) {
   const clean = String(id || '')
@@ -60,6 +64,11 @@ export function BuyerMakeOfferModal({
   const guard = getUnitPricingGuardrails(offerModalUnit)
   const requiredPaid = Math.max(1, Number(guard.requiredCash) || 1)
   const sanityMinFloor = Math.round(requiredPaid * 0.5)
+  const unitCode = getUnifiedUnitCode(
+    offerModalUnit.id,
+    (offerModalUnit as any).code
+  )
+  const unitTitle = getUnifiedUnitHeadline(offerModalUnit, t.unitFallback)
 
   const unitStatusClean = String(offerModalUnit.status || '')
     .trim()
@@ -95,27 +104,35 @@ export function BuyerMakeOfferModal({
       >
         <div className="flex items-start justify-between gap-3 border-b border-gray-100 bg-[#f8faf9] px-5 py-4">
           <div className="min-w-0 flex-1">
-            <span
-              className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10.5px] font-extrabold ${
-                isWaitlistMode
-                  ? 'bg-amber-100 text-amber-900'
-                  : 'bg-[#eaf8f2] text-[#007a5a]'
-              }`}
-            >
-              {isWaitlistMode ? (
-                <>
-                  <Clock className="size-3" />
-                  <span>{t.waitlistBtnLabel}</span>
-                </>
-              ) : (
-                <>
-                  <Wallet className="size-3" />
-                  <span>{t.modalMakeOfferTitle}</span>
-                </>
-              )}
-            </span>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span
+                className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10.5px] font-extrabold ${
+                  isWaitlistMode
+                    ? 'bg-amber-100 text-amber-900'
+                    : 'bg-[#eaf8f2] text-[#007a5a]'
+                }`}
+              >
+                {isWaitlistMode ? (
+                  <>
+                    <Clock className="size-3" />
+                    <span>{t.waitlistBtnLabel}</span>
+                  </>
+                ) : (
+                  <>
+                    <Wallet className="size-3" />
+                    <span>{t.modalMakeOfferTitle}</span>
+                  </>
+                )}
+              </span>
+              <span
+                dir="ltr"
+                className="rounded-md bg-[#0a1122] px-2 py-0.5 font-mono text-[10.5px] font-bold text-white"
+              >
+                {unitCode}
+              </span>
+            </div>
             <h3 className="mt-1 truncate text-sm font-black text-[#0a1122] sm:text-base">
-              {offerModalUnit.project_name || t.unitFallback}
+              {unitTitle}
             </h3>
             <p className="mt-0.5 text-[11px] text-gray-500">
               {isWaitlistMode
@@ -388,6 +405,13 @@ export function SellerCounterOfferModal({
   const isInvalidCounter =
     typedCounter <= offeredByBuyer || typedCounter > maxPaid
 
+  const unitCode = counterModalOffer.unit
+    ? getUnifiedUnitCode(
+        counterModalOffer.unit.id,
+        (counterModalOffer.unit as any).code
+      )
+    : null
+
   return (
     <div
       dir={dir}
@@ -399,9 +423,19 @@ export function SellerCounterOfferModal({
         className="w-full max-w-[410px] overflow-hidden rounded-[24px] border border-gray-200 bg-white p-5 text-start shadow-2xl"
       >
         <div className="flex items-center justify-between gap-2 border-b border-gray-100 pb-3">
-          <h3 className="text-sm font-black text-[#0a1122] sm:text-base">
-            🔄 {t.sendCounterBtn}
-          </h3>
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-sm font-black text-[#0a1122] sm:text-base">
+              🔄 {t.sendCounterBtn}
+            </h3>
+            {unitCode && (
+              <span
+                dir="ltr"
+                className="rounded-md bg-[#0a1122] px-2 py-0.5 font-mono text-[10.5px] font-bold text-white"
+              >
+                {unitCode}
+              </span>
+            )}
+          </div>
           <button
             type="button"
             disabled={isPending}

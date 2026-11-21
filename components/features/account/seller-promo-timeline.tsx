@@ -1,13 +1,15 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   AlertTriangle,
+  ArrowUpRight,
   Check,
   CheckCircle2,
+  Clock,
   Copy,
-  CreditCard,
   EyeOff,
+  Landmark,
   Loader2,
   Lock,
   MessageCircle,
@@ -28,15 +30,23 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { requestUnitPromotionAction } from '@/actions/account-actions'
 import { calculateGelBoostPackage } from '@/components/features/home/home-market-sections'
-import { useTranslation } from '@/lib/i18n'
-import type { ConfirmModalState, SellerUnitItem } from './seller-unit-helpers'
+import { useTranslation, type LocaleCode } from '@/lib/i18n'
+import {
+  getUnifiedUnitCode,
+  getUnifiedUnitHeadline,
+  type ConfirmModalState,
+  type SellerUnitItem,
+} from './seller-unit-helpers'
 
 export function SellerPromoSection({
   t,
   activeUnit,
   supportWhatsApp,
-  isUnitActiveForBoost,
+  boostState,
+  initialAmount,
+  onNavigateMissing,
   isPromoCollapsed,
   setIsPromoCollapsed,
   isCurrentlyFeatured,
@@ -48,12 +58,16 @@ export function SellerPromoSection({
   copiedAdRef,
   setCopiedAdRef,
   isPending,
+  onBoostRequested,
   onCancelPromo,
 }: {
   t: Record<string, any>
   activeUnit: SellerUnitItem
   supportWhatsApp: string
-  isUnitActiveForBoost: boolean
+  boostState: 'active' | 'pending_review' | 'incomplete'
+  initialAmount?: number
+  missingActionHref?: string
+  onNavigateMissing?: () => void
   isPromoCollapsed: boolean
   setIsPromoCollapsed: (v: boolean) => void
   isCurrentlyFeatured: boolean
@@ -67,27 +81,52 @@ export function SellerPromoSection({
   dynamicPackages?: Array<{ days: any; price: number; label: string }>
   currencySymbol?: string
   isPending: boolean
+  onBoostRequested?: (info: {
+    orderRef: string
+    days: number
+    price: number
+    tier: 'super_vip' | 'vip_plus'
+    message?: string
+  }) => void
   onCancelPromo: () => void
 }) {
-  const { t: dict } = useTranslation() as Record<string, any>
+  const { locale } = useTranslation() as Record<string, any>
+  const activeLocale = (locale as LocaleCode) || 'ar'
   const GEL = '₾'
 
+  const defaultAmt =
+    initialAmount && initialAmount >= 5
+      ? initialAmount
+      : activePromoPrice >= 5
+        ? activePromoPrice
+        : 10
+
   const [selectedPreset, setSelectedPreset] = useState<number | 'custom'>(
-    activePromoPrice >= 5 ? activePromoPrice : 10
+    [5, 10, 20, 50, 100].includes(defaultAmt) ? defaultAmt : 'custom'
   )
-  const [topUpAmount, setTopUpAmount] = useState<number>(
-    activePromoPrice >= 5 ? activePromoPrice : 10
-  )
-  const [submittingPayment, setSubmittingPayment] = useState(false)
+  const [topUpAmount, setTopUpAmount] = useState<number>(defaultAmt)
+  const [submittingRequest, setSubmittingRequest] = useState(false)
   const [boostNotice, setBoostNotice] = useState<{
     text: string
     isError?: boolean
   } | null>(null)
 
+  useEffect(() => {
+    if (initialAmount && initialAmount >= 5) {
+      setTopUpAmount(initialAmount)
+      setSelectedPreset(
+        [5, 10, 20, 50, 100].includes(initialAmount) ? initialAmount : 'custom'
+      )
+    }
+  }, [initialAmount])
+
   const pkgDetails = useMemo(
-    () => calculateGelBoostPackage(topUpAmount, dict?.home?.marketSections),
-    [topUpAmount, dict]
+    () => calculateGelBoostPackage(topUpAmount, activeLocale),
+    [topUpAmount, activeLocale]
   )
+
+  const unitCode = getUnifiedUnitCode(activeUnit.id, activeUnit.code)
+  const unitHeadline = getUnifiedUnitHeadline(activeUnit, t.defaultProjectName)
 
   const presets = [
     {
@@ -129,67 +168,62 @@ export function SellerPromoSection({
     },
   ]
 
-  // الدفع الإلكتروني المباشر بالبطاقة عبر بوابة Flitt
-  const handleFlittCardPayment = async () => {
-    setSubmittingPayment(true)
+  const handleBookBoostRequest = async () => {
+    if (boostState === 'incomplete') {
+      onNavigateMissing?.()
+      return
+    }
+
+    setSubmittingRequest(true)
     setBoostNotice(null)
     try {
-      const res = await fetch('/api/payments/flitt/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          unitId: activeUnit.id,
-          tier: pkgDetails.tier === 'VIP+' ? 'vip_plus' : 'super_vip',
-          days: pkgDetails.days,
-          amountGel: pkgDetails.amount,
-        }),
+      const res = await requestUnitPromotionAction({
+        unitId: activeUnit.id,
+        days: pkgDetails.days,
+        price: pkgDetails.amount,
+        tier: pkgDetails.tier,
+        paymentMethod: 'bank',
       })
 
-      const data = await res.json().catch(() => ({}))
-
-      if (res.ok && data?.checkoutUrl) {
-        window.location.href = data.checkoutUrl
-        return
-      }
-
-      if (data?.error === 'FLITT_NOT_CONFIGURED') {
-        setBoostNotice({ text: t.flittNotConfiguredErr, isError: true })
-      } else if (data?.error === 'UNIT_MUST_BE_ACTIVE_TO_BOOST') {
-        setBoostNotice({ text: t.boostLockedDesc, isError: true })
+      if (res.success) {
+        const orderRef =
+          res.fawryCode || `BK-${unitCode.replace(/[^A-Z0-9]/g, '').slice(-4)}`
+        const defaultBookedMsg = String(t.boostBookedDefaultMsg || '').replace(
+          '{ref}',
+          orderRef
+        )
+        setBoostNotice({
+          text: res.message || defaultBookedMsg,
+        })
+        onBoostRequested?.({
+          orderRef,
+          days: pkgDetails.days,
+          price: pkgDetails.amount,
+          tier: pkgDetails.tier === 'VIP+' ? 'vip_plus' : 'super_vip',
+          message: res.message,
+        })
       } else {
-        setBoostNotice({ text: t.flittInitFailedErr, isError: true })
+        setBoostNotice({
+          text: res.error || t.msgPromoError || t.boostErrorFallback,
+          isError: true,
+        })
       }
     } catch {
-      setBoostNotice({ text: t.flittInitFailedErr, isError: true })
+      setBoostNotice({
+        text: t.msgPromoError || t.boostUnexpectedErr,
+        isError: true,
+      })
     } finally {
-      setSubmittingPayment(false)
+      setSubmittingRequest(false)
     }
-  }
-
-  // إذا كانت الوحدة لم تُنشر بعد (قيد المراجعة / غير مكتملة / موقوفة)
-  if (!isUnitActiveForBoost && !isCurrentlyFeatured && !isPendingPromo) {
-    return (
-      <section className="mt-5 rounded-[20px] border border-slate-200/90 bg-slate-50/70 p-4 text-start sm:p-5">
-        <div className="flex items-start gap-3">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-slate-200/80 text-slate-600">
-            <Lock className="size-4" />
-          </span>
-          <div>
-            <h3 className="text-xs font-extrabold text-[#0f1d40] sm:text-sm">
-              {t.boostLockedTitle}
-            </h3>
-            <p className="mt-1 text-[11.5px] leading-relaxed text-slate-500">
-              {t.boostLockedDesc}
-            </p>
-          </div>
-        </div>
-      </section>
-    )
   }
 
   if (isPromoCollapsed) {
     return (
-      <div className="mt-5 flex items-center justify-between rounded-2xl border border-[#aae3cb] bg-[#effaf5] px-4 py-3.5 shadow-2xs">
+      <div
+        id="promo-section"
+        className="mt-5 flex items-center justify-between rounded-2xl border border-[#aae3cb] bg-[#effaf5] px-4 py-3.5 shadow-2xs"
+      >
         <div className="flex items-center gap-2 text-start">
           <Star className="size-4 shrink-0 fill-amber-400 text-amber-500" />
           <span className="text-xs font-extrabold text-[var(--brand-navy,#0a1122)]">
@@ -207,10 +241,23 @@ export function SellerPromoSection({
     )
   }
 
-  const whatsappMessage = `${t.whatsappPromoMsgPrefix} (${pkgDetails.tier} - ${activePromoDays || pkgDetails.days} ${t.daysWord} - ${(activePromoPrice || pkgDetails.amount).toLocaleString('en-US')} ${GEL}) ${t.whatsappPromoMsgMiddle} (${activeUnit.project_name || t.defaultProjectName}) — ${t.whatsappPromoMsgRef} ${currentAdRef}`
+  const whatsappMessage = `${t.whatsappPromoMsgPrefix} (${pkgDetails.tier} - ${activePromoDays || pkgDetails.days} ${t.daysWord} - ${(activePromoPrice || pkgDetails.amount).toLocaleString('en-US')} ${GEL}) ${t.whatsappPromoMsgMiddle} (${unitHeadline} · ${unitCode}) — ${t.whatsappPromoMsgRef} ${currentAdRef}`
+
+  const ctaLabel =
+    boostState === 'pending_review'
+      ? String(t.boostPriorityCtaTemplate || '').replace(
+          '{amount}',
+          String(pkgDetails.amount)
+        )
+      : String(t.boostConfirmCtaTemplate || '')
+          .replace('{amount}', String(pkgDetails.amount))
+          .replace('{tier}', pkgDetails.tier)
 
   return (
-    <section className="mt-5 rounded-[24px] border border-slate-200/90 bg-white p-5 text-start shadow-xs sm:p-6">
+    <section
+      id="promo-section"
+      className="mt-5 rounded-[24px] border border-slate-200/90 bg-white p-5 text-start shadow-xs sm:p-6"
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-xs font-extrabold text-[#2563eb]">
@@ -241,13 +288,45 @@ export function SellerPromoSection({
         </button>
       </div>
 
+      {boostState === 'incomplete' && (
+        <div className="mt-3.5 flex items-start gap-2.5 rounded-2xl border border-amber-300 bg-amber-50/90 p-3.5 text-xs">
+          <Lock className="mt-0.5 size-4 shrink-0 text-amber-600" />
+          <div className="flex-1">
+            <strong className="block font-extrabold text-amber-950">
+              {t.boostIncompleteTitle}
+            </strong>
+            <p className="mt-0.5 leading-relaxed font-medium text-amber-900/90">
+              {t.boostIncompleteDesc}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {boostState === 'pending_review' && !isCurrentlyFeatured && (
+        <div className="mt-3.5 flex items-start gap-2.5 rounded-2xl border border-blue-200 bg-blue-50/75 p-3.5 text-xs">
+          <Clock className="mt-0.5 size-4 shrink-0 text-[#2563eb]" />
+          <div className="flex-1">
+            <strong className="block font-extrabold text-[#0f1d40]">
+              {t.boostPendingPriorityTitle}
+            </strong>
+            <p className="mt-0.5 leading-relaxed font-medium text-slate-600">
+              {t.boostPendingPriorityDesc}
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="mt-4 flex items-center justify-between">
         <div>
           <h3 className="text-base font-extrabold text-[#0f1d40] sm:text-lg">
-            {t.boostUnitPrefix}{' '}
-            {activeUnit.project_name || t.defaultProjectName}
+            {t.boostUnitPrefix} {unitHeadline}
           </h3>
-          <p className="mt-0.5 text-xs text-slate-500">{t.boostUnitSubtitle}</p>
+          <p className="mt-0.5 text-xs text-slate-500">
+            {t.boostUnitSubtitle} ·{' '}
+            <span dir="ltr" className="font-mono font-bold text-[#0f1d40]">
+              {unitCode}
+            </span>
+          </p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -411,26 +490,36 @@ export function SellerPromoSection({
       </div>
 
       <div className="mt-4">
-        <button
-          type="button"
-          disabled={isPending || submittingPayment}
-          onClick={handleFlittCardPayment}
-          className="flex h-11 w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-5 text-xs font-bold text-white shadow-[0_8px_20px_rgba(255,100,55,0.28)] transition hover:opacity-95 disabled:opacity-60"
-        >
-          {submittingPayment ? (
-            <>
-              <Loader2 className="size-4 animate-spin" />
-              <span>{t.flittRedirectingBtn}</span>
-            </>
-          ) : (
-            <>
-              <CreditCard className="size-4" />
-              <span>
-                {t.payCardPrefix} {pkgDetails.amount} {GEL} {t.payCardSuffix}
-              </span>
-            </>
-          )}
-        </button>
+        {boostState === 'incomplete' ? (
+          <button
+            type="button"
+            onClick={() => onNavigateMissing?.()}
+            className="flex h-11 w-full items-center justify-center gap-2 rounded-full border-2 border-amber-400 bg-amber-50 px-5 text-xs font-extrabold text-amber-950 transition hover:bg-amber-100"
+          >
+            <Lock className="size-4 text-amber-600" />
+            <span>{t.boostIncompleteCtaBtn}</span>
+            <ArrowUpRight className="size-4" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            disabled={isPending || submittingRequest}
+            onClick={handleBookBoostRequest}
+            className="flex h-11 w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-5 text-xs font-bold text-white shadow-[0_8px_20px_rgba(255,100,55,0.28)] transition hover:opacity-95 disabled:opacity-60"
+          >
+            {submittingRequest ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                <span>{t.boostSubmittingBtn}</span>
+              </>
+            ) : (
+              <>
+                <Landmark className="size-4" />
+                <span>{ctaLabel}</span>
+              </>
+            )}
+          </button>
+        )}
       </div>
 
       {boostNotice && (
@@ -508,7 +597,7 @@ export function SellerPromoSection({
       )}
 
       <div className="mt-3.5 flex items-center justify-between text-[10px] text-slate-400">
-        <span>Flitt · Visa · Mastercard · Apple Pay · Google Pay</span>
+        <span>{t.boostFooterProviders}</span>
         <span className="inline-flex items-center gap-1">
           <Lock className="size-3" /> 256-bit SSL
         </span>

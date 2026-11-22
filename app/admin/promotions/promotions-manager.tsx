@@ -141,7 +141,6 @@ export function PromotionsManager({
   const propBadges = (propDict.badges as Record<string, string>) || {}
   const propStatuses = (propDict.statuses as Record<string, string>) || {}
 
-  // التبويب الافتراضي هو "الكل" لعرض الطلبات المعلّقة أولاً ثم الإعلانات النشطة مباشرة
   const [tab, setTab] = useState<
     "all" | "pending" | "active" | "history" | "manual"
   >("all")
@@ -287,7 +286,7 @@ export function PromotionsManager({
 
     return (
       <span
-        className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-extrabold ${
+        className={`inline-flex shrink-0 items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-extrabold whitespace-nowrap ${
           isLive
             ? "border-emerald-200 bg-[#eaf8f2] text-[#007a5a]"
             : st === "paused_by_admin" || st === "rejected"
@@ -300,7 +299,7 @@ export function PromotionsManager({
         ) : (
           <Clock className="size-3 shrink-0" />
         )}
-        <span className="truncate">{label}</span>
+        <span>{label}</span>
       </span>
     )
   }
@@ -461,8 +460,8 @@ export function PromotionsManager({
               <div className="min-w-0 flex-1">
                 <span className="font-black text-slate-700">
                   {req.package_tier} ·{" "}
-                  <span dir="ltr" className="inline-block">
-                    {req.amount_gel} ₾
+                  <span dir="ltr" className="inline-block whitespace-nowrap">
+                    {`${req.amount_gel}\u00A0₾`}
                   </span>
                 </span>
                 <p className="mt-0.5 text-[11px] font-medium text-slate-500">
@@ -506,7 +505,7 @@ export function PromotionsManager({
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span
                     dir="ltr"
-                    className="inline-block rounded-md bg-[#0f1d40] px-2 py-0.5 font-mono text-[10px] font-bold text-white"
+                    className="inline-block rounded-md bg-[#0f1d40] px-2 py-0.5 font-mono text-[10px] font-bold text-white whitespace-nowrap"
                   >
                     {uCode}
                   </span>
@@ -516,7 +515,7 @@ export function PromotionsManager({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-900">
+                  <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-900 whitespace-nowrap">
                     <Sparkles className="size-3" />
                     <span>
                       {req.package_tier} · {req.duration_days}{" "}
@@ -525,7 +524,7 @@ export function PromotionsManager({
                   </span>
                   {renderUnitStatusBadge(unit)}
                   {isRenewal && (
-                    <span className="inline-flex items-center gap-1 rounded-md bg-purple-100 px-2 py-0.5 text-[10px] font-extrabold text-purple-900">
+                    <span className="inline-flex items-center gap-1 rounded-md bg-purple-100 px-2 py-0.5 text-[10px] font-extrabold text-purple-900 whitespace-nowrap">
                       <RefreshCw className="size-3" />
                       <span>{pm.renewalBadge}</span>
                     </span>
@@ -535,18 +534,21 @@ export function PromotionsManager({
 
               <div className="flex shrink-0 flex-col items-end gap-1">
                 <strong className="text-base font-black text-[#007a5a] sm:text-lg">
-                  <span dir="ltr" className="inline-block tabular-nums">
-                    {req.amount_gel} ₾
+                  <span
+                    dir="ltr"
+                    className="inline-block whitespace-nowrap tabular-nums"
+                  >
+                    {`${req.amount_gel}\u00A0₾`}
                   </span>
                 </strong>
                 {isFlittPaid ? (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-[#007a5a] px-2.5 py-0.5 text-[10px] font-extrabold text-white">
-                    <CreditCard className="size-2.5" />
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#007a5a] px-2.5 py-0.5 text-[10px] font-extrabold text-white whitespace-nowrap">
+                    <CreditCard className="size-2.5 shrink-0" />
                     <span>{pm.paidFlittBadge}</span>
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-extrabold text-amber-900">
-                    <Landmark className="size-2.5" />
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-extrabold text-amber-900 whitespace-nowrap">
+                    <Landmark className="size-2.5 shrink-0" />
                     <span>{pm.bankTransferPendingBadge}</span>
                   </span>
                 )}
@@ -712,7 +714,7 @@ export function PromotionsManager({
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span
                     dir="ltr"
-                    className="inline-block rounded-md bg-[#0f1d40] px-2 py-0.5 font-mono text-[10px] font-bold text-white"
+                    className="inline-block rounded-md bg-[#0f1d40] px-2 py-0.5 font-mono text-[10px] font-bold text-white whitespace-nowrap"
                   >
                     {uCode}
                   </span>
@@ -721,7 +723,7 @@ export function PromotionsManager({
                   </h3>
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-900">
+                  <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-900 whitespace-nowrap">
                     <Sparkles className="size-3" />
                     <span>
                       {tierLabel} · {unit.featured_days || 7}{" "}
@@ -732,7 +734,7 @@ export function PromotionsManager({
                 </div>
               </div>
 
-              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-extrabold text-amber-900">
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-extrabold text-amber-900 whitespace-nowrap">
                 <Clock className="size-3" />
                 <span>{pm.bankTransferPendingBadge}</span>
               </span>
@@ -832,92 +834,106 @@ export function PromotionsManager({
             key={unit.id}
             className="rounded-2xl border border-amber-300 bg-white p-3.5 shadow-2xs sm:p-4"
           >
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <div className="min-w-0 flex-1 space-y-1">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span
-                    dir="ltr"
-                    className="inline-block rounded-md bg-[#0f1d40] px-2 py-0.5 font-mono text-[10px] font-bold text-white"
-                  >
-                    {uCode}
-                  </span>
-                  <Link
-                    href={`/opportunities/${unit.id}`}
-                    target="_blank"
-                    className="truncate text-xs font-black text-[#0f1d40] hover:text-[#007a5a] hover:underline sm:text-sm"
-                  >
-                    {getPropertyHeadline(
-                      unit,
-                      propDict.table?.unspecifiedProject
-                    )}
-                  </Link>
-                  <span
-                    className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-black ${
-                      isVipPlus
-                        ? "bg-indigo-100 text-indigo-900"
-                        : "bg-amber-100 text-amber-900"
-                    }`}
-                  >
-                    {isVipPlus ? (
-                      <Flame className="size-3" />
-                    ) : (
-                      <Crown className="size-3" />
-                    )}
-                    <span>{isVipPlus ? "+VIP" : "SUPER VIP"}</span>
-                  </span>
-                </div>
-
-                <p className="text-[11px] font-semibold text-slate-500">
-                  {cleanPropertyAreaDisplay(unit.area, locale)} · {unit.name} (
-                  <span dir="ltr" className="inline-block font-mono">
-                    {unit.phone}
-                  </span>
-                  )
-                </p>
-
-                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                  {isFlittSource ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-[#007a5a] px-2.5 py-0.5 text-[10px] font-extrabold text-white">
-                      <CreditCard className="size-2.5" />
-                      <span>{pm.paidFlittBadge}</span>
-                      {resolvedAmount > 0 && (
-                        <span dir="ltr" className="inline-block">
-                          · {resolvedAmount} ₾
-                        </span>
-                      )}
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-[10px] font-extrabold text-slate-700">
-                      <Banknote className="size-3 text-[#007a5a]" />
-                      <span>{pm.manualBadge}</span>
-                      {resolvedAmount > 0 && (
-                        <span dir="ltr" className="inline-block">
-                          · {resolvedAmount} ₾
-                        </span>
-                      )}
-                    </span>
-                  )}
-
-                  {resolvedOrderRef && (
-                    <button
-                      type="button"
-                      onClick={() => handleCopyRef(resolvedOrderRef)}
-                      className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-[#eaf8f2]/70 px-2.5 py-0.5 text-[10px] font-extrabold text-[#007a5a] transition hover:bg-[#eaf8f2]"
+            <div className="space-y-2.5">
+              {/* السطر العلوي: بيانات الوحدة + شارة الحالة */}
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="min-w-0 flex-1 space-y-1">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span
+                      dir="ltr"
+                      className="inline-block rounded-md bg-[#0f1d40] px-2 py-0.5 font-mono text-[10px] font-bold text-white whitespace-nowrap"
                     >
-                      <span>{pm.refCodeLabel}:</span>
-                      <span dir="ltr" className="inline-block font-mono">
-                        {resolvedOrderRef}
-                      </span>
-                      <Copy className="size-2.5" />
-                      {copiedRef === resolvedOrderRef && (
-                        <span>{pm.copiedRefToast}</span>
+                      {uCode}
+                    </span>
+                    <Link
+                      href={`/opportunities/${unit.id}`}
+                      target="_blank"
+                      className="truncate text-xs font-black text-[#0f1d40] hover:text-[#007a5a] hover:underline sm:text-sm"
+                    >
+                      {getPropertyHeadline(
+                        unit,
+                        propDict.table?.unspecifiedProject
                       )}
-                    </button>
-                  )}
+                    </Link>
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-black whitespace-nowrap ${
+                        isVipPlus
+                          ? "bg-indigo-100 text-indigo-900"
+                          : "bg-amber-100 text-amber-900"
+                      }`}
+                    >
+                      {isVipPlus ? (
+                        <Flame className="size-3" />
+                      ) : (
+                        <Crown className="size-3" />
+                      )}
+                      <span>{isVipPlus ? "+VIP" : "SUPER VIP"}</span>
+                    </span>
+                  </div>
+
+                  <p className="text-[11px] font-semibold text-slate-500">
+                    {cleanPropertyAreaDisplay(unit.area, locale)} · {unit.name}{" "}
+                    (
+                    <span dir="ltr" className="inline-block font-mono">
+                      {unit.phone}
+                    </span>
+                    )
+                  </p>
                 </div>
+
+                {renderUnitStatusBadge(unit)}
               </div>
 
-              {renderUnitStatusBadge(unit)}
+              {/* شريط الدفع والمرجع بعرض الكارت بالكامل — كل شارة في صف واحد بدون أي كسر */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                {isFlittSource ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[#007a5a] px-3 py-1 text-[10.5px] font-extrabold text-white whitespace-nowrap">
+                    <CreditCard className="size-3 shrink-0" />
+                    <span>{pm.paidFlittBadge}</span>
+                    {resolvedAmount > 0 && (
+                      <span
+                        dir="ltr"
+                        className="inline-block whitespace-nowrap tabular-nums"
+                      >
+                        {`·\u00A0${resolvedAmount}\u00A0₾`}
+                      </span>
+                    )}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-[10.5px] font-extrabold text-slate-700 whitespace-nowrap">
+                    <Banknote className="size-3 shrink-0 text-[#007a5a]" />
+                    <span>{pm.manualBadge}</span>
+                    {resolvedAmount > 0 && (
+                      <span
+                        dir="ltr"
+                        className="inline-block whitespace-nowrap tabular-nums"
+                      >
+                        {`·\u00A0${resolvedAmount}\u00A0₾`}
+                      </span>
+                    )}
+                  </span>
+                )}
+
+                {resolvedOrderRef && (
+                  <button
+                    type="button"
+                    onClick={() => handleCopyRef(resolvedOrderRef)}
+                    className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-emerald-200 bg-[#eaf8f2]/70 px-3 py-1 text-[10.5px] font-extrabold text-[#007a5a] whitespace-nowrap transition hover:bg-[#eaf8f2]"
+                  >
+                    <span className="shrink-0">{pm.refCodeLabel}:</span>
+                    <span
+                      dir="ltr"
+                      className="inline-block truncate font-mono whitespace-nowrap"
+                    >
+                      {resolvedOrderRef}
+                    </span>
+                    <Copy className="size-3 shrink-0" />
+                    {copiedRef === resolvedOrderRef && (
+                      <span className="shrink-0">{pm.copiedRefToast}</span>
+                    )}
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="mt-3 grid grid-cols-2 gap-2 text-start text-[11px] sm:grid-cols-4">
@@ -1230,7 +1246,7 @@ export function PromotionsManager({
                       <div className="flex flex-wrap items-center gap-1.5">
                         <span
                           dir="ltr"
-                          className="inline-block rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-[#0f1d40]"
+                          className="inline-block rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-[#0f1d40] whitespace-nowrap"
                         >
                           {req.unit_code ||
                             (unit
@@ -1276,12 +1292,15 @@ export function PromotionsManager({
 
                     <div className="flex items-center justify-between gap-2.5 border-t border-slate-100 pt-2 sm:justify-end sm:border-0 sm:pt-0">
                       <strong className="font-black text-[#0f1d40]">
-                        <span dir="ltr" className="inline-block tabular-nums">
-                          {req.amount_gel} ₾
+                        <span
+                          dir="ltr"
+                          className="inline-block whitespace-nowrap tabular-nums"
+                        >
+                          {`${req.amount_gel}\u00A0₾`}
                         </span>
                       </strong>
                       <span
-                        className={`rounded-full px-2.5 py-0.5 text-[10px] font-extrabold ${
+                        className={`rounded-full px-2.5 py-0.5 text-[10px] font-extrabold whitespace-nowrap ${
                           isApproved
                             ? "bg-[#eaf8f2] text-[#007a5a]"
                             : "bg-red-50 text-red-700"
@@ -1327,7 +1346,7 @@ export function PromotionsManager({
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span
                         dir="ltr"
-                        className="inline-block rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-[#0f1d40]"
+                        className="inline-block rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-[#0f1d40] whitespace-nowrap"
                       >
                         {uCode}
                       </span>

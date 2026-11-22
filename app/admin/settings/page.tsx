@@ -65,7 +65,7 @@ export default async function SettingsPage({
       runtimeSettings?.supportEmail ||
       process.env.EMAIL_USER ||
       dict.footer?.email ||
-      "info@aqarexit.com",
+      "info@dualdealz.com",
     buyerCommission: runtimeSettings?.buyerCommission || "1.25",
     developerPenaltyMin:
       (runtimeSettings as Record<string, any>)?.developerPenaltyMin || "10",
@@ -75,12 +75,6 @@ export default async function SettingsPage({
       (runtimeSettings as Record<string, any>)?.vipPlusDailyGel || "5",
     superVipDailyGel:
       (runtimeSettings as Record<string, any>)?.superVipDailyGel || "10",
-    promo7Price: runtimeSettings?.promo7Price || "20",
-    promo14Price: runtimeSettings?.promo14Price || "50",
-    promo30Price: runtimeSettings?.promo30Price || "100",
-    promo_GE_7: runtimeSettings?.promo_GE_7 || "20",
-    promo_GE_14: runtimeSettings?.promo_GE_14 || "50",
-    promo_GE_30: runtimeSettings?.promo_GE_30 || "100",
     fbPixelId: (runtimeSettings as Record<string, any>)?.fbPixelId || "",
     gaMeasurementId:
       (runtimeSettings as Record<string, any>)?.gaMeasurementId || "",
@@ -90,13 +84,6 @@ export default async function SettingsPage({
     allowNewBuys: runtimeSettings?.allowNewBuys ?? true,
     emailNotifications: runtimeSettings?.emailNotifications ?? true,
   }
-
-  try {
-    const cookieVal = cookieStore.get("darak_site_settings")?.value
-    if (cookieVal) {
-      savedSettings = { ...savedSettings, ...JSON.parse(cookieVal) }
-    }
-  } catch {}
 
   try {
     const { data: dbSettings } = await supabase
@@ -114,7 +101,19 @@ export default async function SettingsPage({
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   )
-  const hasEmail = Boolean(process.env.EMAIL_USER && process.env.EMAIL_PASS)
+  const hasEmail = Boolean(
+    process.env.RESEND_API_KEY ||
+      (process.env.EMAIL_USER && process.env.EMAIL_PASS)
+  )
+
+  const flittMerchantId = process.env.FLITT_MERCHANT_ID?.trim() || ""
+  const flittSecretKey = process.env.FLITT_SECRET_KEY?.trim() || ""
+  const flittMode: "live" | "sandbox" | "missing" =
+    !flittMerchantId || !flittSecretKey
+      ? "missing"
+      : flittMerchantId === "1549901" || flittSecretKey === "test"
+        ? "sandbox"
+        : "live"
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -123,6 +122,7 @@ export default async function SettingsPage({
         initialSettings={savedSettings}
         hasSupabase={hasSupabase}
         hasEmail={hasEmail}
+        flittMode={flittMode}
       />
     </div>
   )

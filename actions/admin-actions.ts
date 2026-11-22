@@ -1435,21 +1435,34 @@ export async function createAdminOrUserAction(formData: FormData) {
     const formattedPhone = formatPrimaryPhone(rawPhone)
     const hash = hashPassword(password)
 
-    const { error } = await supabase.from("users").insert({
-      name,
-      email,
-      phone: formattedPhone,
-      password_hash: hash,
-      country: "GE",
-      role,
-      status: "active",
-    })
+    const { data: insertedUser, error } = await supabase
+      .from("users")
+      .insert({
+        name,
+        email,
+        phone: formattedPhone,
+        password_hash: hash,
+        country: "GE",
+        role,
+        status: "active",
+        is_verified: true,
+        otp_code: "PHONE_OK",
+      })
+      .select("id")
+      .maybeSingle()
 
     if (error) {
       return {
         success: false,
         error: msg.emailOrPhoneTaken,
       }
+    }
+
+    if (insertedUser?.id) {
+      await upsertUserVerificationMeta(supabase, String(insertedUser.id), {
+        emailVerified: true,
+        phoneVerified: true,
+      })
     }
 
     revalidateAdminAll()
@@ -1674,18 +1687,21 @@ export async function saveSiteSettingsAction(formData: FormData) {
     const { supabase } = await requireAdminAuth(["admin"])
     const cookieStore = await cookies()
 
-    const ge7 = sanitizeText(
-      formData.get("promo_GE_7") || formData.get("promo7Price") || "20",
-      12
+    const vipPlusNum = Math.max(
+      1,
+      Math.min(500, Math.round(Number(formData.get("vipPlusDailyGel")) || 5))
     )
-    const ge14 = sanitizeText(
-      formData.get("promo_GE_14") || formData.get("promo14Price") || "50",
-      12
+    const superVipNum = Math.max(
+      vipPlusNum + 1,
+      Math.min(
+        1000,
+        Math.round(Number(formData.get("superVipDailyGel")) || 10)
+      )
     )
-    const ge30 = sanitizeText(
-      formData.get("promo_GE_30") || formData.get("promo30Price") || "100",
-      12
-    )
+
+    const ge7 = String(superVipNum * 2)
+    const ge14 = String(superVipNum * 5)
+    const ge30 = String(superVipNum * 10)
 
     const settingsPayload: GlobalSiteSettings & Record<string, any> = {
       siteName: sanitizeText(formData.get("siteName") || "DualDealz", 80),
@@ -1721,14 +1737,11 @@ export async function saveSiteSettingsAction(formData: FormData) {
         formData.get("bankNameGe") || "TBC Bank / Bank of Georgia",
         80
       ),
-      vipPlusDailyGel: sanitizeText(
-        formData.get("vipPlusDailyGel") || "5",
-        10
-      ),
-      superVipDailyGel: sanitizeText(
-        formData.get("superVipDailyGel") || "10",
-        10
-      ),
+      vipPlusDailyGel: String(vipPlusNum),
+      superVipDailyGel: String(superVipNum),
+      fbPixelId: sanitizeText(formData.get("fbPixelId") || "", 80),
+      gaMeasurementId: sanitizeText(formData.get("gaMeasurementId") || "", 80),
+      gtmId: sanitizeText(formData.get("gtmId") || "", 80),
       promo7Price: ge7,
       promo14Price: ge14,
       promo30Price: ge30,
@@ -1750,11 +1763,25 @@ export async function saveSiteSettingsAction(formData: FormData) {
     cookieStore.delete("darak_site_settings")
 
     try {
-      await supabase.from("site_settings").upsert({
+      const { error: upsertErr } = await supabase.from("site_settings").upsert({
         id: "global",
         ...settingsPayload,
         updated_at: new Date().toISOString(),
       })
+      if (upsertErr) {
+        await supabase.from("site_settings").upsert({
+          id: "global",
+          siteName: settingsPayload.siteName,
+          whatsappNumber: settingsPayload.whatsappNumber,
+          supportEmail: settingsPayload.supportEmail,
+          buyerCommission: settingsPayload.buyerCommission,
+          maintenanceMode: settingsPayload.maintenanceMode,
+          allowNewSells: settingsPayload.allowNewSells,
+          allowNewBuys: settingsPayload.allowNewBuys,
+          emailNotifications: settingsPayload.emailNotifications,
+          updated_at: new Date().toISOString(),
+        })
+      }
     } catch {}
 
     try {
@@ -1877,7 +1904,9 @@ export async function managePropertyPromotionAction(
       const resolvedOrderRef =
         options?.orderRef ||
         currentMeta.boost_pending?.order_ref ||
-        (isManualActivation ? generatedManualRef : existingActiveMeta?.order_ref) ||
+        (isManualActivation
+          ? generatedManualRef
+          : existingActiveMeta?.order_ref) ||
         generatedManualRef
 
       const resolvedAmountGel =
@@ -1951,7 +1980,6 @@ export async function managePropertyPromotionAction(
             .in("status", ["pending_admin_approval", "paid_pending_approval"])
             .select("id")
 
-          // في حال التفعيل اليدوي (كاش أو هدية) بدون طلب مسبق: ننشئ سجل رسمي في boost_requests للمتابعة المالية
           if (!updatedPending || updatedPending.length === 0) {
             await supabase.from("boost_requests").insert({
               unit_id: prop.id,
@@ -2059,6 +2087,7 @@ export async function approveBoostRequestByAdminAction(boostRequestId: string) {
         orderRef: reqRow.order_ref || null,
         amountGel: Number(reqRow.amount_gel) || null,
         boostRequestId: String(reqRow.id),
+        paymentMethod: reqRow.payment_method || "flitt",
       }
     )
   } catch (err) {

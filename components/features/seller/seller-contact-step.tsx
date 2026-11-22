@@ -19,7 +19,6 @@ import {
   verifyExistingEmailPasswordAction,
 } from '@/actions/submit-forms'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { TurnstileBox } from '@/components/layouts/auth-layout'
@@ -113,8 +112,6 @@ export function ContactSection({
   update,
   selected,
   toggleMulti,
-  agreedTerms,
-  setAgreedTerms,
   error,
   unitId,
   setUnitId,
@@ -148,8 +145,8 @@ export function ContactSection({
   update: (k: string, v: string) => void
   selected: Record<string, string[]>
   toggleMulti: (g: string, v: string) => void
-  agreedTerms: boolean
-  setAgreedTerms: (val: boolean) => void
+  agreedTerms?: boolean
+  setAgreedTerms?: (val: boolean) => void
   error: string
   missingFields?: string[]
   unitId?: string
@@ -158,7 +155,7 @@ export function ContactSection({
   fieldErrors?: Record<string, string>
   buildFullFormData?: (activeUnitId?: string, activeUserId?: string) => FormData
 }) {
-  const { t: dict, locale, dir } = useTranslation()
+  const { t: dict, locale } = useTranslation()
   const t = dict.sell.contactStep
   const v = dict.sell.validation
   const fT = getSellerFormTranslations(locale as LocaleCode, dict)
@@ -393,7 +390,7 @@ export function ContactSection({
           email: res.userEmail || form.email || '',
           userId: res.userId || '',
           unitId: res.unitId || '',
-          orderRef: res.orderRef || 'AE-VERIFY',
+          orderRef: res.orderRef || 'DD-VERIFY',
         })
         return
       }
@@ -406,7 +403,7 @@ export function ContactSection({
           type: 'phone_exists',
           userId: res.userId || '',
           unitId: res.unitId || '',
-          orderRef: res.orderRef || 'AE-VERIFY',
+          orderRef: res.orderRef || 'DD-VERIFY',
         })
         return
       }
@@ -1021,36 +1018,6 @@ export function ContactSection({
           <span>{accountVerifiedMsg}</span>
         </div>
       )}
-
-      <div id="field-wrap-agreedTerms">
-        <label
-          dir={dir}
-          className={`mt-5 flex cursor-pointer items-center gap-3 rounded-2xl border p-4 text-start text-xs font-bold transition ${
-            mergedErrors.agreedTerms
-              ? 'border-2 border-red-500 bg-red-50/30 text-red-900'
-              : 'border-slate-200 bg-slate-50/70 text-slate-700'
-          }`}
-        >
-          <Checkbox
-            className="m-0 shrink-0"
-            checked={agreedTerms}
-            onCheckedChange={(checked) => {
-              const isOk = Boolean(checked)
-              setAgreedTerms(isOk)
-              update('owner', isOk ? 'yes' : '')
-              update('confirmed', isOk ? 'yes' : '')
-            }}
-          />
-          <span>
-            {t.ownerDeclaration} {cT.termsAgreementSuffix}
-          </span>
-        </label>
-        {mergedErrors.agreedTerms && (
-          <p className="mt-1.5 text-start text-xs font-extrabold text-red-600">
-            {mergedErrors.agreedTerms}
-          </p>
-        )}
-      </div>
 
       {(stepError || error) && (
         <div className="mt-5 flex items-start gap-2.5 rounded-2xl border border-red-300 bg-red-50 p-4 text-start text-xs text-red-800">

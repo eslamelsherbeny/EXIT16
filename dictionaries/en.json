@@ -1001,7 +1001,14 @@
       "bothBtn": "Upload Photos & Documents First",
       "missingBelowBtnPrefix": "Please complete the required fields highlighted in red above:",
       "mandatoryPublishNotice": "Important: Property photos and the 4 ownership documents are mandatory to verify and publish your unit to buyers. If you submit now, your request will be saved with Admin and published once you upload them from \"My Account\".",
-      "defaultCityFallback": "Tbilisi"
+      "defaultCityFallback": "Tbilisi",
+      "termsAgreePrefix": "I agree to the",
+      "termsLinkText": "Terms & Conditions",
+      "termsAndWord": "and",
+      "privacyLinkText": "Privacy Policy",
+      "termsAgreeSuffix": "and confirm that I am the original owner and all submitted details are accurate.",
+      "termsRequiredError": "Please accept the Terms & Conditions and Privacy Policy before submitting.",
+      "sellerCommissionNoteTemplate": "0% seller commission — the platform fee ({commission}%) is paid by the buyer only upon completed transfer."
     },
     "buildingStatuses": {
       "underConstruction": "Under construction",
@@ -1962,7 +1969,8 @@
       "loginIdRequired": "Please enter your email or phone number",
       "loginPassRequired": "Please enter your password",
       "submitFailed": "Could not submit request",
-      "cashExceedsBudget": "Available cash cannot exceed target total budget"
+      "cashExceedsBudget": "Available cash cannot exceed target total budget",
+      "termsRequired": "Please accept the Terms & Conditions and Privacy Policy before submitting"
     },
     "successScreen": {
       "title": "Your Buy Request & Smart Radar Are Active ✓",
@@ -2043,7 +2051,12 @@
       "sendRecoveryBtn": "Send Link to Registered Email",
       "phoneRecoverySentNote": "Link sent to the email registered with this phone number.",
       "useAnotherPhoneBtn": "← Use Another Number",
-      "orLoginPageBtn": "Or Log In from Login Page"
+      "orLoginPageBtn": "Or Log In from Login Page",
+      "termsAgreePrefix": "I agree to the",
+      "termsLinkText": "Terms & Conditions",
+      "termsAndWord": "and",
+      "privacyLinkText": "Privacy Policy",
+      "termsAgreeSuffix": "confirm I am the end buyer (not a broker), and agree to the platform commission ({commission}%) payable only upon completed transfer."
     },
     "actions": {
       "backBtn": "Back",
@@ -3666,8 +3679,8 @@
         "dashboard": "Dashboard",
         "properties": "Sell Requests",
         "propertiesShort": "Properties",
-        "promotions": "Ad Requests ⭐",
-        "promotionsShort": "Promotions",
+        "promotions": "Ads & Boosts ⭐",
+        "promotionsShort": "Ads",
         "leads": "Buy Requests",
         "leadsShort": "Buyers",
         "users": "Users & Roles",
@@ -3709,7 +3722,7 @@
       "pendingReview": "Pending Review",
       "pendingNeedAction": "New units awaiting your review",
       "allReviewed": "All units reviewed",
-      "adRequests": "Ad Requests ⭐",
+      "adRequests": "Ads & Boosts ⭐",
       "adPendingNote": "new request awaiting activation",
       "adActiveNote": "active featured units",
       "unitBookers": "Unit Bookers 🔥",
@@ -3863,12 +3876,12 @@
     },
     "settings": {
       "eyebrow": "Central Control",
-      "title": "Site Settings & International Package Pricing",
-      "subtitle": "Control contact numbers, commission rates, and unit promotion package prices for each country.",
+      "title": "Site Settings, Commission & Ad Pricing",
+      "subtitle": "Manage contact details, commission rate, and unit boost daily rates in Georgia.",
       "tabGeneral": "Site & Package Settings",
       "tabSystem": "Server Status",
       "contactCardTitle": "Contact Info, Commission & Ad Pricing",
-      "contactCardDesc": "These numbers and prices are displayed to clients based on their selected country.",
+      "contactCardDesc": "These details and rates apply automatically across all pages and calculators.",
       "siteNameLabel": "Platform Name",
       "whatsappLabel": "Official Customer Service WhatsApp",
       "financialRatesTitle": "Commission & Developer Cancellation Penalty (%)",
@@ -3876,7 +3889,7 @@
       "devPenaltyMaxLabel": "Max Developer Penalty (%)",
       "supportEmailLabel": "Official Support Email",
       "commissionLabel": "Platform Buyer Commission (%)",
-      "promoPricesTitle": "Unit Promotion Package Prices (Per Country):",
+      "promoPricesTitle": "Unit Boost Pricing (Single Source of Truth):",
       "countries": {
         "EG": "Egypt",
         "RU": "Russia",
@@ -3907,17 +3920,17 @@
       "supabaseDesc": "Stores properties, buy requests, and users",
       "connected": "Connected",
       "disconnected": "Disconnected",
-      "smtpTitle": "Email Service (Nodemailer / SMTP)",
+      "smtpTitle": "Email Service (Resend / SMTP)",
       "smtpDesc": "Sends OTP codes and property approval notifications",
       "smtpActive": "Active",
-      "smtpMissing": "Requires EMAIL_USER setup",
+      "smtpMissing": "Requires RESEND_API_KEY or SMTP",
       "rolesCardTitle": "Role & Team Management",
       "rolesCardDesc": "Standard access rules for request lifecycle.",
       "rule1Bold": "1. Seller Data Protection:",
       "rule1Text": "Seller phone numbers are never shown on public opportunity pages; all offers are mediated through the platform.",
       "manageAdminsBtn": "Manage Admins & Moderators",
       "modalTitle": "Confirm Saving Site Settings & Prices",
-      "modalDesc": "Are you sure you want to save the new platform settings and international promotion package prices?",
+      "modalDesc": "Are you sure you want to save these changes and apply them immediately across the platform?",
       "cancelBtn": "Cancel",
       "confirmSaveBtn": "Yes, Confirm Save",
       "savingBtn": "Saving...",
@@ -3953,7 +3966,13 @@
       "gaMeasurementLabel": "Google Analytics (GA4 ID)",
       "gtmLabel": "Google Tag Manager (GTM)",
       "mapInvalidChunkData": "Received map data is invalid.",
-      "mapServerWriteError": "Could not save map updates on the server."
+      "mapServerWriteError": "Could not save map updates on the server.",
+      "boostAutoCalcHint": "Packages and tier discounts (-25% from 50 ₾ and -30% from 100 ₾) update automatically on the Homepage and Seller Account from these daily rates.",
+      "flittTitle": "Flitt Payment Gateway",
+      "flittDesc": "Processes card payments for +VIP & SUPER VIP boosts",
+      "flittLiveBadge": "Live (Production)",
+      "flittTestBadge": "Test Mode (Sandbox 1549901)",
+      "flittMissingBadge": "Not Configured (FLITT_MERCHANT_ID)"
     },
     "profile": {
       "eyebrow": "Profile",
@@ -4040,11 +4059,11 @@
       "deletedSuccess": "Buy request deleted permanently.",
       "deleteError": "Could not delete buy request.",
       "statuses": {
-        "new": "New Request",
-        "contacted": "Contacted",
-        "matched": "Recommended / Viewing",
-        "closed": "Purchased / Contracted",
-        "archived": "Archived"
+        "new": "1. New Request",
+        "contacted": "2. Contacted",
+        "matched": "3. Recommended / Viewing",
+        "closed": "6. Purchased Successfully",
+        "archived": "📁 Archived"
       },
       "verifyBuyerBothBtn": "Verify Phone & Email Manually ✓",
       "verifyBuyerEmailBtn": "Verify Buyer Email Manually ✓",
@@ -4091,10 +4110,10 @@
         "sourceDirectOfferBadge": "Direct Offer",
         "sourceSearchBadge": "Search Request"
       },
-      "statusHasActiveOffer": "💬 Active Offer",
-      "statusNegotiating": "🔥 Negotiating",
-      "statusInActiveDeal": "🤝 In Active Deal",
-      "statusPurchasedLocked": "Purchased Successfully",
+      "statusHasActiveOffer": "4. Active Offer",
+      "statusNegotiating": "4. Negotiating",
+      "statusInActiveDeal": "5. In Active Deal",
+      "statusPurchasedLocked": "6. Purchased Successfully",
       "filterOffersAndNegTab": "Offer / Negotiating",
       "filterInDealTab": "In Active Deal",
       "currentDealBtn": "Current Deal",
@@ -4120,7 +4139,22 @@
       "blockedActiveOffersDesc": "Buyer ({name}) has ({count}) active offers. To change status manually, open their offers log and withdraw active offers first.",
       "blockedGotItBtn": "Got It",
       "blockedOpenDealBtn": "Open Deal File",
-      "blockedOpenOffersBtn": "Open Buyer Offers Log"
+      "blockedOpenOffersBtn": "Open Buyer Offers Log",
+      "selectedLeadBadge": "Selected Buyer",
+      "statusMenu": {
+        "pipelineGroupLabel": "Buyer Stages (1 – 6)",
+        "otherGroupLabel": "Other Statuses",
+        "autoBadge": "Auto",
+        "currentBadge": "Current",
+        "lockedInDealTitle": "Buyer Is In an Active Deal",
+        "lockedInDealDesc": "Status cannot be changed manually during an active transfer deal. Manage it from Deals.",
+        "lockedHasOffersTitle": "Active Offers / Negotiation",
+        "lockedHasOffersDesc": "Status cannot be changed manually while active offers exist. Review or withdraw them from Buyer Offers.",
+        "lockedClosedTitle": "Purchase Completed & Closed",
+        "lockedClosedDesc": "This buyer's purchase is permanently closed and cannot be modified.",
+        "goToDealsBtn": "Manage in Deals",
+        "goToOffersBtn": "View Buyer Offers"
+      }
     },
     "usersPage": {
       "eyebrow": "Community & Role-Based Access (RBAC)",
@@ -4130,16 +4164,16 @@
       "rolesGuideTitle": "System Role Permissions Guide:",
       "rolesGuide": [
         {
-          "role": "System Admin (Admin)",
-          "desc": "Full access: manage users, settings, pricing, properties, buyers, investors, and permanent deletion."
+          "role": "System Admin",
+          "desc": "Full access: users, settings, pricing, listings, offers & deals, ads, and permanent deletion."
         },
         {
-          "role": "Property Moderator (Moderator)",
-          "desc": "Review and verify properties, activate promotions, follow up with buyers and investors (no settings, roles, or deletion)."
+          "role": "Property Moderator",
+          "desc": "Review & publish units, activate ads, and manage offers & deals (no settings, roles, or deletion)."
         },
         {
-          "role": "Sales & Follow-up (Sales)",
-          "desc": "View buyer and seller requests and phone numbers to contact via WhatsApp and update follow-up status."
+          "role": "Sales Representative",
+          "desc": "Follow up on buyer & seller leads, log phone offers, contact via WhatsApp, and update stages."
         }
       ],
       "searchPlaceholder": "Search by name, email, or mobile number...",
@@ -4266,9 +4300,9 @@
         "paused_by_seller": "⏸ Paused by Owner",
         "deleted_by_seller": "🗑 Deleted by Owner",
         "rejected": "7. Rejected",
-        "has_offers": "💬 Active Offers",
-        "negotiating": "🔥 Negotiating",
-        "in_deal": "🤝 In Active Deal",
+        "has_offers": "4. Offer Received",
+        "negotiating": "4. Negotiating",
+        "in_deal": "5. Contract Assignment",
         "incomplete": "0. Incomplete",
         "paused_by_admin": "⛔ Paused by Admin"
       },
@@ -4646,7 +4680,7 @@
     },
     "promotionsManager": {
       "eyebrow": "Featured Listings & Payments",
-      "title": "Ad & Boost Requests (SUPER VIP & +VIP)",
+      "title": "Ads & Boosts (SUPER VIP & +VIP)",
       "subtitle": "Review online Flitt card payments, manage active boosts, remaining days, and manual boosts",
       "searchPlaceholder": "Search by unit code, order ref, project, or owner...",
       "tabPending": "Pending Activation",
@@ -4698,7 +4732,11 @@
       "cashAmountLabel": "Cash Amount Received (Optional — ₾)",
       "cashAmountPlaceholder": "Leave 0 for complimentary or enter GEL amount",
       "cashNoteHint": "Manual boosts are logged automatically in History with a reference code for accounting.",
-      "copiedRefToast": "Copied ✓"
+      "copiedRefToast": "Copied ✓",
+      "tabAll": "All",
+      "emptyAll": "No pending requests or active ads right now",
+      "sectionPendingTitle": "Pending Activation",
+      "sectionActiveTitle": "Currently Active Ads"
     }
   },
   "smartMatcher": {

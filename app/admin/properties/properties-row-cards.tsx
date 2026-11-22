@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useRef, useState, useTransition } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
@@ -161,7 +161,7 @@ export type SharedPropertyCardProps = {
   docsCount: number
 }
 
-// قائمة مراحل موحدة لكل الوحدات (نفس الشكل في الموبايل والكمبيوتر، مع تنبيه «غير مكتملة» وتنبيهات المراحل المحمية)
+// قائمة مراحل موحدة بفتح ذكي (تقلب للأعلى تلقائياً في الوحدات السفلية) ومسميات متطابقة 100%
 function UnitStatusControl(props: SharedPropertyCardProps) {
   const {
     property,
@@ -178,6 +178,9 @@ function UnitStatusControl(props: SharedPropertyCardProps) {
     onOpenOffersLog,
   } = props
 
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const [openUpward, setOpenUpward] = useState(false)
+
   const sMenu = (t.statusMenu as Record<string, string>) || {}
   const statuses = (t.statuses as Record<string, string>) || {}
   const isOpen = openStatusMenuId === property.id
@@ -193,6 +196,11 @@ function UnitStatusControl(props: SharedPropertyCardProps) {
 
   const isLocked = isAutoLockedStage || currentSt === "sold"
   const acceptedOffer = validOffers.find((o) => o.status === "accepted")
+
+  const stage4Label =
+    currentSt === "negotiating"
+      ? statuses.negotiating || statuses.offer_received
+      : statuses.offer_received
 
   const pipelineItems: Array<{
     value: string
@@ -220,7 +228,7 @@ function UnitStatusControl(props: SharedPropertyCardProps) {
     },
     {
       value: "offer_received",
-      label: statuses.offer_received,
+      label: stage4Label,
       isAuto: true,
       isCurrent: currentSt === "has_offers" || currentSt === "negotiating",
     },
@@ -284,16 +292,25 @@ function UnitStatusControl(props: SharedPropertyCardProps) {
             }
           : null
 
+  const handleToggle = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setOpenMenuId(null)
+    if (!isOpen && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect()
+      const spaceBelow = window.innerHeight - rect.bottom
+      const spaceAbove = rect.top
+      setOpenUpward(spaceBelow < 400 && spaceAbove > spaceBelow)
+    }
+    setOpenStatusMenuId(isOpen ? null : property.id)
+  }
+
   return (
     <div className="relative w-full" onClick={(e) => e.stopPropagation()}>
       <button
+        ref={triggerRef}
         type="button"
         disabled={pending}
-        onClick={(e) => {
-          e.stopPropagation()
-          setOpenMenuId(null)
-          setOpenStatusMenuId(isOpen ? null : property.id)
-        }}
+        onClick={handleToggle}
         className={`inline-flex h-9 w-full items-center justify-between gap-1.5 rounded-xl border px-3 text-[11px] font-extrabold transition focus:outline-none disabled:opacity-50 ${stObj.badge}`}
       >
         <span className="flex min-w-0 items-center gap-1.5 truncate">
@@ -310,20 +327,21 @@ function UnitStatusControl(props: SharedPropertyCardProps) {
       {isOpen && (
         <div
           onClick={(e) => e.stopPropagation()}
-          className="absolute end-0 top-10 z-50 w-full min-w-[260px] overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 text-start shadow-2xl sm:w-[295px]"
+          className={`absolute end-0 z-50 max-h-[min(410px,72vh)] w-full min-w-[260px] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-2 text-start shadow-2xl sm:w-[290px] ${
+            openUpward ? "bottom-10" : "top-10"
+          }`}
         >
-          {/* تنبيه علوي يشرح السبب عند وجود صفقة أو عروض نشطة أو بيع */}
           {lockBanner && (
             <div
-              className={`mb-2 rounded-xl border p-2.5 text-[11px] ${lockBanner.tone}`}
+              className={`mb-1.5 rounded-xl border p-2 text-[10.5px] ${lockBanner.tone}`}
             >
               <div className="flex items-start gap-1.5">
-                <Lock className="mt-0.5 size-3.5 shrink-0 text-[#007a5a]" />
+                <Lock className="mt-0.5 size-3 shrink-0 text-[#007a5a]" />
                 <div className="min-w-0 flex-1">
-                  <strong className="block font-black">
+                  <strong className="block text-[11px] font-black">
                     {lockBanner.title}
                   </strong>
-                  <p className="mt-0.5 text-[10.5px] leading-relaxed opacity-85">
+                  <p className="mt-0.5 leading-snug opacity-85">
                     {lockBanner.desc}
                   </p>
                 </div>
@@ -337,7 +355,7 @@ function UnitStatusControl(props: SharedPropertyCardProps) {
                       : "/admin/deals"
                   }
                   onClick={() => setOpenStatusMenuId(null)}
-                  className="mt-2 flex h-7.5 w-full items-center justify-center gap-1.5 rounded-lg bg-[#007a5a] px-2.5 text-[11px] font-extrabold text-white transition hover:bg-[#006248]"
+                  className="mt-1.5 flex h-7 w-full items-center justify-center gap-1.5 rounded-lg bg-[#007a5a] px-2.5 text-[10.5px] font-extrabold text-white transition hover:bg-[#006248]"
                 >
                   <Handshake className="size-3.5" />
                   <span>{sMenu.goToDealsBtn}</span>
@@ -351,7 +369,7 @@ function UnitStatusControl(props: SharedPropertyCardProps) {
                     setOpenStatusMenuId(null)
                     onOpenOffersLog(property)
                   }}
-                  className="mt-2 flex h-7.5 w-full items-center justify-center gap-1.5 rounded-lg bg-[#0f1d40] px-2.5 text-[11px] font-extrabold text-white transition hover:bg-[#1e293b]"
+                  className="mt-1.5 flex h-7 w-full items-center justify-center gap-1.5 rounded-lg bg-[#0f1d40] px-2.5 text-[10.5px] font-extrabold text-white transition hover:bg-[#1e293b]"
                 >
                   <ClipboardList className="size-3.5 text-emerald-300" />
                   <span>{sMenu.goToOffersBtn}</span>
@@ -360,19 +378,17 @@ function UnitStatusControl(props: SharedPropertyCardProps) {
             </div>
           )}
 
-          {/* تنبيه واضح للوحدات غير المكتملة قبل المرحلة ١ */}
           {currentSt === "incomplete" && (
-            <div className="mb-2 rounded-xl border border-amber-300 bg-amber-50 p-2.5 text-[11px] text-amber-950">
-              <strong className="block font-black">
+            <div className="mb-1.5 rounded-xl border border-amber-300 bg-amber-50 p-2 text-[10.5px] text-amber-950">
+              <strong className="block text-[11px] font-black">
                 {sMenu.incompleteBannerTitle}
               </strong>
-              <p className="mt-0.5 text-[10.5px] leading-relaxed opacity-90">
+              <p className="mt-0.5 leading-snug opacity-90">
                 {sMenu.incompleteBannerDesc}
               </p>
             </div>
           )}
 
-          {/* مجموعة المراحل الأساسية 1 - 6 */}
           <div className="px-2 pt-0.5 pb-1 text-[10px] font-extrabold text-slate-400">
             {sMenu.pipelineGroupLabel}
           </div>
@@ -393,7 +409,7 @@ function UnitStatusControl(props: SharedPropertyCardProps) {
                       newStatus: item.value,
                     })
                   }}
-                  className={`flex w-full items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-start text-[11.5px] transition ${
+                  className={`flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-start text-[11px] transition ${
                     item.isCurrent
                       ? "bg-[#eaf8f2] font-black text-[#007a5a] ring-1 ring-emerald-200"
                       : isLocked || item.isAuto
@@ -426,7 +442,6 @@ function UnitStatusControl(props: SharedPropertyCardProps) {
             })}
           </div>
 
-          {/* مجموعة الحالات الإضافية */}
           <div className="my-1.5 border-t border-slate-100" />
           <div className="px-2 pb-1 text-[10px] font-extrabold text-slate-400">
             {sMenu.otherGroupLabel}
@@ -448,7 +463,7 @@ function UnitStatusControl(props: SharedPropertyCardProps) {
                       newStatus: item.value,
                     })
                   }}
-                  className={`flex w-full items-center justify-between gap-2 rounded-xl px-2.5 py-1.5 text-start text-[11.5px] transition ${
+                  className={`flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-start text-[11px] transition ${
                     item.isCurrent
                       ? "bg-rose-50 font-black text-rose-800 ring-1 ring-rose-200"
                       : isLocked
@@ -730,6 +745,9 @@ function PropertyThreeDotsMenu(props: SharedPropertyCardProps) {
     onExportSingle,
   } = props
 
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const [openUpward, setOpenUpward] = useState(false)
+
   const isMenuOpen = openMenuId === property.id
   const viewsCount = Math.max(1, Number(property.views_count) || 1)
   const reportWaMessage = buildOwnerPerformanceReportWhatsAppMessage({
@@ -741,16 +759,25 @@ function PropertyThreeDotsMenu(props: SharedPropertyCardProps) {
     t,
   })
 
+  const handleToggle = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setOpenStatusMenuId(null)
+    if (!isMenuOpen && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect()
+      const spaceBelow = window.innerHeight - rect.bottom
+      const spaceAbove = rect.top
+      setOpenUpward(spaceBelow < 340 && spaceAbove > spaceBelow)
+    }
+    setOpenMenuId(isMenuOpen ? null : property.id)
+  }
+
   return (
     <div className="relative" onClick={(e) => e.stopPropagation()}>
       <button
+        ref={triggerRef}
         type="button"
         aria-label={expL.moreActionsAria}
-        onClick={(e) => {
-          e.stopPropagation()
-          setOpenStatusMenuId(null)
-          setOpenMenuId(isMenuOpen ? null : property.id)
-        }}
+        onClick={handleToggle}
         className="flex size-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-[#007a5a] hover:bg-slate-50 hover:text-[#0f1d40]"
       >
         <MoreVertical className="size-4" />
@@ -759,7 +786,9 @@ function PropertyThreeDotsMenu(props: SharedPropertyCardProps) {
       {isMenuOpen && (
         <div
           onClick={(e) => e.stopPropagation()}
-          className="absolute end-0 top-9 z-50 w-60 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl"
+          className={`absolute end-0 z-50 max-h-[70vh] w-60 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl ${
+            openUpward ? "bottom-9" : "top-9"
+          }`}
         >
           <button
             type="button"

@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import {
   AlertCircle,
   BookmarkCheck,
@@ -12,10 +13,13 @@ import {
   Mail,
   Send,
   ShieldAlert,
+  ShieldCheck,
   Sparkles,
   X,
 } from 'lucide-react'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
+import { useTranslation } from '@/lib/i18n'
 import { maskEmailDisplay, type SellerExtraLabels } from './seller-i18n'
 import { toEnglishDigits } from './seller-shared'
 import type {
@@ -28,22 +32,34 @@ export function SellerFinalReadinessCard({
   fT,
   liveMissingCoreItems,
   fieldErrors,
+  agreedTerms,
+  setAgreedTerms,
   pending,
   savingDraftLoading,
   onPublishListing,
   onSaveDraft,
 }: {
-  loadT: FlowLoadingLabels
+  loadT: FlowLoadingLabels & Record<string, string>
   fT: any
   liveMissingCoreItems: MissingCoreFieldItem[]
   fieldErrors: Record<string, string>
+  agreedTerms: boolean
+  setAgreedTerms: (val: boolean) => void
   pending: boolean
   savingDraftLoading: boolean
   onPublishListing: () => void
   onSaveDraft: () => void
 }) {
+  const { dir, siteSettings } = useTranslation()
+  const commPct = String(siteSettings?.buyerCommission || '1.25')
+  const sep = dir === 'rtl' ? ' ، ' : ', '
+
   const hasVisibleErrors =
     Object.keys(fieldErrors).length > 0 && liveMissingCoreItems.length > 0
+
+  const commissionNote = String(
+    loadT.sellerCommissionNoteTemplate || ''
+  ).replace('{commission}', commPct)
 
   return (
     <section className="rounded-[24px] border border-slate-200/90 bg-white p-5 shadow-xs sm:p-7">
@@ -54,6 +70,63 @@ export function SellerFinalReadinessCard({
         <p className="mt-1 text-xs leading-relaxed font-semibold text-slate-500 sm:text-sm">
           {loadT.finalCardSub}
         </p>
+      </div>
+
+      {/* سطر توضيحي ديناميكي لنسبة العمولة المربوطة بالإعدادات */}
+      {commissionNote && (
+        <div className="mt-4 flex items-start gap-2 rounded-xl border border-emerald-200/80 bg-[#eaf8f2]/70 px-3.5 py-2.5 text-start text-xs font-bold text-[#007a5a]">
+          <ShieldCheck className="mt-0.5 size-4 shrink-0 text-[#007a5a]" />
+          <span>{commissionNote}</span>
+        </div>
+      )}
+
+      {/* خانة الموافقة الإجبارية على الشروط والأحكام وسياسة الخصوصية بروابط قابلة للضغط */}
+      <div id="field-wrap-agreedTerms" className="mt-4">
+        <label
+          dir={dir}
+          className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 text-start text-xs leading-relaxed font-bold transition ${
+            fieldErrors.agreedTerms
+              ? 'border-2 border-red-500 bg-red-50/30 text-red-900'
+              : agreedTerms
+                ? 'border-emerald-300 bg-[#eaf8f2]/40 text-[#0f1d40]'
+                : 'border-slate-200 bg-slate-50/70 text-slate-700 hover:border-slate-300'
+          }`}
+        >
+          <Checkbox
+            className="mt-0.5 m-0 shrink-0"
+            checked={agreedTerms}
+            onCheckedChange={(checked) => setAgreedTerms(Boolean(checked))}
+          />
+          <span>
+            {loadT.termsAgreePrefix}{' '}
+            <Link
+              href="/terms"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="font-black text-[#007a5a] underline decoration-[#007a5a]/60 underline-offset-2 hover:text-[#006248]"
+            >
+              {loadT.termsLinkText}
+            </Link>{' '}
+            {loadT.termsAndWord}{' '}
+            <Link
+              href="/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="font-black text-[#007a5a] underline decoration-[#007a5a]/60 underline-offset-2 hover:text-[#006248]"
+            >
+              {loadT.privacyLinkText}
+            </Link>{' '}
+            — {loadT.termsAgreeSuffix} <span className="text-red-500">*</span>
+          </span>
+        </label>
+
+        {fieldErrors.agreedTerms && (
+          <p className="mt-1.5 text-start text-xs font-extrabold text-red-600">
+            {loadT.termsRequiredError || fieldErrors.agreedTerms}
+          </p>
+        )}
       </div>
 
       <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -107,7 +180,7 @@ export function SellerFinalReadinessCard({
               {loadT.missingBelowBtnPrefix}{' '}
             </strong>
             <span>
-              {liveMissingCoreItems.map((it) => it.label).join(' ، ')}
+              {liveMissingCoreItems.map((it) => it.label).join(sep)}
             </span>
           </p>
         </div>

@@ -2,6 +2,7 @@ import { createHash } from "node:crypto"
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 import { createServerClient } from "@supabase/ssr"
+import { getServerI18n } from "@/lib/get-server-dictionary"
 import {
   extractUserIdFromCookie,
   parseAndVerifySessionCookie,
@@ -33,6 +34,69 @@ function buildFlittSignature(
   return createHash("sha1").update(signatureString, "utf8").digest("hex")
 }
 
+// إعادة حساب الباقة وعدد الأيام على السيرفر حصراً بناءً على أسعار الإعدادات لمنع أي تلاعب من المتصفح
+function resolveServerBoostPackage(
+  rawAmountGel: number,
+  vipPlusDaily: number,
+  superVipDaily: number
+): {
+  amountGel: number
+  tier: "super_vip" | "vip_plus"
+  durationDays: number
+} {
+  const vipPlusRate = Math.max(1, Math.round(vipPlusDaily || 5))
+  const superVipRate = Math.max(
+    vipPlusRate + 1,
+    Math.round(superVipDaily || 10)
+  )
+
+  const amountGel = Math.max(
+    vipPlusRate,
+    Math.min(10000, Math.round(rawAmountGel || 0))
+  )
+
+  const tier50 = superVipRate * 5
+  const tier100 = superVipRate * 10
+  const daysAt50 = Math.max(6, Math.round(tier50 / (superVipRate * 0.75)))
+  const daysAt100 = Math.max(14, Math.round(tier100 / (superVipRate * 0.7)))
+
+  if (amountGel < superVipRate) {
+    return {
+      amountGel,
+      tier: "vip_plus",
+      durationDays: Math.max(1, Math.floor(amountGel / vipPlusRate)),
+    }
+  }
+
+  if (amountGel < tier50) {
+    return {
+      amountGel,
+      tier: "super_vip",
+      durationDays: Math.max(1, Math.floor(amountGel / superVipRate)),
+    }
+  }
+
+  if (amountGel < tier100) {
+    return {
+      amountGel,
+      tier: "super_vip",
+      durationDays: Math.max(
+        daysAt50,
+        Math.round(amountGel / (superVipRate * 0.75))
+      ),
+    }
+  }
+
+  return {
+    amountGel,
+    tier: "super_vip",
+    durationDays: Math.max(
+      daysAt100,
+      Math.min(365, Math.round(amountGel / (superVipRate * 0.7)))
+    ),
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const merchantId = process.env.FLITT_MERCHANT_ID?.trim()
@@ -60,11 +124,14 @@ export async function POST(req: Request) {
       { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } }
     )
 
-    const { data: user } = await supabase
-      .from("users")
-      .select("id, email, role, password_hash, status")
-      .eq("id", userId)
-      .maybeSingle()
+    const [{ data: user }, { siteSettings }] = await Promise.all([
+      supabase
+        .from("users")
+        .select("id, email, role, password_hash, status")
+        .eq("id", userId)
+        .maybeSingle(),
+      getServerI18n(),
+    ])
 
     if (
       !user ||
@@ -76,17 +143,24 @@ export async function POST(req: Request) {
 
     const body = await req.json().catch(() => ({}))
     const unitId = String(body.unitId || "").trim()
-    const tier: "super_vip" | "vip_plus" =
-      body.tier === "vip_plus" ? "vip_plus" : "super_vip"
-    const durationDays = Math.max(1, Math.min(90, Number(body.days) || 1))
-    const amountGel = Math.max(
-      5,
-      Math.min(10000, Math.round(Number(body.amountGel) || 0))
-    )
+    const requestedAmount = Number(body.amountGel)
 
-    if (!unitId || !Number.isFinite(amountGel) || amountGel <= 0) {
+    if (!unitId || !Number.isFinite(requestedAmount) || requestedAmount <= 0) {
       return NextResponse.json({ error: "INVALID_PAYLOAD" }, { status: 400 })
     }
+
+    const vipPlusDaily = Number(
+      (siteSettings as Record<string, any>)?.vipPlusDailyGel || 5
+    )
+    const superVipDaily = Number(
+      (siteSettings as Record<string, any>)?.superVipDailyGel || 10
+    )
+
+    const { amountGel, tier, durationDays } = resolveServerBoostPackage(
+      requestedAmount,
+      vipPlusDaily,
+      superVipDaily
+    )
 
     const { data: unit } = await supabase
       .from("sell_requests")
@@ -101,7 +175,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "UNIT_NOT_FOUND" }, { status: 404 })
     }
 
-    // قاعدة الأمان الصارمة: لا يُسمح بالدفع للتمييز إلا بعد اعتماد ونشر الوحدة في السوق
+    // قاعدة الأمان: لا يُسمح بالدفع للتمييز إلا بعد اعتماد ونشر الوحدة في السوق
     const unitSt = String(unit.status || "").trim().toLowerCase()
     const isLive = [
       "active",
@@ -121,7 +195,6 @@ export async function POST(req: Request) {
     const orderRef = `FL-${Date.now().toString(36).toUpperCase()}-${String(unit.id).slice(0, 4).toUpperCase()}`
     const packageLabel = tier === "vip_plus" ? "VIP+" : "SUPER VIP"
 
-    // تنظيف محاولات الدفع غير المكتملة السابقة لنفس الوحدة
     try {
       await supabase
         .from("boost_requests")

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import {
   CheckCircle2,
   Eye,
@@ -17,6 +18,7 @@ import {
   type BuyRequestPayload,
 } from '@/actions/submit-forms'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { TurnstileBox } from '@/components/layouts/auth-layout'
@@ -65,6 +67,9 @@ export function BuyerContactStep({
   loggedUser,
   authTab,
   setAuthTab,
+  agreedTerms,
+  setAgreedTerms,
+  commissionPct = '1.25',
   conflictState,
   setConflictState,
   onSuccessRedirect,
@@ -82,11 +87,14 @@ export function BuyerContactStep({
   loggedUser: { id: string; name: string; email: string; phone: string } | null
   authTab: 'session' | 'register' | 'login'
   setAuthTab: (tab: 'session' | 'register' | 'login') => void
+  agreedTerms: boolean
+  setAgreedTerms: (val: boolean) => void
+  commissionPct?: string
   conflictState: BuyerConflictState
   setConflictState: (val: BuyerConflictState) => void
   onSuccessRedirect: (info?: { reqId?: string; orderRef?: string }) => void
 }) {
-  const { t: dict, locale } = useTranslation()
+  const { t: dict, locale, dir } = useTranslation()
   const t = dict.buy.stepThree as Record<string, any>
 
   const [existingPass, setExistingPass] = useState('')
@@ -353,6 +361,10 @@ export function BuyerContactStep({
     )
   }
 
+  const termsSuffixFormatted = String(
+    t.termsAgreeSuffix || t.buyerDeclaration || ''
+  ).replace('{commission}', commissionPct)
+
   return (
     <div className="flex flex-col gap-5">
       <div className="grid grid-cols-1 gap-2 rounded-2xl border border-slate-200 bg-slate-50/80 p-1.5 sm:flex">
@@ -416,17 +428,18 @@ export function BuyerContactStep({
           <div className="grid grid-cols-1 gap-2 rounded-xl bg-white p-3.5 text-xs sm:grid-cols-2">
             <div>
               <span className="text-slate-400">{t.phoneLabelShort} </span>
-              <strong
-                dir="ltr"
-                className="font-mono text-[var(--brand-navy,#0a1122)]"
-              >
-                {loggedUser.phone}
+              <strong className="text-[var(--brand-navy,#0a1122)]">
+                <span dir="ltr" className="inline-block font-mono">
+                  {loggedUser.phone}
+                </span>
               </strong>
             </div>
             <div>
               <span className="text-slate-400">{t.emailLabelShort} </span>
-              <strong dir="ltr" className="text-[var(--brand-navy,#0a1122)]">
-                {loggedUser.email}
+              <strong className="text-[var(--brand-navy,#0a1122)]">
+                <span dir="ltr" className="inline-block">
+                  {loggedUser.email}
+                </span>
               </strong>
             </div>
           </div>
@@ -625,9 +638,54 @@ export function BuyerContactStep({
         </div>
       )}
 
-      <p className="mt-2 text-center text-xs leading-6 font-bold text-slate-500">
-        {t.buyerDeclaration}
-      </p>
+      {/* خانة الموافقة الإجبارية على الشروط والأحكام وسياسة الخصوصية ونسبة العمولة */}
+      <div id="field-wrap-buyer-agreedTerms">
+        <label
+          dir={dir}
+          className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 text-start text-xs leading-relaxed font-bold transition ${
+            errors?.agreedTerms
+              ? 'border-2 border-red-500 bg-red-50/30 text-red-900'
+              : agreedTerms
+                ? 'border-emerald-300 bg-[#eaf8f2]/40 text-[#0f1d40]'
+                : 'border-slate-200 bg-slate-50/70 text-slate-700 hover:border-slate-300'
+          }`}
+        >
+          <Checkbox
+            className="mt-0.5 m-0 shrink-0"
+            checked={agreedTerms}
+            onCheckedChange={(checked) => setAgreedTerms(Boolean(checked))}
+          />
+          <span>
+            {t.termsAgreePrefix}{' '}
+            <Link
+              href="/terms"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="font-black text-[#007a5a] underline decoration-[#007a5a]/60 underline-offset-2 hover:text-[#006248]"
+            >
+              {t.termsLinkText}
+            </Link>{' '}
+            {t.termsAndWord}{' '}
+            <Link
+              href="/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="font-black text-[#007a5a] underline decoration-[#007a5a]/60 underline-offset-2 hover:text-[#006248]"
+            >
+              {t.privacyLinkText}
+            </Link>{' '}
+            — {termsSuffixFormatted} <span className="text-red-500">*</span>
+          </span>
+        </label>
+
+        {errors?.agreedTerms && (
+          <p className="mt-1.5 text-start text-xs font-extrabold text-red-600">
+            {errors.agreedTerms}
+          </p>
+        )}
+      </div>
 
       <TurnstileBox />
     </div>

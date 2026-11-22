@@ -34,7 +34,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { calculateGelBoostPackage } from '@/components/features/home/home-market-sections'
+import {
+  calculateGelBoostPackage,
+  getBoostRatesFromSettings,
+} from '@/components/features/home/home-market-sections'
 import { useTranslation, type LocaleCode } from '@/lib/i18n'
 import {
   getUnifiedUnitCode,
@@ -132,9 +135,14 @@ export function SellerPromoSection({
   }) => void
   onCancelPromo?: () => void
 }) {
-  const { locale } = useTranslation() as Record<string, any>
+  const { locale, siteSettings } = useTranslation() as Record<string, any>
   const activeLocale = (locale as LocaleCode) || 'ar'
   const GEL = '₾'
+
+  const { vipPlusDaily, superVipDaily, presetValues } = useMemo(
+    () => getBoostRatesFromSettings(siteSettings),
+    [siteSettings]
+  )
 
   const unitMeta = (activeUnit.documents?.__unit_meta || {}) as Record<
     string,
@@ -174,14 +182,17 @@ export function SellerPromoSection({
     Boolean(activeUnit.featured_until) &&
     new Date(activeUnit.featured_until as string).getTime() <= Date.now()
 
-  const defaultAmt = initialAmount && initialAmount >= 5 ? initialAmount : 10
+  const defaultAmt =
+    initialAmount && initialAmount >= vipPlusDaily
+      ? initialAmount
+      : superVipDaily
 
   const [selectedPreset, setSelectedPreset] = useState<number | 'custom'>(
-    [5, 10, 20, 50, 100].includes(defaultAmt) ? defaultAmt : 'custom'
+    presetValues.includes(defaultAmt) ? defaultAmt : 'custom'
   )
   const [topUpAmount, setTopUpAmount] = useState<number>(defaultAmt)
   const [showPackageDrawer, setShowPackageDrawer] = useState<boolean>(
-    Boolean(initialAmount && initialAmount >= 5)
+    Boolean(initialAmount && initialAmount >= vipPlusDaily)
   )
   const [submittingPayment, setSubmittingPayment] = useState(false)
   const [renewingSameBusy, setRenewingSameBusy] = useState(false)
@@ -191,18 +202,25 @@ export function SellerPromoSection({
   } | null>(null)
 
   useEffect(() => {
-    if (initialAmount && initialAmount >= 5) {
+    if (initialAmount && initialAmount >= vipPlusDaily) {
       setTopUpAmount(initialAmount)
       setSelectedPreset(
-        [5, 10, 20, 50, 100].includes(initialAmount) ? initialAmount : 'custom'
+        presetValues.includes(initialAmount) ? initialAmount : 'custom'
       )
       setShowPackageDrawer(true)
+    } else {
+      setTopUpAmount(superVipDaily)
+      setSelectedPreset(superVipDaily)
     }
-  }, [initialAmount])
+  }, [initialAmount, vipPlusDaily, superVipDaily, presetValues])
 
   const pkgDetails = useMemo(
-    () => calculateGelBoostPackage(topUpAmount, activeLocale),
-    [topUpAmount, activeLocale]
+    () =>
+      calculateGelBoostPackage(topUpAmount, activeLocale, {
+        vipPlusDaily,
+        superVipDaily,
+      }),
+    [topUpAmount, activeLocale, vipPlusDaily, superVipDaily]
   )
 
   const unitCode = getUnifiedUnitCode(activeUnit.id, activeUnit.code)
@@ -226,47 +244,51 @@ export function SellerPromoSection({
   const activeStartedAtIso = boostActiveMeta?.started_at || null
 
   const sameRenewalAmount = Math.max(
-    5,
+    vipPlusDaily,
     Number(
       boostActiveMeta?.amount_gel ||
         activeUnit.featured_price ||
-        (currentTier === 'vip_plus' ? 5 : 10)
+        (currentTier === 'vip_plus' ? vipPlusDaily : superVipDaily)
     )
   )
   const sameRenewalPkg = useMemo(
-    () => calculateGelBoostPackage(sameRenewalAmount, activeLocale),
-    [sameRenewalAmount, activeLocale]
+    () =>
+      calculateGelBoostPackage(sameRenewalAmount, activeLocale, {
+        vipPlusDaily,
+        superVipDaily,
+      }),
+    [sameRenewalAmount, activeLocale, vipPlusDaily, superVipDaily]
   )
 
   const presets = [
     {
-      id: 5,
-      val: 5,
+      id: presetValues[0],
+      val: presetValues[0],
       topBadge: t.starterBadge,
       subText: `VIP+ · 1 ${t.dayWord || ''}`,
     },
     {
-      id: 10,
-      val: 10,
+      id: presetValues[1],
+      val: presetValues[1],
       topBadge: t.recommendedBadge,
       subText: 'SUPER VIP',
       isRecommended: true,
     },
     {
-      id: 20,
-      val: 20,
+      id: presetValues[2],
+      val: presetValues[2],
       topBadge: '',
       subText: 'SUPER VIP',
     },
     {
-      id: 50,
-      val: 50,
+      id: presetValues[3],
+      val: presetValues[3],
       topBadge: `${t.popularBadge} -25%`,
       subText: 'SUPER VIP',
     },
     {
-      id: 100,
-      val: 100,
+      id: presetValues[4],
+      val: presetValues[4],
       topBadge: 'PRO -30%',
       subText: 'SUPER VIP',
     },
@@ -277,6 +299,14 @@ export function SellerPromoSection({
       subText: t.anySub,
     },
   ]
+
+  const minMaxHintDisplay =
+    vipPlusDaily === 5
+      ? t.minMaxGelHint
+      : String(t.minMaxGelHint || `Min ${vipPlusDaily} ₾ · Max 10,000 ₾`).replace(
+          /\b5\b/,
+          String(vipPlusDaily)
+        )
 
   const startFlittCheckout = async (opts: {
     tier: 'super_vip' | 'vip_plus'
@@ -368,7 +398,6 @@ export function SellerPromoSection({
   const waSpeedUpMsg = `${t.waSpeedUpMsgPrefix || t.whatsappPromoMsgPrefix} (${effectivePendingTierLabel} · ${effectivePendingDays} ${t.daysWord} · ${effectivePendingAmount} ${GEL}) — ${unitHeadline} (${unitCode}) · Ref: ${effectivePendingRef}`
   const waRefundMsg = `${t.waRefundMsgPrefix || t.whatsappPromoMsgPrefix} ${effectivePendingRef || boostLastRejected?.order_ref || unitCode} — ${unitHeadline} (${unitCode})`
 
-  // إظهار قائمة الباقات افتراضياً لو مفيش باقة نشطة/معلقة، أو لو العميل ضغط «استعراض الباقات / إضافة أيام»
   const showPackagePicker =
     boostState === 'active' &&
     ((!isCurrentlyFeatured && !isWaitingActivationOnly) || showPackageDrawer)
@@ -378,7 +407,6 @@ export function SellerPromoSection({
       id="promo-section"
       className="mt-5 rounded-[24px] border border-slate-200/90 bg-white p-4 text-start shadow-xs sm:p-6"
     >
-      {/* الهيدر العلوي */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-extrabold text-[#2563eb] sm:text-xs">
@@ -472,7 +500,6 @@ export function SellerPromoSection({
             ⏳ {t.boostDaysStartAfterApprovalNote}
           </div>
 
-          {/* 4 مربعات بيانات متساوية ومحاذاتها سليمة 100% */}
           <div className="grid grid-cols-2 gap-2.5 text-start text-[11px]">
             <div className="rounded-xl border border-slate-200/80 bg-white p-3">
               <span className="block text-[10px] font-semibold text-slate-400">
@@ -609,7 +636,6 @@ export function SellerPromoSection({
             )}
           </div>
 
-          {/* 4 بطاقات إحصائيات الإعلان النشط بمحاذاة منضبطة */}
           <div className="grid grid-cols-2 gap-2.5 text-start sm:grid-cols-4">
             <div className="rounded-xl border border-slate-200/80 bg-white p-3">
               <span className="flex items-center gap-1 text-[10px] font-bold text-slate-400">
@@ -740,7 +766,6 @@ export function SellerPromoSection({
         </div>
       )}
 
-      {/* تنبيهات انتهاء الباقة السابقة أو رفض آخر طلب */}
       {boostState === 'active' &&
         !isCurrentlyFeatured &&
         !isWaitingActivationOnly &&
@@ -774,7 +799,6 @@ export function SellerPromoSection({
         </div>
       )}
 
-      {/* اختيار الباقات والدفع عبر Flitt */}
       {showPackagePicker && (
         <div className="mt-4 border-t border-slate-100 pt-4">
           {isWaitingActivationOnly && (
@@ -805,7 +829,7 @@ export function SellerPromoSection({
                   {t.quickAmountsLabel}
                 </strong>
                 <span dir="ltr" className="text-[10px] text-slate-400">
-                  {t.minMaxGelHint}
+                  {minMaxHintDisplay}
                 </span>
               </div>
               <div className="flex size-8 items-center justify-center rounded-xl bg-blue-50 text-[#2563eb] sm:size-9">
@@ -874,9 +898,9 @@ export function SellerPromoSection({
                 <button
                   type="button"
                   onClick={() => {
-                    const next = Math.min(10000, topUpAmount + 5)
+                    const next = Math.min(10000, topUpAmount + vipPlusDaily)
                     setSelectedPreset(
-                      [5, 10, 20, 50, 100].includes(next) ? next : 'custom'
+                      presetValues.includes(next) ? next : 'custom'
                     )
                     setTopUpAmount(next)
                   }}
@@ -888,8 +912,8 @@ export function SellerPromoSection({
                 <button
                   type="button"
                   onClick={() => {
-                    setSelectedPreset(10)
-                    setTopUpAmount(10)
+                    setSelectedPreset(superVipDaily)
+                    setTopUpAmount(superVipDaily)
                   }}
                   className="text-xs text-slate-400 hover:text-slate-600"
                 >
@@ -902,9 +926,12 @@ export function SellerPromoSection({
                 dir="ltr"
                 value={topUpAmount}
                 onChange={(e) => {
-                  const next = Math.max(5, Number(e.target.value) || 5)
+                  const next = Math.max(
+                    vipPlusDaily,
+                    Number(e.target.value) || vipPlusDaily
+                  )
                   setSelectedPreset(
-                    [5, 10, 20, 50, 100].includes(next) ? next : 'custom'
+                    presetValues.includes(next) ? next : 'custom'
                   )
                   setTopUpAmount(next)
                 }}
@@ -914,9 +941,12 @@ export function SellerPromoSection({
               <button
                 type="button"
                 onClick={() => {
-                  const next = Math.max(5, topUpAmount - 5)
+                  const next = Math.max(
+                    vipPlusDaily,
+                    topUpAmount - vipPlusDaily
+                  )
                   setSelectedPreset(
-                    [5, 10, 20, 50, 100].includes(next) ? next : 'custom'
+                    presetValues.includes(next) ? next : 'custom'
                   )
                   setTopUpAmount(next)
                 }}
@@ -927,7 +957,6 @@ export function SellerPromoSection({
             </div>
           </div>
 
-          {/* ملخص الباقة المختارة بمحاذاة start طبيعية */}
           <div className="mt-4 rounded-2xl border border-blue-100 bg-[#f5f8ff] p-4 text-start">
             <div className="flex items-center gap-3">
               <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-blue-100/80 text-[#2563eb]">
@@ -964,7 +993,7 @@ export function SellerPromoSection({
                   onClick={() => {
                     const target = pkgDetails.upsellTarget
                     setSelectedPreset(
-                      [5, 10, 20, 50, 100].includes(target) ? target : 'custom'
+                      presetValues.includes(target) ? target : 'custom'
                     )
                     setTopUpAmount(target)
                   }}

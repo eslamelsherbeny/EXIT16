@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   BarChart3,
   CheckCircle2,
+  CreditCard,
   Database,
   Globe,
   Loader2,
@@ -58,12 +59,6 @@ type SiteSettings = {
   developerPenaltyMax?: string
   vipPlusDailyGel?: string
   superVipDailyGel?: string
-  promo7Price?: string
-  promo14Price?: string
-  promo30Price?: string
-  promo_GE_7?: string
-  promo_GE_14?: string
-  promo_GE_30?: string
   fbPixelId?: string
   gaMeasurementId?: string
   gtmId?: string
@@ -134,17 +129,26 @@ export default function SettingsClient({
   initialSettings,
   hasSupabase,
   hasEmail,
+  flittMode = "missing",
 }: {
   initialTab: "general" | "system"
   initialSettings: SiteSettings
   hasSupabase: boolean
   hasEmail: boolean
+  flittMode?: "live" | "sandbox" | "missing"
 }) {
   const router = useRouter()
   const { t: dict, dir } = useTranslation()
   const t = dict.admin.settings as Record<string, any>
 
   const [activeTab, setActiveTab] = useState<"general" | "system">(initialTab)
+
+  const [vipPlusDaily, setVipPlusDaily] = useState(
+    String(initialSettings.vipPlusDailyGel || "5")
+  )
+  const [superVipDaily, setSuperVipDaily] = useState(
+    String(initialSettings.superVipDailyGel || "10")
+  )
 
   const [maintenanceMode, setMaintenanceMode] = useState(
     initialSettings.maintenanceMode
@@ -166,7 +170,7 @@ export default function SettingsClient({
   } | null>(null)
   const [pending, startTransition] = useTransition()
 
-  // حالة تحديث خريطة ومرافق جورجيا مع النسبة المئوية
+  // حالة تحديث خريطة ومرافق جورجيا
   const [syncingMap, setSyncingMap] = useState(false)
   const [syncPercent, setSyncPercent] = useState(0)
   const [syncProgressText, setSyncProgressText] = useState("")
@@ -189,6 +193,23 @@ export default function SettingsClient({
       if (savedDate) setLastMapSyncDate(savedDate)
     } catch {}
   }, [])
+
+  const parsedVipPlus = Math.max(1, Math.round(Number(vipPlusDaily) || 5))
+  const parsedSuperVip = Math.max(
+    parsedVipPlus + 1,
+    Math.round(Number(superVipDaily) || 10)
+  )
+  const previewTier20 = parsedSuperVip * 2
+  const previewTier50 = parsedSuperVip * 5
+  const previewTier100 = parsedSuperVip * 10
+  const previewDays50 = Math.max(
+    6,
+    Math.round(previewTier50 / (parsedSuperVip * 0.75))
+  )
+  const previewDays100 = Math.max(
+    14,
+    Math.round(previewTier100 / (parsedSuperVip * 0.7))
+  )
 
   async function handleSyncGeorgiaMapPois() {
     setSyncingMap(true)
@@ -215,7 +236,7 @@ export default function SettingsClient({
         {
           targetPct: 76,
           label: t.mapBatch4Label,
-          query: `[out:json][timeout:25][bbox:41.60,41.57,41.68,41.69];(node["amenity"~"^(school|kindergarten|university|pharmacy|clinic|hospital|bank|restaurant|cafe)$"];way["amenity"~"^(school|kindergarten|university|pharmacy|clinic|hospital|bank)$"];node["shop"~"^(supermarket|convenience|mall|bakery)$"];node["leisure"~"^(park|garden|fitness_centre)$"];way["leisure"~"^(park|garden)$"];node["highway"="bus_stop"];);out center qt;`,
+          query: `[out:json][timeout:25][bbox:41.60,41.57,41.68,41.69];(node["amenity"~"^(school|kindergarten|university|pharmacy|clinic|hospital|bank|restaurant|cafe)$"];way["amenity"~"^(school|kindergarten|university|pharmacy|clinic|hospital|bank|restaurant|cafe)$"];node["shop"~"^(supermarket|convenience|mall|bakery)$"];node["leisure"~"^(park|garden|fitness_centre)$"];way["leisure"~"^(park|garden)$"];node["highway"="bus_stop"];);out center qt;`,
         },
       ]
 
@@ -266,7 +287,8 @@ export default function SettingsClient({
         const hw = String(tags.highway || "").toLowerCase()
         const tour = String(tags.tourism || "").toLowerCase()
         const hist = String(tags.historic || "").toLowerCase()
-        const hint = `${tags["name:en"] || ""} ${tags.name || ""} ${tags.brand || ""}`.toLowerCase()
+        const hint =
+          `${tags["name:en"] || ""} ${tags.name || ""} ${tags.brand || ""}`.toLowerCase()
 
         let category = ""
         if (
@@ -451,13 +473,13 @@ export default function SettingsClient({
 
   const mapEngineCard = (
     <Card className="rounded-xl border-blue-200/85 bg-white shadow-2xs">
-      <CardHeader className="border-b border-gray-100 px-5 py-4">
+      <CardHeader className="border-b border-slate-100 px-5 py-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <CardTitle className="flex items-center gap-2 text-sm font-extrabold text-[#0a1122]">
+          <CardTitle className="flex items-center gap-2 text-sm font-extrabold text-[#0f1d40]">
             <MapPin className="size-4 text-[#2563eb]" />
             <span>{t.mapCardTitle}</span>
           </CardTitle>
-          <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10.5px] font-extrabold text-[#007a5a]">
+          <span className="rounded-full bg-[#eaf8f2] px-2.5 py-0.5 text-[10.5px] font-extrabold text-[#007a5a]">
             {t.mapInstantBadge}
           </span>
         </div>
@@ -469,15 +491,17 @@ export default function SettingsClient({
       <CardContent className="space-y-3.5 p-5 text-xs">
         <div className="flex flex-col justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/80 p-3.5 sm:flex-row sm:items-center">
           <div className="space-y-1">
-            <div className="font-extrabold text-[#0a1122]">
+            <div className="font-extrabold text-[#0f1d40]">
               {t.mapTotalPlacesPrefix} {totalPoisInJson.toLocaleString("en-US")}{" "}
               {t.mapTotalPlacesSuffix}
             </div>
-            <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold text-gray-500">
+            <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold text-slate-500">
               <span>
                 {t.mapLastUpdatedLabel}{" "}
-                <strong dir="ltr" className="font-mono text-[#0a1122]">
-                  {lastMapSyncDate}
+                <strong className="text-[#0f1d40]">
+                  <span dir="ltr" className="inline-block font-mono">
+                    {lastMapSyncDate}
+                  </span>
                 </strong>
               </span>
               <span>·</span>
@@ -527,13 +551,13 @@ export default function SettingsClient({
             className={`flex items-center gap-2 rounded-xl border px-3.5 py-2.5 text-xs font-bold ${
               mapSyncMessage.isError
                 ? "border-red-200 bg-red-50 text-red-700"
-                : "border-emerald-200 bg-emerald-50/80 text-emerald-800"
+                : "border-emerald-200 bg-[#eaf8f2] text-[#007a5a]"
             }`}
           >
             {mapSyncMessage.isError ? (
               <AlertTriangle className="size-4 shrink-0 text-red-600" />
             ) : (
-              <CheckCircle2 className="size-4 shrink-0 text-emerald-600" />
+              <CheckCircle2 className="size-4 shrink-0 text-[#007a5a]" />
             )}
             <span>{mapSyncMessage.text}</span>
           </div>
@@ -544,25 +568,25 @@ export default function SettingsClient({
 
   return (
     <div dir={dir} className="text-start">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200/85 bg-white p-4 shadow-2xs">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/90 bg-white p-4 shadow-2xs">
         <div>
-          <p className="text-[11px] font-extrabold text-[#105C50]">
+          <p className="text-[11px] font-extrabold text-[#007a5a]">
             {t.eyebrow}
           </p>
-          <h2 className="mt-0.5 text-base font-extrabold text-[#0a1122] sm:text-lg">
+          <h2 className="mt-0.5 text-base font-black text-[#0f1d40] sm:text-lg">
             {t.title}
           </h2>
-          <p className="mt-0.5 text-[11px] text-gray-500">{t.subtitle}</p>
+          <p className="mt-0.5 text-[11px] text-slate-500">{t.subtitle}</p>
         </div>
 
-        <div className="flex items-center gap-1.5 rounded-xl border border-gray-200/80 bg-gray-50 p-1">
+        <div className="flex items-center gap-1.5 rounded-xl border border-slate-200/80 bg-slate-50 p-1">
           <button
             type="button"
             onClick={() => setActiveTab("general")}
             className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
               activeTab === "general"
-                ? "bg-[#105C50] text-white shadow-2xs"
-                : "text-gray-600 hover:bg-white"
+                ? "bg-[#007a5a] text-white shadow-2xs"
+                : "text-slate-600 hover:bg-white"
             }`}
           >
             <Globe className="size-3.5 shrink-0" />
@@ -574,8 +598,8 @@ export default function SettingsClient({
             onClick={() => setActiveTab("system")}
             className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
               activeTab === "system"
-                ? "bg-[#105C50] text-white shadow-2xs"
-                : "text-gray-600 hover:bg-white"
+                ? "bg-[#007a5a] text-white shadow-2xs"
+                : "text-slate-600 hover:bg-white"
             }`}
           >
             <Database className="size-3.5 shrink-0" />
@@ -589,14 +613,14 @@ export default function SettingsClient({
           className={`mb-4 flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-xs font-bold shadow-2xs ${
             notice.isError
               ? "border-red-200 bg-red-50 text-red-700"
-              : "border-emerald-200 bg-emerald-50 text-emerald-800"
+              : "border-emerald-200 bg-[#eaf8f2] text-[#007a5a]"
           }`}
         >
           <div className="flex items-center gap-2">
             {notice.isError ? (
               <AlertTriangle className="size-4 shrink-0 text-red-600" />
             ) : (
-              <CheckCircle2 className="size-4 shrink-0 text-emerald-600" />
+              <CheckCircle2 className="size-4 shrink-0 text-[#007a5a]" />
             )}
             <span>{notice.text}</span>
           </div>
@@ -612,13 +636,11 @@ export default function SettingsClient({
 
       {activeTab === "general" && (
         <form onSubmit={handleSettingsSubmit} className="space-y-4">
-          {mapEngineCard}
-
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Card className="rounded-xl border-gray-200/80 bg-white shadow-2xs">
-              <CardHeader className="border-b border-gray-100 px-5 py-4">
+            <Card className="rounded-2xl border-slate-200/90 bg-white shadow-2xs">
+              <CardHeader className="border-b border-slate-100 px-5 py-4">
                 <CardTitle className="flex items-center gap-2 text-sm font-extrabold">
-                  <Smartphone className="size-4 text-[#105C50]" />
+                  <Smartphone className="size-4 text-[#007a5a]" />
                   <span>{t.contactCardTitle}</span>
                 </CardTitle>
                 <CardDescription className="text-[11px]">
@@ -627,30 +649,30 @@ export default function SettingsClient({
               </CardHeader>
               <CardContent className="space-y-3.5 p-5 text-xs">
                 <div>
-                  <label className="mb-1 block font-bold text-[#0a1122]">
+                  <label className="mb-1 block font-bold text-[#0f1d40]">
                     {t.siteNameLabel}
                   </label>
                   <input
                     name="siteName"
                     defaultValue={initialSettings.siteName}
-                    className="h-9 w-full rounded-lg border border-gray-200 px-3 text-xs font-bold focus:border-[#105C50] focus:outline-none"
+                    className="h-9 w-full rounded-lg border border-slate-200 px-3 text-xs font-bold focus:border-[#007a5a] focus:outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="mb-1 block font-bold text-[#0a1122]">
+                  <label className="mb-1 block font-bold text-[#0f1d40]">
                     {t.whatsappLabel}
                   </label>
                   <input
                     name="whatsappNumber"
                     dir="ltr"
                     defaultValue={initialSettings.whatsappNumber}
-                    className="h-9 w-full rounded-lg border border-gray-200 px-3 text-left text-xs font-bold focus:border-[#105C50] focus:outline-none"
+                    className="h-9 w-full rounded-lg border border-slate-200 px-3 text-left text-xs font-bold focus:border-[#007a5a] focus:outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="mb-1 block font-bold text-[#0a1122]">
+                  <label className="mb-1 block font-bold text-[#0f1d40]">
                     {t.supportEmailLabel}
                   </label>
                   <input
@@ -658,18 +680,18 @@ export default function SettingsClient({
                     type="email"
                     dir="ltr"
                     defaultValue={initialSettings.supportEmail}
-                    className="h-9 w-full rounded-lg border border-gray-200 px-3 text-left text-xs font-bold focus:border-[#105C50] focus:outline-none"
+                    className="h-9 w-full rounded-lg border border-slate-200 px-3 text-left text-xs font-bold focus:border-[#007a5a] focus:outline-none"
                   />
                 </div>
 
-                <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/40 p-3.5">
-                  <div className="mb-2.5 flex items-center gap-1.5 text-xs font-extrabold text-[#0a1122]">
-                    <Percent className="size-3.5 text-[#105C50]" />
+                <div className="rounded-xl border border-emerald-200/80 bg-[#eaf8f2]/50 p-3.5">
+                  <div className="mb-2.5 flex items-center gap-1.5 text-xs font-extrabold text-[#0f1d40]">
+                    <Percent className="size-3.5 text-[#007a5a]" />
                     <span>{t.financialRatesTitle}</span>
                   </div>
 
                   <div>
-                    <label className="mb-1 block text-[11px] font-bold text-[#0a1122]">
+                    <label className="mb-1 block text-[11px] font-bold text-[#0f1d40]">
                       {t.commissionLabel}
                     </label>
                     <input
@@ -680,13 +702,13 @@ export default function SettingsClient({
                       max="25"
                       dir="ltr"
                       defaultValue={initialSettings.buyerCommission || "1.25"}
-                      className="h-9 w-full rounded-lg border border-gray-200 bg-white px-3 text-left text-xs font-bold focus:border-[#105C50] focus:outline-none"
+                      className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-left text-xs font-bold focus:border-[#007a5a] focus:outline-none"
                     />
                   </div>
 
                   <div className="mt-3 grid grid-cols-2 gap-2.5">
                     <div>
-                      <label className="mb-1 block text-[10.5px] font-bold text-gray-700">
+                      <label className="mb-1 block text-[10.5px] font-bold text-slate-700">
                         {t.devPenaltyMinLabel}
                       </label>
                       <input
@@ -699,11 +721,11 @@ export default function SettingsClient({
                         defaultValue={
                           initialSettings.developerPenaltyMin || "10"
                         }
-                        className="h-8 w-full rounded-lg border border-gray-200 bg-white px-2.5 text-left text-xs font-bold focus:border-[#105C50] focus:outline-none"
+                        className="h-8 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-left text-xs font-bold focus:border-[#007a5a] focus:outline-none"
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-[10.5px] font-bold text-gray-700">
+                      <label className="mb-1 block text-[10.5px] font-bold text-slate-700">
                         {t.devPenaltyMaxLabel}
                       </label>
                       <input
@@ -716,99 +738,106 @@ export default function SettingsClient({
                         defaultValue={
                           initialSettings.developerPenaltyMax || "15"
                         }
-                        className="h-8 w-full rounded-lg border border-gray-200 bg-white px-2.5 text-left text-xs font-bold focus:border-[#105C50] focus:outline-none"
+                        className="h-8 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-left text-xs font-bold focus:border-[#007a5a] focus:outline-none"
                       />
                     </div>
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-amber-200/80 bg-amber-50/40 p-3.5">
-                  <div className="mb-2.5 flex items-center justify-between gap-1.5 text-xs font-extrabold text-[#0a1122]">
+                {/* مصدر السعر الموحد لباقات الإعلان في الموقع بالكامل */}
+                <div className="rounded-xl border border-amber-200/90 bg-amber-50/45 p-3.5">
+                  <div className="mb-2.5 flex items-center justify-between gap-1.5 text-xs font-extrabold text-[#0f1d40]">
                     <span className="flex items-center gap-1.5">
                       <Star className="size-3.5 fill-amber-400 text-amber-500" />
                       <span>{t.promoPricesTitle}</span>
                     </span>
-                    <span className="rounded-md bg-[#105C50] px-2 py-0.5 text-[10.5px] font-bold text-white">
+                    <span className="rounded-md bg-[#007a5a] px-2 py-0.5 text-[10px] font-bold text-white">
                       🇬🇪 {t.countries.GE} (₾ GEL)
                     </span>
                   </div>
 
-                  <div className="mb-3 grid grid-cols-2 gap-2.5">
+                  <div className="grid grid-cols-2 gap-2.5">
                     <div>
-                      <label className="mb-1 block text-[10px] font-bold text-gray-600">
+                      <label className="mb-1 block text-[10.5px] font-bold text-slate-700">
                         {t.vipPlusDailyLabel}
                       </label>
                       <input
                         name="vipPlusDailyGel"
                         type="number"
+                        min="1"
+                        max="500"
                         dir="ltr"
-                        defaultValue={initialSettings.vipPlusDailyGel || "5"}
-                        className="h-8 w-full rounded-lg border border-gray-200 bg-white px-2 text-left text-xs font-bold"
+                        value={vipPlusDaily}
+                        onChange={(e) => setVipPlusDaily(e.target.value)}
+                        className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-left text-xs font-black text-[#0f1d40]"
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-[10px] font-bold text-gray-600">
+                      <label className="mb-1 block text-[10.5px] font-bold text-slate-700">
                         {t.superVipDailyLabel}
                       </label>
                       <input
                         name="superVipDailyGel"
                         type="number"
+                        min="2"
+                        max="1000"
                         dir="ltr"
-                        defaultValue={initialSettings.superVipDailyGel || "10"}
-                        className="h-8 w-full rounded-lg border border-gray-200 bg-white px-2 text-left text-xs font-bold"
+                        value={superVipDaily}
+                        onChange={(e) => setSuperVipDaily(e.target.value)}
+                        className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-left text-xs font-black text-[#0f1d40]"
                       />
                     </div>
                   </div>
 
-                  <p className="mb-2 text-[11px] font-bold text-[#105C50]">
-                    {t.gePackagesGelTitle}
-                  </p>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div>
-                      <label className="mb-1 block text-[10px] font-bold text-gray-600">
-                        {t.days7} (₾)
-                      </label>
-                      <input
-                        name="promo_GE_7"
-                        type="number"
-                        dir="ltr"
-                        defaultValue={initialSettings.promo_GE_7 || "20"}
-                        className="h-8 w-full rounded-lg border border-gray-200 bg-white px-2 text-left text-xs font-bold"
-                      />
+                  {/* معاينة حية للباقات الناتجة التي تظهر في الصفحة الرئيسية وحساب البائع */}
+                  <div className="mt-3 grid grid-cols-5 gap-1.5 text-center text-[10px]">
+                    <div className="rounded-lg border border-amber-200/80 bg-white px-1 py-1.5">
+                      <strong dir="ltr" className="block font-black text-[#0f1d40]">
+                        {parsedVipPlus} ₾
+                      </strong>
+                      <span className="text-[9px] text-slate-500">+VIP · 1d</span>
                     </div>
-                    <div>
-                      <label className="mb-1 block text-[10px] font-bold text-gray-600">
-                        {t.days14} (₾)
-                      </label>
-                      <input
-                        name="promo_GE_14"
-                        type="number"
-                        dir="ltr"
-                        defaultValue={initialSettings.promo_GE_14 || "50"}
-                        className="h-8 w-full rounded-lg border border-gray-200 bg-white px-2 text-left text-xs font-bold"
-                      />
+                    <div className="rounded-lg border border-amber-300 bg-white px-1 py-1.5">
+                      <strong dir="ltr" className="block font-black text-[#007a5a]">
+                        {parsedSuperVip} ₾
+                      </strong>
+                      <span className="text-[9px] text-slate-500">VIP · 1d</span>
                     </div>
-                    <div>
-                      <label className="mb-1 block text-[10px] font-bold text-gray-600">
-                        {t.days30} (₾)
-                      </label>
-                      <input
-                        name="promo_GE_30"
-                        type="number"
-                        dir="ltr"
-                        defaultValue={initialSettings.promo_GE_30 || "100"}
-                        className="h-8 w-full rounded-lg border border-gray-200 bg-white px-2 text-left text-xs font-bold"
-                      />
+                    <div className="rounded-lg border border-amber-200/80 bg-white px-1 py-1.5">
+                      <strong dir="ltr" className="block font-black text-[#0f1d40]">
+                        {previewTier20} ₾
+                      </strong>
+                      <span className="text-[9px] text-slate-500">VIP · 2d</span>
+                    </div>
+                    <div className="rounded-lg border border-amber-200/80 bg-white px-1 py-1.5">
+                      <strong dir="ltr" className="block font-black text-[#0f1d40]">
+                        {previewTier50} ₾
+                      </strong>
+                      <span className="text-[9px] font-bold text-[#007a5a]">
+                        {previewDays50}d (-25%)
+                      </span>
+                    </div>
+                    <div className="rounded-lg border border-amber-200/80 bg-white px-1 py-1.5">
+                      <strong dir="ltr" className="block font-black text-[#0f1d40]">
+                        {previewTier100} ₾
+                      </strong>
+                      <span className="text-[9px] font-bold text-[#2563eb]">
+                        {previewDays100}d (-30%)
+                      </span>
                     </div>
                   </div>
+
+                  <p className="mt-2 text-[10.5px] leading-relaxed font-medium text-amber-950/80">
+                    {t.boostAutoCalcHint}
+                  </p>
                 </div>
               </CardContent>
             </Card>
 
             <div className="space-y-4">
-              <Card className="rounded-xl border-blue-200/80 bg-white shadow-2xs">
-                <CardHeader className="border-b border-gray-100 px-5 py-4">
-                  <CardTitle className="flex items-center gap-2 text-sm font-extrabold text-[#0a1122]">
+              <Card className="rounded-2xl border-blue-200/80 bg-white shadow-2xs">
+                <CardHeader className="border-b border-slate-100 px-5 py-4">
+                  <CardTitle className="flex items-center gap-2 text-sm font-extrabold text-[#0f1d40]">
                     <BarChart3 className="size-4 text-[#2563eb]" />
                     <span>{t.seoCardTitle}</span>
                   </CardTitle>
@@ -818,7 +847,7 @@ export default function SettingsClient({
                 </CardHeader>
                 <CardContent className="space-y-3 p-5 text-xs">
                   <div>
-                    <label className="mb-1 block font-bold text-[#0a1122]">
+                    <label className="mb-1 block font-bold text-[#0f1d40]">
                       {t.fbPixelLabel}
                     </label>
                     <input
@@ -830,13 +859,13 @@ export default function SettingsClient({
                         process.env.NEXT_PUBLIC_FB_PIXEL_ID ||
                         ""
                       }
-                      className="h-9 w-full rounded-lg border border-gray-200 px-3 text-left font-mono text-xs font-bold focus:border-[#2563eb] focus:outline-none"
+                      className="h-9 w-full rounded-lg border border-slate-200 px-3 text-left font-mono text-xs font-bold focus:border-[#2563eb] focus:outline-none"
                     />
                   </div>
 
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div>
-                      <label className="mb-1 block font-bold text-[#0a1122]">
+                      <label className="mb-1 block font-bold text-[#0f1d40]">
                         {t.gaMeasurementLabel}
                       </label>
                       <input
@@ -848,12 +877,12 @@ export default function SettingsClient({
                           process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ||
                           ""
                         }
-                        className="h-9 w-full rounded-lg border border-gray-200 px-3 text-left font-mono text-xs font-bold focus:border-[#2563eb] focus:outline-none"
+                        className="h-9 w-full rounded-lg border border-slate-200 px-3 text-left font-mono text-xs font-bold focus:border-[#2563eb] focus:outline-none"
                       />
                     </div>
 
                     <div>
-                      <label className="mb-1 block font-bold text-[#0a1122]">
+                      <label className="mb-1 block font-bold text-[#0f1d40]">
                         {t.gtmLabel}
                       </label>
                       <input
@@ -865,17 +894,17 @@ export default function SettingsClient({
                           process.env.NEXT_PUBLIC_GTM_ID ||
                           ""
                         }
-                        className="h-9 w-full rounded-lg border border-gray-200 px-3 text-left font-mono text-xs font-bold focus:border-[#2563eb] focus:outline-none"
+                        className="h-9 w-full rounded-lg border border-slate-200 px-3 text-left font-mono text-xs font-bold focus:border-[#2563eb] focus:outline-none"
                       />
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="rounded-xl border-gray-200/80 bg-white shadow-2xs">
-                <CardHeader className="border-b border-gray-100 px-5 py-4">
+              <Card className="rounded-2xl border-slate-200/90 bg-white shadow-2xs">
+                <CardHeader className="border-b border-slate-100 px-5 py-4">
                   <CardTitle className="flex items-center gap-2 text-sm font-extrabold">
-                    <Power className="size-4 text-[#105C50]" />
+                    <Power className="size-4 text-[#007a5a]" />
                     <span>{t.statusCardTitle}</span>
                   </CardTitle>
                   <CardDescription className="text-[11px]">
@@ -887,14 +916,14 @@ export default function SettingsClient({
                     className={`flex cursor-pointer items-start justify-between gap-3 rounded-xl border p-3 transition ${
                       maintenanceMode
                         ? "border-red-300 bg-red-50/70"
-                        : "border-gray-200 bg-gray-50/60"
+                        : "border-slate-200 bg-slate-50/60"
                     }`}
                   >
                     <div>
-                      <div className="font-extrabold text-[#0a1122]">
+                      <div className="font-extrabold text-[#0f1d40]">
                         {t.maintenanceTitle}
                       </div>
-                      <p className="mt-0.5 text-[11px] text-gray-500">
+                      <p className="mt-0.5 text-[11px] text-slate-500">
                         {t.maintenanceDesc}
                       </p>
                     </div>
@@ -907,12 +936,12 @@ export default function SettingsClient({
                     />
                   </label>
 
-                  <label className="flex cursor-pointer items-start justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50/60 p-3">
+                  <label className="flex cursor-pointer items-start justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
                     <div>
-                      <div className="font-extrabold text-[#0a1122]">
+                      <div className="font-extrabold text-[#0f1d40]">
                         {t.allowSellsTitle}
                       </div>
-                      <p className="mt-0.5 text-[11px] text-gray-500">
+                      <p className="mt-0.5 text-[11px] text-slate-500">
                         {t.allowSellsDesc}
                       </p>
                     </div>
@@ -921,16 +950,16 @@ export default function SettingsClient({
                       name="allowNewSells"
                       checked={allowNewSells}
                       onChange={(e) => setAllowNewSells(e.target.checked)}
-                      className="mt-1 size-4 accent-[#105C50]"
+                      className="mt-1 size-4 accent-[#007a5a]"
                     />
                   </label>
 
-                  <label className="flex cursor-pointer items-start justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50/60 p-3">
+                  <label className="flex cursor-pointer items-start justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
                     <div>
-                      <div className="font-extrabold text-[#0a1122]">
+                      <div className="font-extrabold text-[#0f1d40]">
                         {t.allowBuysTitle}
                       </div>
-                      <p className="mt-0.5 text-[11px] text-gray-500">
+                      <p className="mt-0.5 text-[11px] text-slate-500">
                         {t.allowBuysDesc}
                       </p>
                     </div>
@@ -939,16 +968,16 @@ export default function SettingsClient({
                       name="allowNewBuys"
                       checked={allowNewBuys}
                       onChange={(e) => setAllowNewBuys(e.target.checked)}
-                      className="mt-1 size-4 accent-[#105C50]"
+                      className="mt-1 size-4 accent-[#007a5a]"
                     />
                   </label>
 
-                  <label className="flex cursor-pointer items-start justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50/60 p-3">
+                  <label className="flex cursor-pointer items-start justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
                     <div>
-                      <div className="font-extrabold text-[#0a1122]">
+                      <div className="font-extrabold text-[#0f1d40]">
                         {t.emailNotifsTitle}
                       </div>
-                      <p className="mt-0.5 text-[11px] text-gray-500">
+                      <p className="mt-0.5 text-[11px] text-slate-500">
                         {t.emailNotifsDesc}
                       </p>
                     </div>
@@ -957,7 +986,7 @@ export default function SettingsClient({
                       name="emailNotifications"
                       checked={emailNotifications}
                       onChange={(e) => setEmailNotifications(e.target.checked)}
-                      className="mt-1 size-4 accent-[#105C50]"
+                      className="mt-1 size-4 accent-[#007a5a]"
                     />
                   </label>
                 </CardContent>
@@ -969,7 +998,7 @@ export default function SettingsClient({
             <Button
               type="submit"
               disabled={pending}
-              className="h-10 w-full rounded-xl bg-[#105C50] px-6 text-xs font-extrabold text-white shadow-2xs hover:bg-[#0c483f] sm:w-auto"
+              className="h-10 w-full rounded-xl bg-[#007a5a] px-6 text-xs font-extrabold text-white shadow-2xs hover:bg-[#006248] sm:w-auto"
             >
               <Save className="me-1.5 size-4" />
               {t.saveBtn}
@@ -983,10 +1012,10 @@ export default function SettingsClient({
           {mapEngineCard}
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Card className="rounded-xl border-gray-200/80 bg-white shadow-2xs">
-              <CardHeader className="border-b border-gray-100 px-5 py-4">
+            <Card className="rounded-2xl border-slate-200/90 bg-white shadow-2xs">
+              <CardHeader className="border-b border-slate-100 px-5 py-4">
                 <CardTitle className="flex items-center gap-2 text-sm font-extrabold">
-                  <Database className="size-4 text-[#105C50]" />
+                  <Database className="size-4 text-[#007a5a]" />
                   <span>{t.envCardTitle}</span>
                 </CardTitle>
                 <CardDescription className="text-[11px]">
@@ -994,19 +1023,19 @@ export default function SettingsClient({
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3 p-5 text-xs">
-                <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 p-3">
+                <div className="flex items-center justify-between gap-2 rounded-xl border border-slate-100 bg-slate-50 p-3">
                   <div>
-                    <div className="font-bold text-[#0a1122]">
+                    <div className="font-bold text-[#0f1d40]">
                       {t.supabaseTitle}
                     </div>
-                    <div className="mt-0.5 text-[11px] text-gray-500">
+                    <div className="mt-0.5 text-[11px] text-slate-500">
                       {t.supabaseDesc}
                     </div>
                   </div>
                   <span
-                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                    className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${
                       hasSupabase
-                        ? "bg-emerald-100 text-emerald-800"
+                        ? "bg-[#eaf8f2] text-[#007a5a]"
                         : "bg-red-100 text-red-700"
                     }`}
                   >
@@ -1015,17 +1044,19 @@ export default function SettingsClient({
                   </span>
                 </div>
 
-                <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 p-3">
+                <div className="flex items-center justify-between gap-2 rounded-xl border border-slate-100 bg-slate-50 p-3">
                   <div>
-                    <div className="font-bold text-[#0a1122]">{t.smtpTitle}</div>
-                    <div className="mt-0.5 text-[11px] text-gray-500">
+                    <div className="font-bold text-[#0f1d40]">
+                      {t.smtpTitle}
+                    </div>
+                    <div className="mt-0.5 text-[11px] text-slate-500">
                       {t.smtpDesc}
                     </div>
                   </div>
                   <span
-                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                    className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${
                       hasEmail
-                        ? "bg-emerald-100 text-emerald-800"
+                        ? "bg-[#eaf8f2] text-[#007a5a]"
                         : "bg-amber-100 text-amber-800"
                     }`}
                   >
@@ -1033,28 +1064,56 @@ export default function SettingsClient({
                     {hasEmail ? t.smtpActive : t.smtpMissing}
                   </span>
                 </div>
+
+                {/* حالة بوابة الدفع Flitt (Live / Sandbox / غير مُعدّ) */}
+                <div className="flex items-center justify-between gap-2 rounded-xl border border-slate-100 bg-slate-50 p-3">
+                  <div>
+                    <div className="font-bold text-[#0f1d40]">
+                      {t.flittTitle}
+                    </div>
+                    <div className="mt-0.5 text-[11px] text-slate-500">
+                      {t.flittDesc}
+                    </div>
+                  </div>
+                  <span
+                    className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                      flittMode === "live"
+                        ? "bg-[#eaf8f2] text-[#007a5a]"
+                        : flittMode === "sandbox"
+                          ? "bg-amber-100 text-amber-900"
+                          : "bg-red-100 text-red-700"
+                    }`}
+                  >
+                    <CreditCard className="size-3.5" />
+                    {flittMode === "live"
+                      ? t.flittLiveBadge
+                      : flittMode === "sandbox"
+                        ? t.flittTestBadge
+                        : t.flittMissingBadge}
+                  </span>
+                </div>
               </CardContent>
             </Card>
 
-            <Card className="rounded-xl border-gray-200/80 bg-white shadow-2xs">
-              <CardHeader className="border-b border-gray-100 px-5 py-4">
+            <Card className="rounded-2xl border-slate-200/90 bg-white shadow-2xs">
+              <CardHeader className="border-b border-slate-100 px-5 py-4">
                 <CardTitle className="flex items-center gap-2 text-sm font-extrabold">
-                  <ShieldCheck className="size-4 text-[#105C50]" />
+                  <ShieldCheck className="size-4 text-[#007a5a]" />
                   <span>{t.rolesCardTitle}</span>
                 </CardTitle>
                 <CardDescription className="text-[11px]">
                   {t.rolesCardDesc}
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3 p-5 text-xs leading-relaxed text-gray-600">
-                <div className="rounded-xl border border-gray-100 p-3">
-                  <strong className="text-[#0a1122]">{t.rule1Bold}</strong>{" "}
+              <CardContent className="space-y-3 p-5 text-xs leading-relaxed text-slate-600">
+                <div className="rounded-xl border border-slate-100 p-3">
+                  <strong className="text-[#0f1d40]">{t.rule1Bold}</strong>{" "}
                   {t.rule1Text}
                 </div>
                 <div className="pt-1">
                   <Link
                     href="/admin/users"
-                    className="inline-flex h-9 items-center justify-center rounded-xl bg-[#0a1122] px-4 text-xs font-bold text-white transition hover:bg-[#16223f]"
+                    className="inline-flex h-9 items-center justify-center rounded-xl bg-[#0f1d40] px-4 text-xs font-bold text-white transition hover:bg-[#1e293b]"
                   >
                     {t.manageAdminsBtn}
                   </Link>
@@ -1078,10 +1137,10 @@ export default function SettingsClient({
           {confirmModal && (
             <>
               <DialogHeader className="text-start">
-                <DialogTitle className="text-sm font-extrabold text-[#0a1122]">
+                <DialogTitle className="text-sm font-extrabold text-[#0f1d40]">
                   {t.modalTitle}
                 </DialogTitle>
-                <DialogDescription className="text-start text-xs leading-relaxed text-gray-600">
+                <DialogDescription className="text-start text-xs leading-relaxed text-slate-600">
                   {t.modalDesc}
                 </DialogDescription>
               </DialogHeader>
@@ -1100,7 +1159,7 @@ export default function SettingsClient({
                   type="button"
                   disabled={pending}
                   onClick={executeConfirmedSave}
-                  className="h-9 flex-1 rounded-xl bg-[#105C50] text-xs font-bold text-white hover:bg-[#0c483f] sm:flex-none"
+                  className="h-9 flex-1 rounded-xl bg-[#007a5a] text-xs font-bold text-white hover:bg-[#006248] sm:flex-none"
                 >
                   {pending ? (
                     <span className="flex items-center justify-center gap-1.5">

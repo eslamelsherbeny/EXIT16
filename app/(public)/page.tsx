@@ -17,10 +17,11 @@ const DEFAULT_FALLBACK_IMG =
   'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1000&q=80'
 
 export default async function HomePage() {
-  const { dict } = await getServerI18n()
+  const { dict, siteSettings } = await getServerI18n()
   const t = dict.home
   const oppsDict = dict.opportunitiesPage as Record<string, any>
   const currencySymbol = '$'
+  const commRate = (Number(siteSettings?.buyerCommission) || 1.25) / 100
 
   const readyWord =
     oppsDict?.filters?.deliveryStatuses?.[1] ||
@@ -114,7 +115,7 @@ export default async function HomePage() {
         const contractVal = Number(u.contract_price) || paidVal
         const marketVal = Number(u.market_price) || contractVal
         const remainingVal = Math.max(0, contractVal - paidVal)
-        const commission = Math.round(contractVal * 0.0125)
+        const commission = Math.round(contractVal * commRate)
         const gainVal =
           marketVal > contractVal
             ? Math.max(0, marketVal - contractVal - commission)
@@ -178,7 +179,6 @@ export default async function HomePage() {
         const cleanTitle = sanitizeGeorgiaProjectTitle(u.project_name)
         const viewsCount = Math.max(1, Number(u.views_count) || 1)
 
-        // جمع إعلانات المستخدم المسجل حالياً (النشطة أو بانتظار التفعيل) لعرض الويدجت العائم له وحده
         if (
           sessionUserId &&
           String(u.user_id || '') === String(sessionUserId) &&

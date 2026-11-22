@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -16,6 +16,33 @@ import {
 import { ScrollReveal } from '@/components/shared/scroll-reveal'
 import enDict from '@/dictionaries/en.json'
 import { DICTIONARIES, useTranslation, type LocaleCode } from '@/lib/i18n'
+
+export type BoostDailyRates = {
+  vipPlusDaily?: number
+  superVipDaily?: number
+}
+
+export function getBoostRatesFromSettings(siteSettings?: Record<string, any>) {
+  const vipPlusDaily = Math.max(
+    1,
+    Math.round(Number(siteSettings?.vipPlusDailyGel) || 5)
+  )
+  const superVipDaily = Math.max(
+    vipPlusDaily + 1,
+    Math.round(Number(siteSettings?.superVipDailyGel) || 10)
+  )
+  return {
+    vipPlusDaily,
+    superVipDaily,
+    presetValues: [
+      vipPlusDaily,
+      superVipDaily,
+      superVipDaily * 2,
+      superVipDaily * 5,
+      superVipDaily * 10,
+    ],
+  }
+}
 
 function getMarketDict(localeOrIsAr: LocaleCode | boolean) {
   const lang: LocaleCode =
@@ -52,39 +79,51 @@ function formatCoversLabel(
 
 export function calculateGelBoostPackage(
   amount: number,
-  localeOrIsAr: LocaleCode | boolean
+  localeOrIsAr: LocaleCode | boolean,
+  rates?: BoostDailyRates
 ) {
   const mT = getMarketDict(localeOrIsAr)
-  const cleanAmt = Math.max(5, Math.round(amount || 5))
+  const vipPlusRate = Math.max(1, Math.round(Number(rates?.vipPlusDaily) || 5))
+  const superVipRate = Math.max(
+    vipPlusRate + 1,
+    Math.round(Number(rates?.superVipDaily) || 10)
+  )
 
-  let tier: 'VIP+' | 'SUPER VIP' = cleanAmt < 10 ? 'VIP+' : 'SUPER VIP'
+  const tier50 = superVipRate * 5
+  const tier100 = superVipRate * 10
+  const daysAt50 = Math.max(6, Math.round(tier50 / (superVipRate * 0.75)))
+  const daysAt100 = Math.max(14, Math.round(tier100 / (superVipRate * 0.7)))
+
+  const cleanAmt = Math.max(vipPlusRate, Math.round(amount || vipPlusRate))
+
+  let tier: 'VIP+' | 'SUPER VIP' =
+    cleanAmt < superVipRate ? 'VIP+' : 'SUPER VIP'
   let days = 1
   let discountBadge = ''
-  let upsellTarget = 50
+  let upsellTarget = tier50
   let upsellDiscount = '-25%'
-  let upsellDays = 7
+  let upsellDays = daysAt50
 
-  if (cleanAmt < 10) {
+  if (cleanAmt < superVipRate) {
     tier = 'VIP+'
-    days = Math.max(1, Math.floor(cleanAmt / 5))
-  } else if (cleanAmt < 20) {
+    days = Math.max(1, Math.floor(cleanAmt / vipPlusRate))
+  } else if (cleanAmt < tier50) {
     tier = 'SUPER VIP'
-    days = Math.max(1, Math.floor(cleanAmt / 10))
-  } else if (cleanAmt < 50) {
+    days = Math.max(1, Math.floor(cleanAmt / superVipRate))
+  } else if (cleanAmt < tier100) {
     tier = 'SUPER VIP'
-    days = Math.max(2, Math.floor(cleanAmt / 10))
-  } else if (cleanAmt < 100) {
-    tier = 'SUPER VIP'
-    days = Math.max(7, Math.round(cleanAmt / 6.5))
+    days = Math.max(daysAt50, Math.round(cleanAmt / (superVipRate * 0.75)))
     discountBadge = '-25%'
-    upsellTarget = 100
+    upsellTarget = tier100
     upsellDiscount = '-30%'
-    upsellDays = 17
+    upsellDays = daysAt100
   } else {
     tier = 'SUPER VIP'
-    days = Math.max(17, Math.round(cleanAmt / 5.88))
+    days = Math.max(daysAt100, Math.round(cleanAmt / (superVipRate * 0.7)))
     discountBadge = '-30%'
     upsellTarget = 0
+    upsellDiscount = ''
+    upsellDays = 0
   }
 
   return {
@@ -313,47 +352,64 @@ export function TopUpBalanceGelSection() {
   const i18nCtx = useTranslation() as Record<string, any>
   const dict = i18nCtx.t
   const activeLocale = (i18nCtx.locale as LocaleCode) || 'ar'
+  const siteSettings = i18nCtx.siteSettings
   const hasSession = Boolean(i18nCtx.hasSession ?? i18nCtx.isLoggedIn)
   const mT = (dict.home.marketSections || {}) as Record<string, any>
   const GEL = '₾'
 
-  const [selectedPreset, setSelectedPreset] = useState<number | 'custom'>(10)
-  const [topUpAmount, setTopUpAmount] = useState<number>(10)
+  const { vipPlusDaily, superVipDaily, presetValues } = useMemo(
+    () => getBoostRatesFromSettings(siteSettings),
+    [siteSettings]
+  )
+
+  const [selectedPreset, setSelectedPreset] = useState<number | 'custom'>(
+    superVipDaily
+  )
+  const [topUpAmount, setTopUpAmount] = useState<number>(superVipDaily)
+
+  useEffect(() => {
+    setSelectedPreset(superVipDaily)
+    setTopUpAmount(superVipDaily)
+  }, [superVipDaily])
 
   const pkgDetails = useMemo(
-    () => calculateGelBoostPackage(topUpAmount, activeLocale),
-    [topUpAmount, activeLocale]
+    () =>
+      calculateGelBoostPackage(topUpAmount, activeLocale, {
+        vipPlusDaily,
+        superVipDaily,
+      }),
+    [topUpAmount, activeLocale, vipPlusDaily, superVipDaily]
   )
 
   const presets = [
     {
-      id: 5,
-      val: 5,
+      id: presetValues[0],
+      val: presetValues[0],
       topBadge: mT.starterBadge,
       subText: `VIP+ · 1 ${mT.daySingular}`,
     },
     {
-      id: 10,
-      val: 10,
+      id: presetValues[1],
+      val: presetValues[1],
       topBadge: mT.recommendedBadge,
       subText: 'SUPER VIP',
       isRecommended: true,
     },
     {
-      id: 20,
-      val: 20,
+      id: presetValues[2],
+      val: presetValues[2],
       topBadge: '',
       subText: 'SUPER VIP',
     },
     {
-      id: 50,
-      val: 50,
+      id: presetValues[3],
+      val: presetValues[3],
       topBadge: `${mT.popularBadge} -25%`,
       subText: 'SUPER VIP',
     },
     {
-      id: 100,
-      val: 100,
+      id: presetValues[4],
+      val: presetValues[4],
       topBadge: 'PRO -30%',
       subText: 'SUPER VIP',
     },
@@ -448,23 +504,23 @@ export function TopUpBalanceGelSection() {
           </div>
 
           <div className="rounded-[26px] border border-slate-200/90 bg-white p-5 text-start shadow-md sm:p-6 lg:col-span-5">
-            <div className="flex items-center justify-between">
-              <span className="rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-bold text-[#ff6437]">
-                1:1 ⚡
-              </span>
+            <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5">
-                <div className="text-end">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#2563eb]">
+                  <Wallet className="size-4" />
+                </div>
+                <div>
                   <strong className="block text-xs font-bold text-[#0f1d40]">
                     {mT.quickAmounts}
                   </strong>
-                  <span dir="ltr" className="text-[10px] text-slate-400">
-                    Min 5 {GEL} · Max 10,000 {GEL}
+                  <span dir="ltr" className="inline-block text-[10px] text-slate-400">
+                    Min {vipPlusDaily} {GEL} · Max 10,000 {GEL}
                   </span>
                 </div>
-                <div className="flex size-9 items-center justify-center rounded-xl bg-blue-50 text-[#2563eb]">
-                  <Wallet className="size-4" />
-                </div>
               </div>
+              <span className="shrink-0 rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-bold text-[#ff6437]">
+                1:1 ⚡
+              </span>
             </div>
 
             <div className="mt-5 grid grid-cols-3 gap-2 sm:grid-cols-6">
@@ -518,7 +574,7 @@ export function TopUpBalanceGelSection() {
             </div>
 
             <div className="mt-4">
-              <span className="mb-1.5 block text-end text-[11px] font-semibold text-slate-500">
+              <span className="mb-1.5 block text-start text-[11px] font-semibold text-slate-500">
                 {mT.customAmountLabel}
               </span>
               <div className="flex h-11 items-center justify-between rounded-xl border border-slate-200 bg-slate-50/60 px-3">
@@ -526,9 +582,9 @@ export function TopUpBalanceGelSection() {
                   <button
                     type="button"
                     onClick={() => {
-                      const next = Math.min(10000, topUpAmount + 5)
+                      const next = Math.min(10000, topUpAmount + vipPlusDaily)
                       setSelectedPreset(
-                        [5, 10, 20, 50, 100].includes(next) ? next : 'custom'
+                        presetValues.includes(next) ? next : 'custom'
                       )
                       setTopUpAmount(next)
                     }}
@@ -542,8 +598,8 @@ export function TopUpBalanceGelSection() {
                   <button
                     type="button"
                     onClick={() => {
-                      setSelectedPreset(10)
-                      setTopUpAmount(10)
+                      setSelectedPreset(superVipDaily)
+                      setTopUpAmount(superVipDaily)
                     }}
                     className="text-xs text-slate-400 hover:text-slate-600"
                     title={dict.locationModal.clearBtn}
@@ -557,9 +613,12 @@ export function TopUpBalanceGelSection() {
                   dir="ltr"
                   value={topUpAmount}
                   onChange={(e) => {
-                    const next = Math.max(5, Number(e.target.value) || 5)
+                    const next = Math.max(
+                      vipPlusDaily,
+                      Number(e.target.value) || vipPlusDaily
+                    )
                     setSelectedPreset(
-                      [5, 10, 20, 50, 100].includes(next) ? next : 'custom'
+                      presetValues.includes(next) ? next : 'custom'
                     )
                     setTopUpAmount(next)
                   }}
@@ -569,9 +628,12 @@ export function TopUpBalanceGelSection() {
                 <button
                   type="button"
                   onClick={() => {
-                    const next = Math.max(5, topUpAmount - 5)
+                    const next = Math.max(
+                      vipPlusDaily,
+                      topUpAmount - vipPlusDaily
+                    )
                     setSelectedPreset(
-                      [5, 10, 20, 50, 100].includes(next) ? next : 'custom'
+                      presetValues.includes(next) ? next : 'custom'
                     )
                     setTopUpAmount(next)
                   }}
@@ -582,17 +644,17 @@ export function TopUpBalanceGelSection() {
               </div>
             </div>
 
-            <div className="mt-4 rounded-2xl border border-blue-100 bg-[#f5f8ff] p-4">
-              <div className="flex items-center justify-between">
-                <span className="flex size-8 items-center justify-center rounded-full bg-blue-100/80 text-[#2563eb]">
+            <div className="mt-4 rounded-2xl border border-blue-100 bg-[#f5f8ff] p-4 text-start">
+              <div className="flex items-center gap-3">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-blue-100/80 text-[#2563eb]">
                   <Zap className="size-4" />
                 </span>
-                <div className="text-end">
-                  <strong
-                    dir="ltr"
-                    className="block text-xs font-bold text-[#0f1d40] sm:text-sm"
-                  >
-                    {pkgDetails.amount} {GEL} {mT.creditedToBalance}
+                <div className="min-w-0 flex-1">
+                  <strong className="block text-xs font-bold text-[#0f1d40] sm:text-sm">
+                    <span dir="ltr" className="inline-block tabular-nums">
+                      {pkgDetails.amount} {GEL}
+                    </span>{' '}
+                    {mT.creditedToBalance}
                   </strong>
                   <span className="mt-0.5 block text-[11px] font-bold text-[#2563eb]">
                     {pkgDetails.coverLabel}
@@ -601,7 +663,7 @@ export function TopUpBalanceGelSection() {
               </div>
 
               {pkgDetails.upsellTarget > 0 && (
-                <div className="mt-3 border-t border-blue-200/60 pt-3 text-end">
+                <div className="mt-3 border-t border-blue-200/60 pt-3">
                   <p className="text-[11px] leading-relaxed text-slate-600">
                     {formatUpsellAdvice(
                       pkgDetails.upsellTarget,
@@ -615,13 +677,11 @@ export function TopUpBalanceGelSection() {
                     onClick={() => {
                       const target = pkgDetails.upsellTarget
                       setSelectedPreset(
-                        [5, 10, 20, 50, 100].includes(target)
-                          ? target
-                          : 'custom'
+                        presetValues.includes(target) ? target : 'custom'
                       )
                       setTopUpAmount(target)
                     }}
-                    className="mt-2 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-3 py-1 text-[10.5px] font-bold text-white shadow-2xs transition hover:opacity-95"
+                    className="mt-2 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-3.5 py-1 text-[10.5px] font-bold text-white shadow-2xs transition hover:opacity-95"
                   >
                     <span>{formatTopUpToBtn(pkgDetails.upsellTarget)}</span>
                   </button>

@@ -1,10 +1,11 @@
 "use client"
 
-import { useEffect, useMemo, useState, useTransition } from "react"
+import { useEffect, useMemo, useRef, useState, useTransition } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import {
   AlertTriangle,
+  Check,
   CheckCircle2,
   ChevronDown,
   ClipboardList,
@@ -13,7 +14,6 @@ import {
   FileText,
   Flame,
   Handshake,
-  Info,
   Loader2,
   Lock,
   MapPin,
@@ -31,14 +31,6 @@ import {
   X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import {
   downloadExcelCsv,
   downloadOfficialPdfReport,
@@ -80,19 +72,6 @@ import {
 } from "./leads-modals"
 
 export type { BuyerLead, LinkedUnitSummary, UserVerificationBadgeInfo }
-
-type LeadStatusOption = {
-  value: string
-  label: string
-  badge: string
-}
-
-type BlockedTransitionState = {
-  lead: BuyerLead
-  reasonType: "active_deal" | "active_offers"
-  count: number
-  dealOfferId?: string
-}
 
 function getLeadRawAreas(
   lead: BuyerLead,
@@ -212,80 +191,415 @@ function resolveLeadDisplayStatus(
   }
 }
 
-function StatusSelectBox({
-  value,
-  options,
-  badgeClass,
-  disabled,
-  onChange,
+// قائمة مراحل المشتري الموحدة (١ – ٦ + مؤرشف) بالفتح الذكي للأعلى/الأسفل وتطابق كامل للمسميات
+function LeadStatusControl({
+  lead,
+  statusInfo,
+  label,
+  t,
+  pending,
+  isOpen,
+  onToggleOpen,
+  onCloseAll,
+  onRequestStatusChange,
+  onOpenOffersLog,
 }: {
-  value: string
-  options: LeadStatusOption[]
-  badgeClass: string
-  disabled: boolean
-  onChange: (next: string) => void
+  lead: BuyerLead
+  statusInfo: ReturnType<typeof resolveLeadDisplayStatus>
+  label: string
+  t: Record<string, any>
+  pending: boolean
+  isOpen: boolean
+  onToggleOpen: () => void
+  onCloseAll: () => void
+  onRequestStatusChange: (nextStatus: string) => void
+  onOpenOffersLog: () => void
 }) {
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const [openUpward, setOpenUpward] = useState(false)
+
+  const sMenu = (t.statusMenu as Record<string, string>) || {}
+  const statuses = (t.statuses as Record<string, string>) || {}
+  const currentKey = statusInfo.key
+  const isLocked = statusInfo.isAutoLocked
+
+  const badgeTone =
+    currentKey === "closed"
+      ? "border-[#007a5a] bg-[#007a5a] text-white hover:bg-[#006248]"
+      : currentKey === "in_deal"
+        ? "border-[#007a5a] bg-[#007a5a] text-white hover:bg-[#006248]"
+        : currentKey === "negotiating"
+          ? "border-purple-700 bg-purple-700 text-white hover:bg-purple-800"
+          : currentKey === "has_offer"
+            ? "border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100"
+            : currentKey === "matched"
+              ? "border-purple-300 bg-purple-50 text-purple-900"
+              : currentKey === "contacted"
+                ? "border-amber-300 bg-amber-50 text-amber-900"
+                : currentKey === "archived"
+                  ? "border-slate-300 bg-slate-100 text-slate-700"
+                  : "border-blue-300 bg-blue-50 text-blue-900"
+
+  const stage4Label =
+    currentKey === "negotiating"
+      ? t.statusNegotiating || t.statusHasActiveOffer
+      : t.statusHasActiveOffer
+
+  const pipelineItems: Array<{
+    value: string
+    label: string
+    isAuto: boolean
+    isCurrent: boolean
+  }> = [
+    {
+      value: "new",
+      label: statuses.new,
+      isAuto: false,
+      isCurrent: currentKey === "new",
+    },
+    {
+      value: "contacted",
+      label: statuses.contacted,
+      isAuto: false,
+      isCurrent: currentKey === "contacted",
+    },
+    {
+      value: "matched",
+      label: statuses.matched,
+      isAuto: false,
+      isCurrent: currentKey === "matched",
+    },
+    {
+      value: "has_offer",
+      label: stage4Label,
+      isAuto: true,
+      isCurrent: currentKey === "has_offer" || currentKey === "negotiating",
+    },
+    {
+      value: "in_deal",
+      label: t.statusInActiveDeal,
+      isAuto: true,
+      isCurrent: currentKey === "in_deal",
+    },
+    {
+      value: "closed",
+      label: t.statusPurchasedLocked || statuses.closed,
+      isAuto: true,
+      isCurrent: currentKey === "closed",
+    },
+  ]
+
+  const extraItems: Array<{
+    value: string
+    label: string
+    isCurrent: boolean
+  }> = [
+    {
+      value: "archived",
+      label: statuses.archived,
+      isCurrent: currentKey === "archived",
+    },
+  ]
+
+  const lockBanner =
+    currentKey === "in_deal"
+      ? {
+          title: sMenu.lockedInDealTitle,
+          desc: sMenu.lockedInDealDesc,
+          tone: "border-emerald-200 bg-[#eaf8f2] text-[#0f1d40]",
+          btnKind: "deals" as const,
+        }
+      : currentKey === "has_offer" || currentKey === "negotiating"
+        ? {
+            title: sMenu.lockedHasOffersTitle,
+            desc: sMenu.lockedHasOffersDesc,
+            tone: "border-amber-200 bg-amber-50 text-amber-950",
+            btnKind: "offers" as const,
+          }
+        : currentKey === "closed"
+          ? {
+              title: sMenu.lockedClosedTitle,
+              desc: sMenu.lockedClosedDesc,
+              tone: "border-slate-200 bg-slate-50 text-[#0f1d40]",
+              btnKind: statusInfo.activeDealOffer ? ("deals" as const) : null,
+            }
+          : null
+
+  const handleToggle = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!isOpen && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect()
+      const spaceBelow = window.innerHeight - rect.bottom
+      const spaceAbove = rect.top
+      setOpenUpward(spaceBelow < 380 && spaceAbove > spaceBelow)
+    }
+    onToggleOpen()
+  }
+
   return (
-    <div className="relative w-full">
-      <select
-        disabled={disabled}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className={`h-9 w-full cursor-pointer appearance-none rounded-xl border px-7 text-center text-[11.5px] font-extrabold transition focus:outline-none [text-align-last:center] disabled:opacity-50 ${badgeClass}`}
+    <div className="relative w-full" onClick={(e) => e.stopPropagation()}>
+      <button
+        ref={triggerRef}
+        type="button"
+        disabled={pending}
+        onClick={handleToggle}
+        className={`inline-flex h-9 w-full items-center justify-between gap-1.5 rounded-xl border px-3 text-[11px] font-extrabold transition focus:outline-none disabled:opacity-50 ${badgeTone}`}
       >
-        {options.map((st) => (
-          <option
-            key={st.value}
-            value={st.value}
-            className="bg-white text-xs text-[#0f1d40]"
-          >
-            {st.label}
-          </option>
-        ))}
-      </select>
-      <ChevronDown className="pointer-events-none absolute top-1/2 end-2.5 size-3.5 -translate-y-1/2 opacity-70" />
+        <span className="flex min-w-0 items-center gap-1.5 truncate">
+          {isLocked && <Lock className="size-3 shrink-0 opacity-85" />}
+          <span className="truncate">{label}</span>
+        </span>
+        <ChevronDown
+          className={`size-3.5 shrink-0 opacity-80 transition-transform duration-150 ${
+            isOpen ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+
+      {isOpen && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className={`absolute end-0 z-50 max-h-[min(400px,72vh)] w-full min-w-[260px] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-2 text-start shadow-2xl sm:w-[290px] ${
+            openUpward ? "bottom-10" : "top-10"
+          }`}
+        >
+          {lockBanner && (
+            <div
+              className={`mb-1.5 rounded-xl border p-2 text-[10.5px] ${lockBanner.tone}`}
+            >
+              <div className="flex items-start gap-1.5">
+                <Lock className="mt-0.5 size-3 shrink-0 text-[#007a5a]" />
+                <div className="min-w-0 flex-1">
+                  <strong className="block text-[11px] font-black">
+                    {lockBanner.title}
+                  </strong>
+                  <p className="mt-0.5 leading-snug opacity-85">
+                    {lockBanner.desc}
+                  </p>
+                </div>
+              </div>
+
+              {lockBanner.btnKind === "deals" && (
+                <Link
+                  href={
+                    statusInfo.activeDealOffer
+                      ? `/admin/deals?offerId=${statusInfo.activeDealOffer.id}`
+                      : "/admin/deals"
+                  }
+                  onClick={onCloseAll}
+                  className="mt-1.5 flex h-7 w-full items-center justify-center gap-1.5 rounded-lg bg-[#007a5a] px-2.5 text-[10.5px] font-extrabold text-white transition hover:bg-[#006248]"
+                >
+                  <Handshake className="size-3.5" />
+                  <span>{sMenu.goToDealsBtn}</span>
+                </Link>
+              )}
+
+              {lockBanner.btnKind === "offers" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onCloseAll()
+                    onOpenOffersLog()
+                  }}
+                  className="mt-1.5 flex h-7 w-full items-center justify-center gap-1.5 rounded-lg bg-[#0f1d40] px-2.5 text-[10.5px] font-extrabold text-white transition hover:bg-[#1e293b]"
+                >
+                  <ClipboardList className="size-3.5 text-emerald-300" />
+                  <span>{sMenu.goToOffersBtn}</span>
+                </button>
+              )}
+            </div>
+          )}
+
+          <div className="px-2 pt-0.5 pb-1 text-[10px] font-extrabold text-slate-400">
+            {sMenu.pipelineGroupLabel}
+          </div>
+
+          <div className="space-y-0.5">
+            {pipelineItems.map((item) => {
+              const isDisabled = isLocked || item.isAuto || item.isCurrent
+              return (
+                <button
+                  key={item.value}
+                  type="button"
+                  disabled={isDisabled}
+                  onClick={() => {
+                    onCloseAll()
+                    onRequestStatusChange(item.value)
+                  }}
+                  className={`flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-start text-[11px] transition ${
+                    item.isCurrent
+                      ? "bg-[#eaf8f2] font-black text-[#007a5a] ring-1 ring-emerald-200"
+                      : isLocked || item.isAuto
+                        ? "cursor-not-allowed font-semibold text-slate-400 opacity-60"
+                        : "cursor-pointer font-bold text-[#0f1d40] hover:bg-slate-100"
+                  }`}
+                >
+                  <span className="flex min-w-0 items-center gap-1.5 truncate">
+                    {item.isCurrent ? (
+                      <Check className="size-3.5 shrink-0 text-[#007a5a]" />
+                    ) : item.isAuto ? (
+                      <Lock className="size-3 shrink-0 text-slate-400" />
+                    ) : (
+                      <span className="size-1.5 shrink-0 rounded-full bg-slate-300" />
+                    )}
+                    <span className="truncate">{item.label}</span>
+                  </span>
+
+                  {item.isCurrent ? (
+                    <span className="shrink-0 rounded-full bg-[#007a5a] px-2 py-0.5 text-[9px] font-extrabold text-white">
+                      {sMenu.currentBadge}
+                    </span>
+                  ) : item.isAuto ? (
+                    <span className="shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-500">
+                      {sMenu.autoBadge}
+                    </span>
+                  ) : null}
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="my-1.5 border-t border-slate-100" />
+          <div className="px-2 pb-1 text-[10px] font-extrabold text-slate-400">
+            {sMenu.otherGroupLabel}
+          </div>
+
+          <div className="space-y-0.5">
+            {extraItems.map((item) => {
+              const isDisabled = isLocked || item.isCurrent
+              return (
+                <button
+                  key={item.value}
+                  type="button"
+                  disabled={isDisabled}
+                  onClick={() => {
+                    onCloseAll()
+                    onRequestStatusChange(item.value)
+                  }}
+                  className={`flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-start text-[11px] transition ${
+                    item.isCurrent
+                      ? "bg-slate-100 font-black text-slate-800 ring-1 ring-slate-200"
+                      : isLocked
+                        ? "cursor-not-allowed font-semibold text-slate-400 opacity-55"
+                        : "cursor-pointer font-bold text-slate-700 hover:bg-slate-100"
+                  }`}
+                >
+                  <span className="truncate">{item.label}</span>
+                  {item.isCurrent && (
+                    <span className="shrink-0 rounded-full bg-slate-600 px-2 py-0.5 text-[9px] font-extrabold text-white">
+                      {sMenu.currentBadge}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
-function AutoStatusPill({
-  statusKey,
-  label,
-  onClick,
+function LeadThreeDotsMenu({
+  lead,
+  isOpen,
+  pending,
+  expL,
+  deleteBtnLabel,
+  onToggle,
+  onClose,
+  onExportExcel,
+  onExportPdf,
+  onRequestDelete,
 }: {
-  statusKey: string
-  label: string
-  onClick?: () => void
+  lead: BuyerLead
+  isOpen: boolean
+  pending: boolean
+  expL: Record<string, any>
+  deleteBtnLabel: string
+  onToggle: () => void
+  onClose: () => void
+  onExportExcel: () => void
+  onExportPdf: () => void
+  onRequestDelete: () => void
 }) {
-  const tone =
-    statusKey === "closed"
-      ? "border-emerald-300 bg-[#eaf8f2] text-[#007a5a] cursor-default"
-      : statusKey === "in_deal"
-        ? "border-[#007a5a] bg-[#007a5a] text-white hover:bg-[#006248]"
-        : statusKey === "negotiating"
-          ? "border-purple-300 bg-purple-700 text-white hover:bg-purple-800"
-          : "border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100"
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const [openUpward, setOpenUpward] = useState(false)
 
-  if (statusKey === "closed") {
-    return (
-      <div
-        className={`inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-xl border px-3 text-center text-[11.5px] font-extrabold select-none ${tone}`}
-      >
-        <Lock className="size-3.5 shrink-0 opacity-80" />
-        <span className="truncate">{label}</span>
-      </div>
-    )
+  const handleToggle = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!isOpen && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect()
+      const spaceBelow = window.innerHeight - rect.bottom
+      const spaceAbove = rect.top
+      setOpenUpward(spaceBelow < 220 && spaceAbove > spaceBelow)
+    }
+    onToggle()
   }
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-xl border px-3 text-center text-[11.5px] font-extrabold transition ${tone}`}
-    >
-      <span className="truncate">{label}</span>
-      <Info className="size-3.5 shrink-0 opacity-80" />
-    </button>
+    <div className="relative" onClick={(e) => e.stopPropagation()}>
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-label={expL.moreActionsAria}
+        onClick={handleToggle}
+        className="flex size-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-[#007a5a] hover:bg-slate-50 hover:text-[#0f1d40]"
+      >
+        <MoreVertical className="size-4" />
+      </button>
+
+      {isOpen && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className={`absolute end-0 z-50 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl ${
+            openUpward ? "bottom-9" : "top-9"
+          }`}
+        >
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onClose()
+              onExportExcel()
+            }}
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-[#007a5a] transition hover:bg-[#eaf8f2]"
+          >
+            <Download className="size-3.5 text-[#007a5a]" />
+            <span>{expL.exportRowBtn}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onClose()
+              onExportPdf()
+            }}
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-blue-700 transition hover:bg-blue-50"
+          >
+            <FileText className="size-3.5 text-blue-600" />
+            <span>{expL.exportRowPdfBtn}</span>
+          </button>
+
+          <div className="my-1 border-t border-slate-100" />
+
+          <button
+            type="button"
+            disabled={pending}
+            onClick={(e) => {
+              e.stopPropagation()
+              onClose()
+              onRequestDelete()
+            }}
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-red-600 transition hover:bg-red-50"
+          >
+            <Trash2 className="size-3.5 text-red-600" />
+            <span>{deleteBtnLabel}</span>
+          </button>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -415,35 +729,12 @@ export default function LeadsClientTable({
   const listSep = dir === "rtl" ? "، " : ", "
   const commPct = Number(siteSettings?.buyerCommission) || 1.25
 
-  const manualLeadStatuses: LeadStatusOption[] = [
-    {
-      value: "new",
-      label: t.statuses?.new,
-      badge: "bg-blue-50 text-blue-900 border-blue-300",
-    },
-    {
-      value: "contacted",
-      label: t.statuses?.contacted,
-      badge: "bg-amber-50 text-amber-900 border-amber-300",
-    },
-    {
-      value: "matched",
-      label: t.statuses?.matched,
-      badge: "bg-purple-50 text-purple-900 border-purple-300",
-    },
-    {
-      value: "archived",
-      label: t.statuses?.archived,
-      badge: "bg-slate-100 text-slate-700 border-slate-300",
-    },
-  ]
-
   const filterTabs = [
     { value: "new", label: t.statuses?.new },
+    { value: "in_deal", label: t.filterInDealTab },
+    { value: "offers_group", label: t.filterOffersAndNegTab },
     { value: "contacted", label: t.statuses?.contacted },
     { value: "matched", label: t.statuses?.matched },
-    { value: "offers_group", label: t.filterOffersAndNegTab },
-    { value: "in_deal", label: t.filterInDealTab },
     { value: "closed", label: t.statusPurchasedLocked || t.statuses?.closed },
     { value: "archived", label: t.statuses?.archived },
   ]
@@ -454,11 +745,7 @@ export default function LeadsClientTable({
     if (key === "in_deal") return t.statusInActiveDeal
     if (key === "negotiating") return t.statusNegotiating
     if (key === "has_offer") return t.statusHasActiveOffer
-    return (
-      manualLeadStatuses.find((s) => s.value === key)?.label ||
-      t.statuses?.[key] ||
-      key
-    )
+    return t.statuses?.[key] || key
   }
 
   const leadCur = getCurrencySymbol(ACTIVE_ADMIN_COUNTRY, locale)
@@ -467,6 +754,7 @@ export default function LeadsClientTable({
   const [areaFilter, setAreaFilter] = useState("ALL")
   const [statusFilter, setStatusFilter] = useState("all")
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  const [openStatusMenuId, setOpenStatusMenuId] = useState<string | null>(null)
   const [highlightedLeadId, setHighlightedLeadId] = useState<string | null>(
     null
   )
@@ -487,8 +775,6 @@ export default function LeadsClientTable({
   const [confirmAction, setConfirmAction] = useState<ConfirmLeadAction | null>(
     null
   )
-  const [blockedModal, setBlockedModal] =
-    useState<BlockedTransitionState | null>(null)
   const [activeLeadId, setActiveLeadId] = useState<string | null>(null)
   const [notice, setNotice] = useState<{
     text: string
@@ -613,9 +899,12 @@ export default function LeadsClientTable({
   }, [generalSearchEntries])
 
   useEffect(() => {
-    const closeMenu = () => setOpenMenuId(null)
-    window.addEventListener("click", closeMenu)
-    return () => window.removeEventListener("click", closeMenu)
+    const closeAllMenus = () => {
+      setOpenMenuId(null)
+      setOpenStatusMenuId(null)
+    }
+    window.addEventListener("click", closeAllMenus)
+    return () => window.removeEventListener("click", closeAllMenus)
   }, [])
 
   useEffect(() => {
@@ -632,11 +921,29 @@ export default function LeadsClientTable({
 
     if (leadIdParam) {
       setHighlightedLeadId(leadIdParam)
-      setTimeout(() => {
-        document
-          .getElementById(`lead-row-${leadIdParam}`)
-          ?.scrollIntoView({ behavior: "smooth", block: "center" })
-      }, 250)
+      setSearch("")
+      setAreaFilter("ALL")
+      setStatusFilter("all")
+
+      const scrollToVisibleLead = () => {
+        const candidates = document.querySelectorAll<HTMLElement>(
+          `[data-lead-row-id="${leadIdParam}"]`
+        )
+        const visibleTarget = Array.from(candidates).find(
+          (el) => el.offsetParent !== null
+        )
+        ;(visibleTarget || candidates[0])?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        })
+      }
+
+      const t1 = setTimeout(scrollToVisibleLead, 180)
+      const t2 = setTimeout(scrollToVisibleLead, 550)
+      return () => {
+        clearTimeout(t1)
+        clearTimeout(t2)
+      }
     }
   }, [searchParams])
 
@@ -733,13 +1040,17 @@ export default function LeadsClientTable({
       return true
     })
     .sort((a, b) => {
+      // الترتيب حسب أولوية الشغل: جديد أولاً ← في صفقة ← قيد التفاوض ← لديه عرض ← تم التواصل ← تم الترشيح ← تم الشراء ← مؤرشف
       const rank = (s: string) => {
-        if (s === "archived") return 6
-        if (s === "closed") return 5
-        if (s === "in_deal") return 1
-        if (s === "negotiating") return 2
-        if (s === "has_offer") return 3
-        return 4
+        if (s === "new") return 1
+        if (s === "in_deal") return 2
+        if (s === "negotiating") return 3
+        if (s === "has_offer") return 4
+        if (s === "contacted") return 5
+        if (s === "matched") return 6
+        if (s === "closed") return 7
+        if (s === "archived") return 8
+        return 9
       }
       const diff = rank(a.statusInfo.key) - rank(b.statusInfo.key)
       if (diff !== 0) return diff
@@ -752,7 +1063,7 @@ export default function LeadsClientTable({
   function exportLeadsReport(
     rowsToExport: BuyerLead[],
     format: "excel" | "pdf" = "excel",
-    prefix = "AqarExit_Buyers",
+    prefix = "DualDealz_Buyers",
     customTitle?: string
   ) {
     const c = expL.cols
@@ -831,140 +1142,6 @@ export default function LeadsClientTable({
         data: rowsToExport,
       })
     }
-  }
-
-  function renderThreeDotsMenu(menuKey: string, lead: BuyerLead) {
-    const isMenuOpen = openMenuId === menuKey
-    return (
-      <div className="relative" onClick={(e) => e.stopPropagation()}>
-        <button
-          type="button"
-          aria-label={expL.moreActionsAria}
-          onClick={(e) => {
-            e.stopPropagation()
-            setOpenMenuId(isMenuOpen ? null : menuKey)
-          }}
-          className="flex size-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-[#007a5a] hover:bg-slate-50 hover:text-[#0f1d40]"
-        >
-          <MoreVertical className="size-4" />
-        </button>
-
-        {isMenuOpen && (
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="absolute end-0 top-9 z-50 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl"
-          >
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                setOpenMenuId(null)
-                exportLeadsReport(
-                  [lead],
-                  "excel",
-                  `AqarExit_Buyer_${lead.id.slice(0, 6)}`,
-                  `${expL.singleLeadReportTitle} (${lead.name})`
-                )
-              }}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-[#007a5a] transition hover:bg-[#eaf8f2]"
-            >
-              <Download className="size-3.5 text-[#007a5a]" />
-              <span>{expL.exportRowBtn}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                setOpenMenuId(null)
-                exportLeadsReport(
-                  [lead],
-                  "pdf",
-                  `AqarExit_Buyer_${lead.id.slice(0, 6)}`,
-                  `${expL.singleLeadReportTitle} (${lead.name})`
-                )
-              }}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-blue-700 transition hover:bg-blue-50"
-            >
-              <FileText className="size-3.5 text-blue-600" />
-              <span>{expL.exportRowPdfBtn}</span>
-            </button>
-
-            <div className="my-1 border-t border-slate-100" />
-
-            <button
-              type="button"
-              disabled={pending}
-              onClick={(e) => {
-                e.stopPropagation()
-                setOpenMenuId(null)
-                setConfirmAction({ type: "delete", lead })
-              }}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-red-600 transition hover:bg-red-50"
-            >
-              <Trash2 className="size-3.5 text-red-600" />
-              <span>{t.deleteBtn}</span>
-            </button>
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  function renderLeadStatusControl(
-    lead: BuyerLead,
-    statusInfo: ReturnType<typeof resolveLeadDisplayStatus>
-  ) {
-    const label = getDisplayStatusLabel(statusInfo.key)
-    if (statusInfo.isAutoLocked) {
-      return (
-        <AutoStatusPill
-          statusKey={statusInfo.key}
-          label={label}
-          onClick={() => {
-            if (statusInfo.key === "in_deal" && statusInfo.activeDealOffer) {
-              setBlockedModal({
-                lead,
-                reasonType: "active_deal",
-                count: 1,
-                dealOfferId: String(statusInfo.activeDealOffer.id),
-              })
-            } else if (
-              statusInfo.key === "negotiating" ||
-              statusInfo.key === "has_offer"
-            ) {
-              setBlockedModal({
-                lead,
-                reasonType: "active_offers",
-                count: statusInfo.activeOffersCount,
-              })
-            }
-          }}
-        />
-      )
-    }
-
-    const stObj =
-      manualLeadStatuses.find((s) => s.value === statusInfo.key) ||
-      manualLeadStatuses[0]
-
-    return (
-      <StatusSelectBox
-        value={stObj.value}
-        options={manualLeadStatuses}
-        badgeClass={stObj.badge}
-        disabled={pending}
-        onChange={(nextSt) => {
-          if (nextSt !== stObj.value) {
-            setConfirmAction({
-              type: "status",
-              lead,
-              newStatus: nextSt,
-            })
-          }
-        }}
-      />
-    )
   }
 
   function renderLeadFooterActions(
@@ -1116,64 +1293,68 @@ export default function LeadsClientTable({
         </div>
       )}
 
-      {/* شريط البحث وفلاتر المدن والأحياء والتصدير */}
-      <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-2xs sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-        <div className="flex w-full flex-wrap items-center gap-2 sm:max-w-2xl sm:flex-1">
-          <div className="relative min-w-[180px] flex-1">
+      {/* شريط البحث وفلاتر المدن والأحياء والتصدير (منسّق تماماً مثل طلبات البيع) */}
+      <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-2xs">
+        <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center">
+          <div className="relative min-w-[220px] flex-1">
             <Search className="pointer-events-none absolute top-1/2 end-3 size-4 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t.searchPlaceholder}
-              className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50/50 ps-3 pe-9 text-xs font-semibold focus:border-[#007a5a] focus:bg-white focus:outline-none"
+              className="h-9.5 w-full rounded-xl border border-slate-200 bg-slate-50/50 ps-3 pe-9 text-xs font-semibold focus:border-[#007a5a] focus:bg-white focus:outline-none"
             />
           </div>
 
-          <AdminAreaFilter
-            value={areaFilter}
-            onChange={setAreaFilter}
-            itemsAreas={generalSearchEntries.map(({ lead, parsed }) =>
-              getLeadRawAreas(lead, parsed)
-            )}
-          />
+          <div className="shrink-0">
+            <AdminAreaFilter
+              value={areaFilter}
+              onChange={setAreaFilter}
+              itemsAreas={generalSearchEntries.map(({ lead, parsed }) =>
+                getLeadRawAreas(lead, parsed)
+              )}
+            />
+          </div>
 
-          <button
-            type="button"
-            disabled={currentExportRows.length === 0}
-            onClick={() =>
-              exportLeadsReport(
-                currentExportRows,
-                "excel",
-                "AqarExit_Search_Profiles",
-                ui.searchProfilesTab
-              )
-            }
-            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-emerald-200 bg-[#eaf8f2] px-3 text-xs font-extrabold text-[#007a5a] transition hover:bg-[#007a5a] hover:text-white disabled:opacity-40"
-          >
-            <Download className="size-3.5" />
-            <span>{expL.exportAllBtn}</span>
-          </button>
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={currentExportRows.length === 0}
+              onClick={() =>
+                exportLeadsReport(
+                  currentExportRows,
+                  "excel",
+                  "DualDealz_Search_Profiles",
+                  ui.searchProfilesTab
+                )
+              }
+              className="inline-flex h-9.5 shrink-0 items-center gap-1.5 rounded-xl border border-emerald-200 bg-[#eaf8f2] px-3.5 text-xs font-extrabold text-[#007a5a] transition hover:bg-[#007a5a] hover:text-white disabled:opacity-40"
+            >
+              <Download className="size-3.5" />
+              <span>{expL.exportAllBtn}</span>
+            </button>
 
-          <button
-            type="button"
-            disabled={currentExportRows.length === 0}
-            onClick={() =>
-              exportLeadsReport(
-                currentExportRows,
-                "pdf",
-                "AqarExit_Search_Profiles",
-                ui.searchProfilesTab
-              )
-            }
-            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-800 px-3 text-xs font-extrabold text-white transition hover:bg-slate-900 disabled:opacity-40"
-          >
-            <FileText className="size-3.5 text-emerald-300" />
-            <span>{expL.exportPdfBtn}</span>
-          </button>
+            <button
+              type="button"
+              disabled={currentExportRows.length === 0}
+              onClick={() =>
+                exportLeadsReport(
+                  currentExportRows,
+                  "pdf",
+                  "DualDealz_Search_Profiles",
+                  ui.searchProfilesTab
+                )
+              }
+              className="inline-flex h-9.5 shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-800 px-3.5 text-xs font-extrabold text-white transition hover:bg-slate-900 disabled:opacity-40"
+            >
+              <FileText className="size-3.5 text-emerald-300" />
+              <span>{expL.exportPdfBtn}</span>
+            </button>
+          </div>
         </div>
 
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-3">
           <button
             type="button"
             onClick={() => setStatusFilter("all")}
@@ -1223,6 +1404,8 @@ export default function LeadsClientTable({
             const isHighlighted = highlightedLeadId === lead.id
             const showTargetBudget =
               Number(lead.budget || 0) > Number(lead.available_cash || 0)
+            const isAnyMenuOpen =
+              openMenuId === `mob_${lead.id}` || openStatusMenuId === lead.id
 
             const waText = buildLeadWhatsAppMessage({
               lead,
@@ -1235,13 +1418,15 @@ export default function LeadsClientTable({
 
             return (
               <div
-                id={`lead-row-${lead.id}`}
+                data-lead-row-id={lead.id}
                 key={lead.id}
-                className={`relative overflow-visible rounded-2xl border bg-white shadow-xs transition ${
+                className={`relative scroll-mt-24 overflow-visible rounded-2xl border bg-white shadow-xs transition ${
+                  isAnyMenuOpen ? "z-30" : "z-0"
+                } ${
                   isLoading
                     ? "border-[#007a5a] opacity-75"
                     : isHighlighted
-                      ? "border-2 border-[#007a5a] ring-2 ring-[#007a5a]/25"
+                      ? "border-2 border-[#007a5a] bg-[#eaf8f2]/35 ring-4 ring-[#007a5a]/20"
                       : isClosedDeal
                         ? "border-emerald-200/90 bg-slate-50/40 border-s-4 border-s-[#0f1d40]"
                         : statusInfo.key === "in_deal"
@@ -1253,7 +1438,14 @@ export default function LeadsClientTable({
                               : "border-slate-200/90 border-s-4 border-s-[#007a5a]"
                 }`}
               >
-                <div className="p-4">
+                {isHighlighted && t.selectedLeadBadge && (
+                  <div className="flex items-center gap-1.5 rounded-t-2xl border-b border-emerald-200 bg-[#007a5a] px-4 py-1.5 text-[11px] font-extrabold text-white">
+                    <span className="size-2 animate-pulse rounded-full bg-emerald-200" />
+                    <span>{t.selectedLeadBadge}</span>
+                  </div>
+                )}
+
+                <div className="p-4 text-start">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-1.5">
@@ -1273,7 +1465,7 @@ export default function LeadsClientTable({
                       </div>
                       <div className="mt-1 flex items-center gap-1.5 text-[11.5px] font-bold text-slate-700">
                         <Phone className="size-3 shrink-0 text-slate-400" />
-                        <span dir="ltr" className="font-mono">
+                        <span dir="ltr" className="inline-block font-mono">
                           {lead.phone}
                         </span>
                         {phoneOk && (
@@ -1282,7 +1474,7 @@ export default function LeadsClientTable({
                       </div>
                       {lead.email && (
                         <div className="mt-0.5 flex items-center gap-1 text-[10.5px] text-slate-500">
-                          <span dir="ltr" className="break-all">
+                          <span dir="ltr" className="inline-block break-all">
                             {lead.email}
                           </span>
                           {emailOk && (
@@ -1292,7 +1484,41 @@ export default function LeadsClientTable({
                       )}
                     </div>
 
-                    {renderThreeDotsMenu(`mob_${lead.id}`, lead)}
+                    <LeadThreeDotsMenu
+                      lead={lead}
+                      isOpen={openMenuId === `mob_${lead.id}`}
+                      pending={pending}
+                      expL={expL}
+                      deleteBtnLabel={t.deleteBtn}
+                      onToggle={() => {
+                        setOpenStatusMenuId(null)
+                        setOpenMenuId(
+                          openMenuId === `mob_${lead.id}`
+                            ? null
+                            : `mob_${lead.id}`
+                        )
+                      }}
+                      onClose={() => setOpenMenuId(null)}
+                      onExportExcel={() =>
+                        exportLeadsReport(
+                          [lead],
+                          "excel",
+                          `DualDealz_Buyer_${lead.id.slice(0, 6)}`,
+                          `${expL.singleLeadReportTitle} (${lead.name})`
+                        )
+                      }
+                      onExportPdf={() =>
+                        exportLeadsReport(
+                          [lead],
+                          "pdf",
+                          `DualDealz_Buyer_${lead.id.slice(0, 6)}`,
+                          `${expL.singleLeadReportTitle} (${lead.name})`
+                        )
+                      }
+                      onRequestDelete={() =>
+                        setConfirmAction({ type: "delete", lead })
+                      }
+                    />
                   </div>
 
                   <div className="mt-3 rounded-xl border border-slate-100 bg-slate-50/80 p-2.5 text-xs">
@@ -1302,34 +1528,28 @@ export default function LeadsClientTable({
                           <Wallet className="size-3 text-[#007a5a]" />
                           <span>{t.cashLabel}</span>
                         </span>
-                        <div className="mt-0.5">
-                          <strong
-                            dir="ltr"
-                            className="inline-block text-sm font-black text-[#007a5a] tabular-nums"
-                          >
+                        <strong className="mt-0.5 block text-sm font-black text-[#007a5a]">
+                          <span dir="ltr" className="inline-block tabular-nums">
                             {leadCur}
                             {Number(
                               lead.available_cash || lead.budget || 0
                             ).toLocaleString("en-US")}
-                          </strong>
-                        </div>
+                          </span>
+                        </strong>
                       </div>
 
                       <div className="border-s border-slate-200/70 ps-2.5 text-start">
                         <span className="block text-[10px] font-bold text-slate-400">
                           {t.installmentLabel}
                         </span>
-                        <div className="mt-0.5">
-                          <strong
-                            dir="ltr"
-                            className="inline-block text-sm font-black text-[#0f1d40] tabular-nums"
-                          >
+                        <strong className="mt-0.5 block text-sm font-black text-[#0f1d40]">
+                          <span dir="ltr" className="inline-block tabular-nums">
                             {leadCur}
                             {Number(lead.max_installment || 0).toLocaleString(
                               "en-US"
                             )}
-                          </strong>
-                        </div>
+                          </span>
+                        </strong>
                       </div>
                     </div>
 
@@ -1338,12 +1558,11 @@ export default function LeadsClientTable({
                         <span className="font-bold text-slate-500">
                           {ui.targetBudgetLabel}
                         </span>
-                        <strong
-                          dir="ltr"
-                          className="font-extrabold text-[#0f1d40] tabular-nums"
-                        >
-                          {leadCur}
-                          {Number(lead.budget).toLocaleString("en-US")}
+                        <strong className="font-extrabold text-[#0f1d40]">
+                          <span dir="ltr" className="inline-block tabular-nums">
+                            {leadCur}
+                            {Number(lead.budget).toLocaleString("en-US")}
+                          </span>
                         </strong>
                       </div>
                     )}
@@ -1373,7 +1592,7 @@ export default function LeadsClientTable({
                         {typesText}{" "}
                         {lead.min_rooms ? `· +${lead.min_rooms}` : ""}
                       </span>
-                      <span dir="ltr" className="font-mono text-slate-400">
+                      <span dir="ltr" className="inline-block font-mono text-slate-400">
                         {new Date(lead.created_at).toLocaleDateString("en-GB")}
                       </span>
                     </div>
@@ -1390,7 +1609,32 @@ export default function LeadsClientTable({
                   </div>
 
                   <div className="mt-2.5">
-                    {renderLeadStatusControl(lead, statusInfo)}
+                    <LeadStatusControl
+                      lead={lead}
+                      statusInfo={statusInfo}
+                      label={getDisplayStatusLabel(statusInfo.key)}
+                      t={t}
+                      pending={pending}
+                      isOpen={openStatusMenuId === lead.id}
+                      onToggleOpen={() => {
+                        setOpenMenuId(null)
+                        setOpenStatusMenuId(
+                          openStatusMenuId === lead.id ? null : lead.id
+                        )
+                      }}
+                      onCloseAll={() => {
+                        setOpenStatusMenuId(null)
+                        setOpenMenuId(null)
+                      }}
+                      onRequestStatusChange={(nextStatus) =>
+                        setConfirmAction({
+                          type: "status",
+                          lead,
+                          newStatus: nextStatus,
+                        })
+                      }
+                      onOpenOffersLog={() => setOffersLogLead(lead)}
+                    />
                   </div>
                 </div>
 
@@ -1449,7 +1693,7 @@ export default function LeadsClientTable({
           </div>
         </div>
 
-        <div className="mb-2.5 grid grid-cols-[minmax(0,3fr)_minmax(0,2.4fr)_minmax(0,3.4fr)_195px] items-center gap-4 rounded-xl border border-slate-200/90 bg-slate-100/80 px-5 py-2.5 text-[11px] font-extrabold text-slate-600">
+        <div className="mb-2.5 grid grid-cols-[minmax(0,3fr)_minmax(0,2.4fr)_minmax(0,3.4fr)_225px] items-center gap-4 rounded-xl border border-slate-200/90 bg-slate-100/80 px-5 py-2.5 text-[11px] font-extrabold text-slate-600">
           <div>{t.colBuyer}</div>
           <div>{t.colCash}</div>
           <div>{ui.desiredAreasCol}</div>
@@ -1476,6 +1720,8 @@ export default function LeadsClientTable({
               const isHighlighted = highlightedLeadId === lead.id
               const showTargetBudget =
                 Number(lead.budget || 0) > Number(lead.available_cash || 0)
+              const isAnyMenuOpen =
+                openMenuId === `desk_${lead.id}` || openStatusMenuId === lead.id
 
               const waText = buildLeadWhatsAppMessage({
                 lead,
@@ -1488,13 +1734,15 @@ export default function LeadsClientTable({
 
               return (
                 <div
-                  id={`lead-row-${lead.id}`}
+                  data-lead-row-id={lead.id}
                   key={lead.id}
-                  className={`overflow-visible rounded-2xl border bg-white shadow-2xs transition-all hover:shadow-md ${
+                  className={`relative scroll-mt-24 overflow-visible rounded-2xl border bg-white shadow-2xs transition-all hover:shadow-md ${
+                    isAnyMenuOpen ? "z-30" : "z-0"
+                  } ${
                     isLoading
                       ? "border-[#007a5a] bg-[#eaf8f2]/30 opacity-60"
                       : isHighlighted
-                        ? "border-2 border-[#007a5a] bg-[#eaf8f2]/30 ring-2 ring-[#007a5a]/20"
+                        ? "border-2 border-[#007a5a] bg-[#eaf8f2]/35 ring-4 ring-[#007a5a]/20"
                         : isClosedDeal
                           ? "border-emerald-200/90 bg-slate-50/40 border-s-4 border-s-[#0f1d40]"
                           : statusInfo.key === "in_deal"
@@ -1506,7 +1754,14 @@ export default function LeadsClientTable({
                                 : "border-slate-200/90 border-s-4 border-s-[#007a5a]"
                   }`}
                 >
-                  <div className="grid grid-cols-[minmax(0,3fr)_minmax(0,2.4fr)_minmax(0,3.4fr)_195px] items-center gap-4 px-5 py-4">
+                  {isHighlighted && t.selectedLeadBadge && (
+                    <div className="flex items-center gap-2 rounded-t-2xl border-b border-emerald-200 bg-[#007a5a] px-5 py-1.5 text-[11px] font-extrabold text-white">
+                      <span className="size-2 animate-pulse rounded-full bg-emerald-200" />
+                      <span>{t.selectedLeadBadge}</span>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-[minmax(0,3fr)_minmax(0,2.4fr)_minmax(0,3.4fr)_225px] items-center gap-4 px-5 py-4 text-start">
                     <div className="min-w-0 pe-2">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[11px] font-black text-slate-600">
@@ -1532,7 +1787,7 @@ export default function LeadsClientTable({
                       </div>
 
                       <div className="mt-1.5 flex items-center gap-1.5 ps-8 text-[11.5px] font-bold text-slate-700">
-                        <span dir="ltr" className="font-mono">
+                        <span dir="ltr" className="inline-block font-mono">
                           {lead.phone}
                         </span>
                         {phoneOk && (
@@ -1547,7 +1802,7 @@ export default function LeadsClientTable({
 
                       {lead.email && (
                         <div className="mt-0.5 flex items-center gap-1 ps-8 text-[11px] font-medium text-slate-500">
-                          <span dir="ltr" className="break-all">
+                          <span dir="ltr" className="inline-block break-all">
                             {lead.email}
                           </span>
                           {emailOk && (
@@ -1567,39 +1822,36 @@ export default function LeadsClientTable({
                         <span className="text-[11px] font-bold text-slate-400">
                           {t.cashLabel}
                         </span>
-                        <span
-                          dir="ltr"
-                          className="text-base font-black text-[#007a5a] tabular-nums"
-                        >
-                          {leadCur}
-                          {Number(
-                            lead.available_cash || lead.budget || 0
-                          ).toLocaleString("en-US")}
+                        <span className="text-base font-black text-[#007a5a]">
+                          <span dir="ltr" className="inline-block tabular-nums">
+                            {leadCur}
+                            {Number(
+                              lead.available_cash || lead.budget || 0
+                            ).toLocaleString("en-US")}
+                          </span>
                         </span>
                       </div>
 
-                      <div className="mt-1.5 space-y-1 border-t border-slate-100 pt-1.5 text-[11px] text-slate-500 tabular-nums">
+                      <div className="mt-1.5 space-y-1 border-t border-slate-100 pt-1.5 text-[11px] text-slate-500">
                         <div className="flex items-center justify-between gap-2">
                           <span>{t.installmentLabel}</span>
-                          <strong
-                            dir="ltr"
-                            className="font-extrabold text-[#0f1d40]"
-                          >
-                            {leadCur}
-                            {Number(lead.max_installment || 0).toLocaleString(
-                              "en-US"
-                            )}
+                          <strong className="font-extrabold text-[#0f1d40]">
+                            <span dir="ltr" className="inline-block tabular-nums">
+                              {leadCur}
+                              {Number(lead.max_installment || 0).toLocaleString(
+                                "en-US"
+                              )}
+                            </span>
                           </strong>
                         </div>
                         {showTargetBudget && (
                           <div className="flex items-center justify-between gap-2">
                             <span>{ui.targetBudgetLabel}:</span>
-                            <strong
-                              dir="ltr"
-                              className="font-bold text-slate-700"
-                            >
-                              {leadCur}
-                              {Number(lead.budget).toLocaleString("en-US")}
+                            <strong className="font-bold text-slate-700">
+                              <span dir="ltr" className="inline-block tabular-nums">
+                                {leadCur}
+                                {Number(lead.budget).toLocaleString("en-US")}
+                              </span>
                             </strong>
                           </div>
                         )}
@@ -1639,14 +1891,13 @@ export default function LeadsClientTable({
                           </>
                         )}
                         <span>·</span>
-                        <span
-                          dir="ltr"
-                          className="font-mono text-[10.5px] text-slate-400"
-                        >
+                        <span className="text-[10.5px] text-slate-400">
                           📅{" "}
-                          {new Date(lead.created_at).toLocaleDateString(
-                            "en-GB"
-                          )}
+                          <span dir="ltr" className="inline-block font-mono">
+                            {new Date(lead.created_at).toLocaleDateString(
+                              "en-GB"
+                            )}
+                          </span>
                         </span>
                       </div>
 
@@ -1669,7 +1920,32 @@ export default function LeadsClientTable({
                     </div>
 
                     <div className="border-s border-slate-100 ps-3.5">
-                      {renderLeadStatusControl(lead, statusInfo)}
+                      <LeadStatusControl
+                        lead={lead}
+                        statusInfo={statusInfo}
+                        label={getDisplayStatusLabel(statusInfo.key)}
+                        t={t}
+                        pending={pending}
+                        isOpen={openStatusMenuId === lead.id}
+                        onToggleOpen={() => {
+                          setOpenMenuId(null)
+                          setOpenStatusMenuId(
+                            openStatusMenuId === lead.id ? null : lead.id
+                          )
+                        }}
+                        onCloseAll={() => {
+                          setOpenStatusMenuId(null)
+                          setOpenMenuId(null)
+                        }}
+                        onRequestStatusChange={(nextStatus) =>
+                          setConfirmAction({
+                            type: "status",
+                            lead,
+                            newStatus: nextStatus,
+                          })
+                        }
+                        onOpenOffersLog={() => setOffersLogLead(lead)}
+                      />
                     </div>
                   </div>
 
@@ -1708,7 +1984,41 @@ export default function LeadsClientTable({
                         <MessageCircle className="size-3.5" />
                       </a>
 
-                      {renderThreeDotsMenu(`desk_${lead.id}`, lead)}
+                      <LeadThreeDotsMenu
+                        lead={lead}
+                        isOpen={openMenuId === `desk_${lead.id}`}
+                        pending={pending}
+                        expL={expL}
+                        deleteBtnLabel={t.deleteBtn}
+                        onToggle={() => {
+                          setOpenStatusMenuId(null)
+                          setOpenMenuId(
+                            openMenuId === `desk_${lead.id}`
+                              ? null
+                              : `desk_${lead.id}`
+                          )
+                        }}
+                        onClose={() => setOpenMenuId(null)}
+                        onExportExcel={() =>
+                          exportLeadsReport(
+                            [lead],
+                            "excel",
+                            `DualDealz_Buyer_${lead.id.slice(0, 6)}`,
+                            `${expL.singleLeadReportTitle} (${lead.name})`
+                          )
+                        }
+                        onExportPdf={() =>
+                          exportLeadsReport(
+                            [lead],
+                            "pdf",
+                            `DualDealz_Buyer_${lead.id.slice(0, 6)}`,
+                            `${expL.singleLeadReportTitle} (${lead.name})`
+                          )
+                        }
+                        onRequestDelete={() =>
+                          setConfirmAction({ type: "delete", lead })
+                        }
+                      />
                     </div>
                   </div>
                 </div>
@@ -1717,79 +2027,6 @@ export default function LeadsClientTable({
           </div>
         )}
       </div>
-
-      {/* نافذة التوجيه الذكية عند الضغط على حالة تلقائية مقفولة */}
-      <Dialog
-        open={Boolean(blockedModal)}
-        onOpenChange={(o) => !o && setBlockedModal(null)}
-      >
-        <DialogContent
-          dir={dir}
-          className="w-[92vw] max-w-[430px] rounded-2xl p-5 text-start"
-        >
-          {blockedModal && (
-            <>
-              <DialogHeader className="pr-9 text-start">
-                <div className="mb-2 flex items-center gap-2.5">
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
-                    <AlertTriangle className="size-4.5" />
-                  </span>
-                  <DialogTitle className="text-sm font-black text-[#0f1d40] sm:text-base">
-                    {t.blockedModalTitle}
-                  </DialogTitle>
-                </div>
-
-                <DialogDescription className="text-start text-xs leading-relaxed text-slate-600">
-                  {blockedModal.reasonType === "active_deal"
-                    ? String(t.blockedActiveDealDesc || "").replace(
-                        "{name}",
-                        blockedModal.lead.name
-                      )
-                    : String(t.blockedActiveOffersDesc || "")
-                        .replace("{name}", blockedModal.lead.name)
-                        .replace("{count}", String(blockedModal.count))}
-                </DialogDescription>
-              </DialogHeader>
-
-              <DialogFooter className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setBlockedModal(null)}
-                  className="h-9 rounded-xl text-xs font-bold"
-                >
-                  {t.blockedGotItBtn}
-                </Button>
-
-                {blockedModal.reasonType === "active_deal" &&
-                blockedModal.dealOfferId ? (
-                  <Link
-                    href={`/admin/deals?offerId=${blockedModal.dealOfferId}`}
-                    onClick={() => setBlockedModal(null)}
-                    className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-4 text-xs font-extrabold text-white transition hover:bg-[#006248]"
-                  >
-                    <Handshake className="size-3.5" />
-                    <span>{t.blockedOpenDealBtn}</span>
-                  </Link>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const target = blockedModal.lead
-                      setBlockedModal(null)
-                      setOffersLogLead(target)
-                    }}
-                    className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[#0f1d40] px-4 text-xs font-extrabold text-white transition hover:bg-[#1e293b]"
-                  >
-                    <ClipboardList className="size-3.5 text-emerald-300" />
-                    <span>{t.blockedOpenOffersBtn}</span>
-                  </button>
-                )}
-              </DialogFooter>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
 
       <LeadDealQuickSummaryDialog
         dir={dir}

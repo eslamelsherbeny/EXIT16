@@ -76,12 +76,14 @@ export type { SellerDocKey, UploadedDocEntry }
 
 export function SellerFlow() {
   const router = useRouter()
-  const { t: dict, locale, dir } = useTranslation()
+  const { t: dict, locale, dir, siteSettings } = useTranslation()
   const s = dict.sell
   const extraT = getSellerExtraLabels(locale as LocaleCode, dict)
   const fT = getSellerFormTranslations(locale as LocaleCode, dict)
-  const loadT =
-    FLOW_LOADING_LABELS[locale as LocaleCode] || FLOW_LOADING_LABELS.ar
+  const loadT = {
+    ...(FLOW_LOADING_LABELS[locale as LocaleCode] || FLOW_LOADING_LABELS.ar),
+    ...((dict.sell as Record<string, any>)?.flowLoading || {}),
+  }
 
   const secTypeRef = useRef<HTMLElement | null>(null)
   const secPhotosRef = useRef<HTMLElement | null>(null)
@@ -100,7 +102,7 @@ export function SellerFlow() {
 
   const [activeTab, setActiveTab] = useState<number>(1)
   const [unitId, setUnitId] = useState<string>('')
-  const [orderRef, setOrderRef] = useState<string>('AE-1001')
+  const [orderRef, setOrderRef] = useState<string>('DD-1001')
 
   const [dealCategory, setDealCategory] = useState<DealCategory | ''>('exit')
   const [propertyKind, setPropertyKind] = useState<string>('')
@@ -161,8 +163,8 @@ export function SellerFlow() {
     password: '',
     loginIdentifier: '',
     loginPassword: '',
-    owner: 'yes',
-    confirmed: 'yes',
+    owner: '',
+    confirmed: '',
   })
 
   const [selected, setSelected] = useState<Record<string, string[]>>({
@@ -179,12 +181,13 @@ export function SellerFlow() {
     messengers: ['whatsapp', 'viber'],
   })
 
+  // تبدأ agreedTerms بـ false لأي طلب جديد ليؤكد البائع موافقته الصريحة بنفسه
   const [flags, setFlags] = useState({
     allowOnlineViewing: false,
     installmentSalePossible: false,
     exchangePossible: false,
     isExclusive: false,
-    agreedTerms: true,
+    agreedTerms: false,
   })
 
   const [images, setImages] = useState<string[]>([])
@@ -370,7 +373,7 @@ export function SellerFlow() {
           setUnitId(String(u.id))
           setOrderRef(
             u.code ||
-              `AE-${String(u.id)
+              `DD-${String(u.id)
                 .replace(/[^a-zA-Z0-9]/g, '')
                 .slice(0, 6)
                 .toUpperCase()}`
@@ -483,10 +486,13 @@ export function SellerFlow() {
             name: u.name || profileRes.user?.name || '',
             phone: parsedUnitPhone.local || '',
             email: u.email || profileRes.user?.email || '',
+            owner: 'yes',
+            confirmed: 'yes',
           }))
 
           setFlags((prev) => ({
             ...prev,
+            agreedTerms: true,
             allowOnlineViewing: Boolean(
               u.allow_online_viewing ?? meta.allow_online_viewing ?? false
             ),
@@ -712,7 +718,11 @@ export function SellerFlow() {
         authMode,
         agreedTerms: flags.agreedTerms,
         fT,
-        contactStepDict: s.contactStep,
+        contactStepDict: {
+          ...s.contactStep,
+          ownerDeclaration:
+            loadT.termsLinkText || s.contactStep.ownerDeclaration,
+        },
       }),
     [
       propertyKind,
@@ -723,6 +733,7 @@ export function SellerFlow() {
       flags.agreedTerms,
       fT,
       s.contactStep,
+      loadT.termsLinkText,
     ]
   )
 
@@ -908,8 +919,8 @@ export function SellerFlow() {
   }
 
   const buildFormData = useCallback(
-    (activeUnitId?: string, activeUserId?: string) =>
-      createSellerFormData({
+    (activeUnitId?: string, activeUserId?: string) => {
+      const fd = createSellerFormData({
         activeUnitId,
         activeUserId,
         unitId,
@@ -921,7 +932,13 @@ export function SellerFlow() {
         flags,
         unitDocs,
         images,
-      }),
+      })
+      if (!flags.agreedTerms) {
+        fd.delete('is_original_owner')
+        fd.delete('is_confirmed')
+      }
+      return fd
+    },
     [
       buildingStatus,
       flags,
@@ -940,10 +957,20 @@ export function SellerFlow() {
     const missingNames: string[] = []
     for (const item of liveMissingCoreItems) {
       missingNames.push(item.label)
-      nextFieldErrors[item.key] = item.errMsg || fT.fieldRequiredError
+      nextFieldErrors[item.key] =
+        item.key === 'agreedTerms'
+          ? loadT.termsRequiredError || fT.fieldRequiredError
+          : item.errMsg || fT.fieldRequiredError
     }
     setFieldErrors(nextFieldErrors)
     setMissingFields(missingNames)
+
+    const firstScrollId = liveMissingCoreItems[0]?.scrollId
+    if (firstScrollId) {
+      document
+        .getElementById(firstScrollId)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
   }
 
   const handleSaveDraftAndGoToAccount = async () => {
@@ -1078,9 +1105,11 @@ export function SellerFlow() {
 
       if (!loggedUser) {
         const cleanPhone = toEnglishDigits(form.phone || '').trim()
-        const fullPhone = cleanPhone.startsWith('+')
-          ? cleanPhone
-          : `+${(form.countryCode || DEFAULT_PHONE_CODE).replace('+', '')}${cleanPhone.replace(/^0+/, '')}`
+        const fullPhone = cleanPhone
+          ? cleanPhone.startsWith('+')
+            ? cleanPhone
+            : `+${(form.countryCode || DEFAULT_PHONE_CODE).replace('+', '')}${cleanPhone.replace(/^0+/, '')}`
+          : ''
 
         const step2Res = await processSellerStep2Action({
           mode: authMode === 'login' ? 'login' : 'register',
@@ -1257,10 +1286,10 @@ export function SellerFlow() {
     }, 850)
   }
 
-  const supportWhatsApp = String(dict.footer?.phone || '+201018595959').replace(
-    /\D/g,
-    ''
-  )
+  // قراءة رقم واتساب الدعم من الإعدادات المركزية
+  const supportWhatsApp = String(
+    siteSettings?.whatsappNumber || dict.footer?.phone || '+201018595959'
+  ).replace(/\D/g, '')
 
   if (initialLoading) {
     return (
@@ -1540,11 +1569,6 @@ export function SellerFlow() {
               update={update}
               selected={selected}
               toggleMulti={toggleMulti}
-              agreedTerms={flags.agreedTerms}
-              setAgreedTerms={(val) => {
-                clearSingleFieldError('agreedTerms')
-                setFlags((p) => ({ ...p, agreedTerms: val }))
-              }}
               error={error}
               missingFields={missingFields}
               unitId={unitId}
@@ -1559,6 +1583,13 @@ export function SellerFlow() {
               fT={fT}
               liveMissingCoreItems={liveMissingCoreItems}
               fieldErrors={fieldErrors}
+              agreedTerms={flags.agreedTerms}
+              setAgreedTerms={(val) => {
+                clearSingleFieldError('agreedTerms')
+                setFlags((p) => ({ ...p, agreedTerms: val }))
+                update('owner', val ? 'yes' : '')
+                update('confirmed', val ? 'yes' : '')
+              }}
               pending={pending}
               savingDraftLoading={savingDraftLoading}
               onPublishListing={handlePublishListing}

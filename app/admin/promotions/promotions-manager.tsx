@@ -141,9 +141,10 @@ export function PromotionsManager({
   const propBadges = (propDict.badges as Record<string, string>) || {}
   const propStatuses = (propDict.statuses as Record<string, string>) || {}
 
-  const [tab, setTab] = useState<"pending" | "active" | "history" | "manual">(
-    "pending"
-  )
+  // التبويب الافتراضي هو "الكل" لعرض الطلبات المعلّقة أولاً ثم الإعلانات النشطة مباشرة
+  const [tab, setTab] = useState<
+    "all" | "pending" | "active" | "history" | "manual"
+  >("all")
   const [search, setSearch] = useState("")
   const [copiedRef, setCopiedRef] = useState<string | null>(null)
   const [notice, setNotice] = useState<{
@@ -174,7 +175,6 @@ export function PromotionsManager({
     [properties]
   )
 
-  // ربط كل وحدة بأحدث سجل approved من جدول boost_requests لضمان عرض تاريخ التفعيل والمرجع حتى للطلبات القديمة
   const latestApprovedByUnitMap = useMemo(() => {
     const map = new Map<string, BoostRequestRow>()
     for (const row of boostRequests) {
@@ -244,7 +244,33 @@ export function PromotionsManager({
   const matchesQuery = (haystack: string) =>
     !q || haystack.toLowerCase().includes(q)
 
+  const filteredPendingBoostRows = pendingBoostRows.filter((req) => {
+    const u = req.unit_id ? propsMap.get(req.unit_id) : null
+    return matchesQuery(
+      `${req.order_ref || ""} ${req.unit_code || ""} ${u?.project_name || ""} ${u?.name || ""} ${u?.phone || ""}`
+    )
+  })
+
+  const filteredLegacyPendingUnits = legacyPendingUnits.filter((u) =>
+    matchesQuery(
+      `${deriveShortUnitCode(u.id, u.code)} ${u.project_name || ""} ${u.name || ""} ${u.phone || ""} ${u.featured_fawry_code || ""}`
+    )
+  )
+
+  const filteredActiveFeaturedUnits = activeFeaturedUnits.filter((u) => {
+    const approvedRow = latestApprovedByUnitMap.get(String(u.id))
+    const refStr =
+      u.documents?.__unit_meta?.boost_active?.order_ref ||
+      approvedRow?.order_ref ||
+      u.featured_fawry_code ||
+      ""
+    return matchesQuery(
+      `${deriveShortUnitCode(u.id, u.code)} ${u.project_name || ""} ${u.name || ""} ${u.phone || ""} ${refStr}`
+    )
+  })
+
   const pendingTotalCount = pendingBoostRows.length + legacyPendingUnits.length
+  const allLiveAndPendingCount = pendingTotalCount + activeFeaturedUnits.length
 
   function handleCopyRef(code: string) {
     if (!code) return
@@ -408,6 +434,604 @@ export function PromotionsManager({
     })
   }
 
+  const renderPendingCards = () => (
+    <>
+      {filteredPendingBoostRows.map((req) => {
+        const unit = req.unit_id ? propsMap.get(req.unit_id) : null
+        const isOrphan = !unit
+        const uCode =
+          req.unit_code ||
+          (unit ? deriveShortUnitCode(unit.id, unit.code) : "—")
+        const unitTitle = unit
+          ? getPropertyHeadline(unit, propDict.table?.unspecifiedProject)
+          : uCode
+        const isFlittPaid = req.status === "paid_pending_approval"
+        const canActivateNow = isUnitLiveForBoost(unit)
+        const isRenewal =
+          Boolean(unit?.is_featured) &&
+          (!unit?.featured_until || new Date(unit.featured_until) > new Date())
+        const isBusy = isPending && busyId === req.id
+
+        if (isOrphan) {
+          return (
+            <div
+              key={req.id}
+              className="flex flex-wrap items-center justify-between gap-2.5 rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 p-3.5 text-xs"
+            >
+              <div className="min-w-0 flex-1">
+                <span className="font-black text-slate-700">
+                  {req.package_tier} ·{" "}
+                  <span dir="ltr" className="inline-block">
+                    {req.amount_gel} ₾
+                  </span>
+                </span>
+                <p className="mt-0.5 text-[11px] font-medium text-slate-500">
+                  {pm.orphanUnitNotice}
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={isBusy}
+                onClick={() =>
+                  setRejectTarget({
+                    kind: "boost_row",
+                    id: req.id,
+                    title: `${req.package_tier} (${req.amount_gel} ₾)`,
+                    isFlittPaid,
+                    orderRef: req.order_ref,
+                  })
+                }
+                className="inline-flex h-8 items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 text-[11px] font-extrabold text-red-700 hover:bg-red-100"
+              >
+                <XCircle className="size-3.5" />
+                <span>{pm.rejectBtn}</span>
+              </button>
+            </div>
+          )
+        }
+
+        return (
+          <div
+            key={req.id}
+            className={`rounded-2xl border bg-white p-3.5 shadow-2xs sm:p-4 ${
+              !canActivateNow
+                ? "border-2 border-amber-300"
+                : isFlittPaid
+                  ? "border-2 border-emerald-300"
+                  : "border-amber-200"
+            }`}
+          >
+            <div className="flex items-start justify-between gap-2.5">
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span
+                    dir="ltr"
+                    className="inline-block rounded-md bg-[#0f1d40] px-2 py-0.5 font-mono text-[10px] font-bold text-white"
+                  >
+                    {uCode}
+                  </span>
+                  <h3 className="truncate text-xs font-black text-[#0f1d40] sm:text-sm">
+                    {unitTitle}
+                  </h3>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-900">
+                    <Sparkles className="size-3" />
+                    <span>
+                      {req.package_tier} · {req.duration_days}{" "}
+                      {propBadges.dayWord}
+                    </span>
+                  </span>
+                  {renderUnitStatusBadge(unit)}
+                  {isRenewal && (
+                    <span className="inline-flex items-center gap-1 rounded-md bg-purple-100 px-2 py-0.5 text-[10px] font-extrabold text-purple-900">
+                      <RefreshCw className="size-3" />
+                      <span>{pm.renewalBadge}</span>
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex shrink-0 flex-col items-end gap-1">
+                <strong className="text-base font-black text-[#007a5a] sm:text-lg">
+                  <span dir="ltr" className="inline-block tabular-nums">
+                    {req.amount_gel} ₾
+                  </span>
+                </strong>
+                {isFlittPaid ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#007a5a] px-2.5 py-0.5 text-[10px] font-extrabold text-white">
+                    <CreditCard className="size-2.5" />
+                    <span>{pm.paidFlittBadge}</span>
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-extrabold text-amber-900">
+                    <Landmark className="size-2.5" />
+                    <span>{pm.bankTransferPendingBadge}</span>
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-2 text-start text-[11px] sm:grid-cols-4">
+              <div className="min-w-0 rounded-xl border border-slate-200/75 bg-slate-50/70 p-2.5">
+                <span className="block text-[9.5px] font-bold text-slate-400">
+                  {pm.sellerLabel}
+                </span>
+                <strong className="mt-0.5 block truncate text-[#0f1d40]">
+                  {unit.name || "—"}
+                </strong>
+                {unit.phone && (
+                  <span className="mt-0.5 block truncate text-[10px] text-slate-500">
+                    <span dir="ltr" className="inline-block font-mono">
+                      {unit.phone}
+                    </span>
+                  </span>
+                )}
+              </div>
+
+              <div className="rounded-xl border border-slate-200/75 bg-slate-50/70 p-2.5">
+                <span className="block text-[9.5px] font-bold text-slate-400">
+                  {pm.paidAtLabel}
+                </span>
+                <strong className="mt-1 block text-[10.5px] text-[#0f1d40]">
+                  <span dir="ltr" className="inline-block font-mono">
+                    {formatDateTimeCompact(req.created_at)}
+                  </span>
+                </strong>
+              </div>
+
+              <div className="rounded-xl border border-slate-200/75 bg-slate-50/70 p-2.5">
+                <span className="block text-[9.5px] font-bold text-slate-400">
+                  {pm.paidSinceLabel}
+                </span>
+                <strong className="mt-1 block text-xs font-black text-amber-700">
+                  {formatTimeWaiting(req.created_at, pm)}
+                </strong>
+              </div>
+
+              <div className="min-w-0 rounded-xl border border-slate-200/75 bg-slate-50/70 p-2.5">
+                <span className="block text-[9.5px] font-bold text-slate-400">
+                  {pm.refCodeLabel}
+                </span>
+                {req.order_ref ? (
+                  <button
+                    type="button"
+                    onClick={() => handleCopyRef(req.order_ref!)}
+                    className="mt-1 inline-flex max-w-full items-center gap-1 text-[10.5px] font-black text-[#007a5a] hover:underline"
+                  >
+                    <span dir="ltr" className="truncate font-mono">
+                      {req.order_ref}
+                    </span>
+                    <Copy className="size-3 shrink-0" />
+                    {copiedRef === req.order_ref && (
+                      <span className="text-[9.5px]">{pm.copiedRefToast}</span>
+                    )}
+                  </button>
+                ) : (
+                  <strong className="mt-1 block text-[10.5px] text-slate-400">
+                    —
+                  </strong>
+                )}
+              </div>
+            </div>
+
+            {!canActivateNow && (
+              <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300 bg-amber-50/90 px-3 py-2 text-[11px]">
+                <div className="flex items-center gap-1.5 font-bold text-amber-950">
+                  <Lock className="size-3.5 shrink-0 text-amber-600" />
+                  <span>{pm.unitNotPublishedNotice}</span>
+                </div>
+                <Link
+                  href={`/admin/properties?unitId=${unit.id}`}
+                  className="inline-flex h-7 items-center gap-1 rounded-lg bg-[#0f1d40] px-2.5 text-[10.5px] font-extrabold text-white hover:bg-[#1e293b]"
+                >
+                  <ExternalLink className="size-3 text-emerald-300" />
+                  <span>{pm.reviewAndPublishUnitBtn}</span>
+                </Link>
+              </div>
+            )}
+
+            <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-100 pt-2.5 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
+              {unit.phone && (
+                <a
+                  href={`https://wa.me/${String(unit.phone).replace(/\D/g, "")}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex h-8.5 items-center justify-center gap-1.5 rounded-xl bg-[#25D366] px-3 text-[11px] font-extrabold text-white transition hover:opacity-95 sm:text-xs"
+                >
+                  <MessageCircle className="size-3.5" />
+                  <span>{pm.contactSellerWaBtn}</span>
+                </a>
+              )}
+
+              <Link
+                href={`/admin/properties?unitId=${unit.id}`}
+                className="inline-flex h-8.5 items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-[11px] font-bold text-[#0f1d40] hover:bg-slate-50 sm:text-xs"
+              >
+                <ExternalLink className="size-3.5 text-[#007a5a]" />
+                <span>{propDict.actions?.detailsBtn}</span>
+              </Link>
+
+              <button
+                type="button"
+                disabled={isBusy}
+                onClick={() =>
+                  setRejectTarget({
+                    kind: "boost_row",
+                    id: req.id,
+                    title: `${unitTitle} (${req.package_tier})`,
+                    isFlittPaid,
+                    orderRef: req.order_ref,
+                  })
+                }
+                className="inline-flex h-8.5 items-center justify-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 text-[11px] font-extrabold text-red-700 hover:bg-red-100 disabled:opacity-50 sm:text-xs"
+              >
+                <XCircle className="size-3.5" />
+                <span>{pm.rejectBtn}</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={isBusy || !canActivateNow}
+                onClick={() => handleApproveBoostRow(req)}
+                className="col-span-2 inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-4 text-xs font-extrabold text-white shadow-2xs hover:bg-[#006248] disabled:cursor-not-allowed disabled:opacity-45 sm:col-span-1 sm:h-8.5"
+              >
+                {isBusy ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : canActivateNow ? (
+                  <Check className="size-3.5" />
+                ) : (
+                  <Lock className="size-3.5" />
+                )}
+                <span>{pm.activateBtn}</span>
+              </button>
+            </div>
+          </div>
+        )
+      })}
+
+      {filteredLegacyPendingUnits.map((unit) => {
+        const uCode = deriveShortUnitCode(unit.id, unit.code)
+        const unitTitle = getPropertyHeadline(
+          unit,
+          propDict.table?.unspecifiedProject
+        )
+        const tierLabel =
+          unit.boost_tier === "vip_plus" ? "+VIP" : "SUPER VIP"
+        const canActivateNow = isUnitLiveForBoost(unit)
+        const isBusy = isPending && busyId === unit.id
+
+        return (
+          <div
+            key={unit.id}
+            className="rounded-2xl border border-amber-200 bg-white p-3.5 shadow-2xs sm:p-4"
+          >
+            <div className="flex items-start justify-between gap-2.5">
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span
+                    dir="ltr"
+                    className="inline-block rounded-md bg-[#0f1d40] px-2 py-0.5 font-mono text-[10px] font-bold text-white"
+                  >
+                    {uCode}
+                  </span>
+                  <h3 className="truncate text-xs font-black text-[#0f1d40] sm:text-sm">
+                    {unitTitle}
+                  </h3>
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-900">
+                    <Sparkles className="size-3" />
+                    <span>
+                      {tierLabel} · {unit.featured_days || 7}{" "}
+                      {propBadges.dayWord}
+                    </span>
+                  </span>
+                  {renderUnitStatusBadge(unit)}
+                </div>
+              </div>
+
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-extrabold text-amber-900">
+                <Clock className="size-3" />
+                <span>{pm.bankTransferPendingBadge}</span>
+              </span>
+            </div>
+
+            <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2.5">
+              <span className="text-[11px] font-semibold text-slate-500">
+                {unit.name} ·{" "}
+                <span dir="ltr" className="inline-block font-mono">
+                  {unit.phone}
+                </span>
+              </span>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  disabled={isBusy}
+                  onClick={() =>
+                    setRejectTarget({
+                      kind: "legacy_unit",
+                      id: unit.id,
+                      title: `${unitTitle} (${tierLabel})`,
+                    })
+                  }
+                  className="inline-flex h-8 items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 text-[11px] font-extrabold text-red-700 hover:bg-red-100 disabled:opacity-50"
+                >
+                  <XCircle className="size-3.5" />
+                  <span>{pm.rejectBtn}</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isBusy || !canActivateNow}
+                  onClick={() => handleApproveLegacyUnit(unit)}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-xl bg-[#007a5a] px-3.5 text-[11px] font-extrabold text-white hover:bg-[#006248] disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  {isBusy ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : canActivateNow ? (
+                    <Check className="size-3.5" />
+                  ) : (
+                    <Lock className="size-3.5" />
+                  )}
+                  <span>{pm.activateBtn}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })}
+    </>
+  )
+
+  const renderActiveCards = () => (
+    <>
+      {filteredActiveFeaturedUnits.map((unit) => {
+        const uCode = deriveShortUnitCode(unit.id, unit.code)
+        const isVipPlus = unit.boost_tier === "vip_plus"
+        const isBusy = isPending && busyId === unit.id
+        const activeMeta = (unit.documents?.__unit_meta?.boost_active ||
+          {}) as Record<string, any>
+        const approvedRow = latestApprovedByUnitMap.get(String(unit.id))
+
+        const resolvedOrderRef: string =
+          activeMeta.order_ref ||
+          approvedRow?.order_ref ||
+          unit.featured_fawry_code ||
+          ""
+        const resolvedStartedAt: string | null =
+          activeMeta.started_at ||
+          approvedRow?.approved_at ||
+          approvedRow?.created_at ||
+          null
+        const resolvedPayMethod = String(
+          activeMeta.payment_method ||
+            approvedRow?.payment_method ||
+            (resolvedOrderRef.startsWith("FL-") ? "flitt" : "cash_manual")
+        ).toLowerCase()
+        const isFlittSource =
+          resolvedPayMethod.includes("flitt") ||
+          resolvedOrderRef.startsWith("FL-")
+        const resolvedAmount = Number(
+          activeMeta.amount_gel ??
+            approvedRow?.amount_gel ??
+            unit.featured_price ??
+            0
+        )
+
+        const totalViews = Math.max(0, Number(unit.views_count) || 0)
+        const viewsGained =
+          typeof activeMeta.views_baseline === "number"
+            ? Math.max(0, totalViews - activeMeta.views_baseline)
+            : null
+
+        return (
+          <div
+            key={unit.id}
+            className="rounded-2xl border border-amber-300 bg-white p-3.5 shadow-2xs sm:p-4"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="min-w-0 flex-1 space-y-1">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span
+                    dir="ltr"
+                    className="inline-block rounded-md bg-[#0f1d40] px-2 py-0.5 font-mono text-[10px] font-bold text-white"
+                  >
+                    {uCode}
+                  </span>
+                  <Link
+                    href={`/opportunities/${unit.id}`}
+                    target="_blank"
+                    className="truncate text-xs font-black text-[#0f1d40] hover:text-[#007a5a] hover:underline sm:text-sm"
+                  >
+                    {getPropertyHeadline(
+                      unit,
+                      propDict.table?.unspecifiedProject
+                    )}
+                  </Link>
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-black ${
+                      isVipPlus
+                        ? "bg-indigo-100 text-indigo-900"
+                        : "bg-amber-100 text-amber-900"
+                    }`}
+                  >
+                    {isVipPlus ? (
+                      <Flame className="size-3" />
+                    ) : (
+                      <Crown className="size-3" />
+                    )}
+                    <span>{isVipPlus ? "+VIP" : "SUPER VIP"}</span>
+                  </span>
+                </div>
+
+                <p className="text-[11px] font-semibold text-slate-500">
+                  {cleanPropertyAreaDisplay(unit.area, locale)} · {unit.name} (
+                  <span dir="ltr" className="inline-block font-mono">
+                    {unit.phone}
+                  </span>
+                  )
+                </p>
+
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                  {isFlittSource ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[#007a5a] px-2.5 py-0.5 text-[10px] font-extrabold text-white">
+                      <CreditCard className="size-2.5" />
+                      <span>{pm.paidFlittBadge}</span>
+                      {resolvedAmount > 0 && (
+                        <span dir="ltr" className="inline-block">
+                          · {resolvedAmount} ₾
+                        </span>
+                      )}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-[10px] font-extrabold text-slate-700">
+                      <Banknote className="size-3 text-[#007a5a]" />
+                      <span>{pm.manualBadge}</span>
+                      {resolvedAmount > 0 && (
+                        <span dir="ltr" className="inline-block">
+                          · {resolvedAmount} ₾
+                        </span>
+                      )}
+                    </span>
+                  )}
+
+                  {resolvedOrderRef && (
+                    <button
+                      type="button"
+                      onClick={() => handleCopyRef(resolvedOrderRef)}
+                      className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-[#eaf8f2]/70 px-2.5 py-0.5 text-[10px] font-extrabold text-[#007a5a] transition hover:bg-[#eaf8f2]"
+                    >
+                      <span>{pm.refCodeLabel}:</span>
+                      <span dir="ltr" className="inline-block font-mono">
+                        {resolvedOrderRef}
+                      </span>
+                      <Copy className="size-2.5" />
+                      {copiedRef === resolvedOrderRef && (
+                        <span>{pm.copiedRefToast}</span>
+                      )}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {renderUnitStatusBadge(unit)}
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-2 text-start text-[11px] sm:grid-cols-4">
+              <div className="rounded-xl border border-slate-200/75 bg-slate-50/70 p-2.5">
+                <span className="flex items-center gap-1 text-[9.5px] font-bold text-slate-400">
+                  <CalendarClock className="size-3 shrink-0 text-[#007a5a]" />
+                  <span>{pm.startedAtLabel}</span>
+                </span>
+                <strong className="mt-1 block text-[10.5px] text-[#0f1d40]">
+                  <span dir="ltr" className="inline-block font-mono">
+                    {formatDateTimeCompact(resolvedStartedAt)}
+                  </span>
+                </strong>
+              </div>
+
+              <div className="rounded-xl border border-slate-200/75 bg-slate-50/70 p-2.5">
+                <span className="flex items-center gap-1 text-[9.5px] font-bold text-slate-400">
+                  <Clock className="size-3 shrink-0 text-amber-600" />
+                  <span>{pm.endsAtLabel}</span>
+                </span>
+                <strong className="mt-1 block text-[10.5px] text-[#0f1d40]">
+                  <span dir="ltr" className="inline-block font-mono">
+                    {formatDateTimeCompact(unit.featured_until)}
+                  </span>
+                </strong>
+              </div>
+
+              <div className="rounded-xl border border-emerald-200/80 bg-[#eaf8f2]/60 p-2.5">
+                <span className="block text-[9.5px] font-bold text-[#007a5a]">
+                  {pm.remainingTimeLabel}
+                </span>
+                <strong className="mt-1 block text-[11px] font-black text-[#007a5a]">
+                  {formatRemainingDetailed(
+                    unit.featured_until,
+                    pm,
+                    unit.featured_days || 7
+                  )}
+                </strong>
+              </div>
+
+              <div className="rounded-xl border border-blue-200/70 bg-blue-50/50 p-2.5">
+                <span className="flex items-center gap-1 text-[9.5px] font-bold text-[#2563eb]">
+                  <Eye className="size-3 shrink-0" />
+                  <span>{pm.viewsLabel}</span>
+                </span>
+                <strong className="mt-1 block text-[11px] font-black text-[#0f1d40]">
+                  <span dir="ltr" className="inline-block tabular-nums">
+                    {totalViews.toLocaleString("en-US")}
+                  </span>
+                  {viewsGained !== null ? (
+                    <span className="ms-1 text-[10px] font-extrabold text-[#007a5a]">
+                      (+{viewsGained})
+                    </span>
+                  ) : null}
+                </strong>
+              </div>
+            </div>
+
+            <div className="mt-3 grid grid-cols-3 gap-2 border-t border-slate-100 pt-2.5 sm:flex sm:items-center sm:justify-end">
+              {unit.phone && (
+                <a
+                  href={`https://wa.me/${String(unit.phone).replace(/\D/g, "")}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex h-8.5 items-center justify-center gap-1 rounded-xl bg-[#25D366] px-3 text-[11px] font-extrabold text-white"
+                >
+                  <MessageCircle className="size-3.5" />
+                  <span>{pm.contactSellerWaBtn}</span>
+                </a>
+              )}
+
+              <Link
+                href={`/admin/properties?unitId=${unit.id}`}
+                className="inline-flex h-8.5 items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-[11px] font-bold text-[#0f1d40] hover:bg-slate-50"
+              >
+                <ExternalLink className="size-3.5 text-[#007a5a]" />
+                <span>{propDict.actions?.detailsBtn}</span>
+              </Link>
+
+              <button
+                type="button"
+                disabled={isBusy}
+                onClick={() => {
+                  setManualModalUnit(unit)
+                  setManualTier(isVipPlus ? "vip_plus" : "super_vip")
+                  setManualDays(7)
+                  setManualCashGel("0")
+                }}
+                className="inline-flex h-8.5 items-center justify-center gap-1 rounded-xl border border-emerald-200 bg-[#eaf8f2] px-3 text-[11px] font-extrabold text-[#007a5a] hover:bg-emerald-100"
+              >
+                <Plus className="size-3.5" />
+                <span>{pm.extendManualBtn}</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={isBusy}
+                onClick={() => handleStopActivePromo(unit.id)}
+                className="col-span-3 inline-flex h-8.5 items-center justify-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 text-[11px] font-extrabold text-red-700 hover:bg-red-100 disabled:opacity-50 sm:col-span-1"
+              >
+                {isBusy ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <XCircle className="size-3.5" />
+                )}
+                <span>{pm.stopPromoBtn}</span>
+              </button>
+            </div>
+          </div>
+        )
+      })}
+    </>
+  )
+
   return (
     <div dir={dir} className="space-y-3.5 text-start sm:space-y-4">
       <div className="rounded-2xl border border-slate-200/90 bg-white px-4 py-3.5 shadow-2xs sm:px-5 sm:py-4">
@@ -449,6 +1073,7 @@ export function PromotionsManager({
         </div>
       )}
 
+      {/* شريط البحث والتبويبات مع تبويب الكل الافتراضي */}
       <div className="flex flex-col gap-2.5 rounded-2xl border border-slate-200/90 bg-white p-3 shadow-2xs sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:p-3.5">
         <div className="relative w-full sm:max-w-xs sm:flex-1">
           <Search className="pointer-events-none absolute top-1/2 end-3 size-4 -translate-y-1/2 text-slate-400" />
@@ -461,9 +1086,13 @@ export function PromotionsManager({
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-1.5 sm:flex sm:flex-wrap">
+        <div className="flex flex-wrap gap-1.5">
           {(
             [
+              {
+                id: "all",
+                label: `${pm.tabAll || "الكل"} (${allLiveAndPendingCount})`,
+              },
               {
                 id: "pending",
                 label: `${pm.tabPending} (${pendingTotalCount})`,
@@ -486,10 +1115,12 @@ export function PromotionsManager({
               key={tItem.id}
               type="button"
               onClick={() => setTab(tItem.id)}
-              className={`truncate rounded-xl px-2.5 py-1.5 text-[11px] font-extrabold transition sm:px-3.5 sm:text-xs ${
+              className={`rounded-xl px-3 py-1.5 text-[11px] font-extrabold transition sm:px-3.5 sm:text-xs ${
                 tab === tItem.id
                   ? "bg-[#007a5a] text-white shadow-2xs"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  : tItem.id === "pending" && pendingTotalCount > 0
+                    ? "bg-amber-50 text-amber-900 hover:bg-amber-100"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }`}
             >
               {tItem.label}
@@ -498,656 +1129,78 @@ export function PromotionsManager({
         </div>
       </div>
 
-      {/* تبويب 1: بانتظار التفعيل */}
-      {tab === "pending" && (
-        <div className="space-y-3">
-          {pendingTotalCount === 0 ? (
+      {/* تبويب الكل: طلبات التفعيل أولاً ثم الإعلانات النشطة حالياً */}
+      {tab === "all" && (
+        <div className="space-y-4">
+          {filteredPendingBoostRows.length === 0 &&
+          filteredLegacyPendingUnits.length === 0 &&
+          filteredActiveFeaturedUnits.length === 0 ? (
             <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-xs font-bold text-slate-400">
-              {pm.emptyPending}
+              {pm.emptyAll || pm.emptyPending}
             </div>
           ) : (
             <>
-              {pendingBoostRows
-                .filter((req) => {
-                  const u = req.unit_id ? propsMap.get(req.unit_id) : null
-                  return matchesQuery(
-                    `${req.order_ref || ""} ${req.unit_code || ""} ${u?.project_name || ""} ${u?.name || ""} ${u?.phone || ""}`
-                  )
-                })
-                .map((req) => {
-                  const unit = req.unit_id ? propsMap.get(req.unit_id) : null
-                  const isOrphan = !unit
-                  const uCode =
-                    req.unit_code ||
-                    (unit ? deriveShortUnitCode(unit.id, unit.code) : "—")
-                  const unitTitle = unit
-                    ? getPropertyHeadline(
-                        unit,
-                        propDict.table?.unspecifiedProject
+              {(filteredPendingBoostRows.length > 0 ||
+                filteredLegacyPendingUnits.length > 0) && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 px-1">
+                    <span className="size-2 rounded-full bg-amber-500" />
+                    <h2 className="text-xs font-black text-[#0f1d40]">
+                      {pm.sectionPendingTitle || pm.tabPending} (
+                      {filteredPendingBoostRows.length +
+                        filteredLegacyPendingUnits.length}
                       )
-                    : uCode
-                  const isFlittPaid = req.status === "paid_pending_approval"
-                  const canActivateNow = isUnitLiveForBoost(unit)
-                  const isRenewal =
-                    Boolean(unit?.is_featured) &&
-                    (!unit?.featured_until ||
-                      new Date(unit.featured_until) > new Date())
-                  const isBusy = isPending && busyId === req.id
+                    </h2>
+                  </div>
+                  {renderPendingCards()}
+                </div>
+              )}
 
-                  if (isOrphan) {
-                    return (
-                      <div
-                        key={req.id}
-                        className="flex flex-wrap items-center justify-between gap-2.5 rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 p-3.5 text-xs"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <span className="font-black text-slate-700">
-                            {req.package_tier} ·{" "}
-                            <span dir="ltr" className="inline-block">
-                              {req.amount_gel} ₾
-                            </span>
-                          </span>
-                          <p className="mt-0.5 text-[11px] font-medium text-slate-500">
-                            {pm.orphanUnitNotice}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          disabled={isBusy}
-                          onClick={() =>
-                            setRejectTarget({
-                              kind: "boost_row",
-                              id: req.id,
-                              title: `${req.package_tier} (${req.amount_gel} ₾)`,
-                              isFlittPaid,
-                              orderRef: req.order_ref,
-                            })
-                          }
-                          className="inline-flex h-8 items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 text-[11px] font-extrabold text-red-700 hover:bg-red-100"
-                        >
-                          <XCircle className="size-3.5" />
-                          <span>{pm.rejectBtn}</span>
-                        </button>
-                      </div>
-                    )
-                  }
-
-                  return (
-                    <div
-                      key={req.id}
-                      className={`rounded-2xl border bg-white p-3.5 shadow-2xs sm:p-4 ${
-                        !canActivateNow
-                          ? "border-2 border-amber-300"
-                          : isFlittPaid
-                            ? "border-2 border-emerald-300"
-                            : "border-amber-200"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-2.5">
-                        <div className="min-w-0 flex-1 space-y-1.5">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span
-                              dir="ltr"
-                              className="inline-block rounded-md bg-[#0f1d40] px-2 py-0.5 font-mono text-[10px] font-bold text-white"
-                            >
-                              {uCode}
-                            </span>
-                            <h3 className="truncate text-xs font-black text-[#0f1d40] sm:text-sm">
-                              {unitTitle}
-                            </h3>
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-900">
-                              <Sparkles className="size-3" />
-                              <span>
-                                {req.package_tier} · {req.duration_days}{" "}
-                                {propBadges.dayWord}
-                              </span>
-                            </span>
-                            {renderUnitStatusBadge(unit)}
-                            {isRenewal && (
-                              <span className="inline-flex items-center gap-1 rounded-md bg-purple-100 px-2 py-0.5 text-[10px] font-extrabold text-purple-900">
-                                <RefreshCw className="size-3" />
-                                <span>{pm.renewalBadge}</span>
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex shrink-0 flex-col items-end gap-1">
-                          <strong className="text-base font-black text-[#007a5a] sm:text-lg">
-                            <span dir="ltr" className="inline-block tabular-nums">
-                              {req.amount_gel} ₾
-                            </span>
-                          </strong>
-                          {isFlittPaid ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-[#007a5a] px-2.5 py-0.5 text-[10px] font-extrabold text-white">
-                              <CreditCard className="size-2.5" />
-                              <span>{pm.paidFlittBadge}</span>
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-extrabold text-amber-900">
-                              <Landmark className="size-2.5" />
-                              <span>{pm.bankTransferPendingBadge}</span>
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="mt-3 grid grid-cols-2 gap-2 text-start text-[11px] sm:grid-cols-4">
-                        <div className="min-w-0 rounded-xl border border-slate-200/75 bg-slate-50/70 p-2.5">
-                          <span className="block text-[9.5px] font-bold text-slate-400">
-                            {pm.sellerLabel}
-                          </span>
-                          <strong className="mt-0.5 block truncate text-[#0f1d40]">
-                            {unit.name || "—"}
-                          </strong>
-                          {unit.phone && (
-                            <span className="mt-0.5 block truncate text-[10px] text-slate-500">
-                              <span dir="ltr" className="inline-block font-mono">
-                                {unit.phone}
-                              </span>
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="rounded-xl border border-slate-200/75 bg-slate-50/70 p-2.5">
-                          <span className="block text-[9.5px] font-bold text-slate-400">
-                            {pm.paidAtLabel}
-                          </span>
-                          <strong className="mt-1 block text-[10.5px] text-[#0f1d40]">
-                            <span dir="ltr" className="inline-block font-mono">
-                              {formatDateTimeCompact(req.created_at)}
-                            </span>
-                          </strong>
-                        </div>
-
-                        <div className="rounded-xl border border-slate-200/75 bg-slate-50/70 p-2.5">
-                          <span className="block text-[9.5px] font-bold text-slate-400">
-                            {pm.paidSinceLabel}
-                          </span>
-                          <strong className="mt-1 block text-xs font-black text-amber-700">
-                            {formatTimeWaiting(req.created_at, pm)}
-                          </strong>
-                        </div>
-
-                        <div className="min-w-0 rounded-xl border border-slate-200/75 bg-slate-50/70 p-2.5">
-                          <span className="block text-[9.5px] font-bold text-slate-400">
-                            {pm.refCodeLabel}
-                          </span>
-                          {req.order_ref ? (
-                            <button
-                              type="button"
-                              onClick={() => handleCopyRef(req.order_ref!)}
-                              className="mt-1 inline-flex max-w-full items-center gap-1 text-[10.5px] font-black text-[#007a5a] hover:underline"
-                            >
-                              <span dir="ltr" className="truncate font-mono">
-                                {req.order_ref}
-                              </span>
-                              <Copy className="size-3 shrink-0" />
-                              {copiedRef === req.order_ref && (
-                                <span className="text-[9.5px]">
-                                  {pm.copiedRefToast}
-                                </span>
-                              )}
-                            </button>
-                          ) : (
-                            <strong className="mt-1 block text-[10.5px] text-slate-400">
-                              —
-                            </strong>
-                          )}
-                        </div>
-                      </div>
-
-                      {!canActivateNow && (
-                        <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300 bg-amber-50/90 px-3 py-2 text-[11px]">
-                          <div className="flex items-center gap-1.5 font-bold text-amber-950">
-                            <Lock className="size-3.5 shrink-0 text-amber-600" />
-                            <span>{pm.unitNotPublishedNotice}</span>
-                          </div>
-                          <Link
-                            href={`/admin/properties?unitId=${unit.id}`}
-                            className="inline-flex h-7 items-center gap-1 rounded-lg bg-[#0f1d40] px-2.5 text-[10.5px] font-extrabold text-white hover:bg-[#1e293b]"
-                          >
-                            <ExternalLink className="size-3 text-emerald-300" />
-                            <span>{pm.reviewAndPublishUnitBtn}</span>
-                          </Link>
-                        </div>
-                      )}
-
-                      <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-100 pt-2.5 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
-                        {unit.phone && (
-                          <a
-                            href={`https://wa.me/${String(unit.phone).replace(/\D/g, "")}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex h-8.5 items-center justify-center gap-1.5 rounded-xl bg-[#25D366] px-3 text-[11px] font-extrabold text-white transition hover:opacity-95 sm:text-xs"
-                          >
-                            <MessageCircle className="size-3.5" />
-                            <span>{pm.contactSellerWaBtn}</span>
-                          </a>
-                        )}
-
-                        <Link
-                          href={`/admin/properties?unitId=${unit.id}`}
-                          className="inline-flex h-8.5 items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-[11px] font-bold text-[#0f1d40] hover:bg-slate-50 sm:text-xs"
-                        >
-                          <ExternalLink className="size-3.5 text-[#007a5a]" />
-                          <span>{propDict.actions?.detailsBtn}</span>
-                        </Link>
-
-                        <button
-                          type="button"
-                          disabled={isBusy}
-                          onClick={() =>
-                            setRejectTarget({
-                              kind: "boost_row",
-                              id: req.id,
-                              title: `${unitTitle} (${req.package_tier})`,
-                              isFlittPaid,
-                              orderRef: req.order_ref,
-                            })
-                          }
-                          className="inline-flex h-8.5 items-center justify-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 text-[11px] font-extrabold text-red-700 hover:bg-red-100 disabled:opacity-50 sm:text-xs"
-                        >
-                          <XCircle className="size-3.5" />
-                          <span>{pm.rejectBtn}</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          disabled={isBusy || !canActivateNow}
-                          onClick={() => handleApproveBoostRow(req)}
-                          className="col-span-2 inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[#007a5a] px-4 text-xs font-extrabold text-white shadow-2xs hover:bg-[#006248] disabled:cursor-not-allowed disabled:opacity-45 sm:col-span-1 sm:h-8.5"
-                        >
-                          {isBusy ? (
-                            <Loader2 className="size-3.5 animate-spin" />
-                          ) : canActivateNow ? (
-                            <Check className="size-3.5" />
-                          ) : (
-                            <Lock className="size-3.5" />
-                          )}
-                          <span>{pm.activateBtn}</span>
-                        </button>
-                      </div>
-                    </div>
-                  )
-                })}
-
-              {legacyPendingUnits
-                .filter((u) =>
-                  matchesQuery(
-                    `${deriveShortUnitCode(u.id, u.code)} ${u.project_name || ""} ${u.name || ""} ${u.phone || ""} ${u.featured_fawry_code || ""}`
-                  )
-                )
-                .map((unit) => {
-                  const uCode = deriveShortUnitCode(unit.id, unit.code)
-                  const unitTitle = getPropertyHeadline(
-                    unit,
-                    propDict.table?.unspecifiedProject
-                  )
-                  const tierLabel =
-                    unit.boost_tier === "vip_plus" ? "+VIP" : "SUPER VIP"
-                  const canActivateNow = isUnitLiveForBoost(unit)
-                  const isBusy = isPending && busyId === unit.id
-
-                  return (
-                    <div
-                      key={unit.id}
-                      className="rounded-2xl border border-amber-200 bg-white p-3.5 shadow-2xs sm:p-4"
-                    >
-                      <div className="flex items-start justify-between gap-2.5">
-                        <div className="min-w-0 flex-1 space-y-1.5">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span
-                              dir="ltr"
-                              className="inline-block rounded-md bg-[#0f1d40] px-2 py-0.5 font-mono text-[10px] font-bold text-white"
-                            >
-                              {uCode}
-                            </span>
-                            <h3 className="truncate text-xs font-black text-[#0f1d40] sm:text-sm">
-                              {unitTitle}
-                            </h3>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-900">
-                              <Sparkles className="size-3" />
-                              <span>
-                                {tierLabel} · {unit.featured_days || 7}{" "}
-                                {propBadges.dayWord}
-                              </span>
-                            </span>
-                            {renderUnitStatusBadge(unit)}
-                          </div>
-                        </div>
-
-                        <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-extrabold text-amber-900">
-                          <Clock className="size-3" />
-                          <span>{pm.bankTransferPendingBadge}</span>
-                        </span>
-                      </div>
-
-                      <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2.5">
-                        <span className="text-[11px] font-semibold text-slate-500">
-                          {unit.name} ·{" "}
-                          <span dir="ltr" className="inline-block font-mono">
-                            {unit.phone}
-                          </span>
-                        </span>
-
-                        <div className="flex flex-wrap items-center gap-2">
-                          <button
-                            type="button"
-                            disabled={isBusy}
-                            onClick={() =>
-                              setRejectTarget({
-                                kind: "legacy_unit",
-                                id: unit.id,
-                                title: `${unitTitle} (${tierLabel})`,
-                              })
-                            }
-                            className="inline-flex h-8 items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 text-[11px] font-extrabold text-red-700 hover:bg-red-100 disabled:opacity-50"
-                          >
-                            <XCircle className="size-3.5" />
-                            <span>{pm.rejectBtn}</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            disabled={isBusy || !canActivateNow}
-                            onClick={() => handleApproveLegacyUnit(unit)}
-                            className="inline-flex h-8 items-center gap-1.5 rounded-xl bg-[#007a5a] px-3.5 text-[11px] font-extrabold text-white hover:bg-[#006248] disabled:cursor-not-allowed disabled:opacity-45"
-                          >
-                            {isBusy ? (
-                              <Loader2 className="size-3.5 animate-spin" />
-                            ) : canActivateNow ? (
-                              <Check className="size-3.5" />
-                            ) : (
-                              <Lock className="size-3.5" />
-                            )}
-                            <span>{pm.activateBtn}</span>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
+              {filteredActiveFeaturedUnits.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 px-1">
+                    <span className="size-2 rounded-full bg-[#007a5a]" />
+                    <h2 className="text-xs font-black text-[#0f1d40]">
+                      {pm.sectionActiveTitle || pm.tabActive} (
+                      {filteredActiveFeaturedUnits.length})
+                    </h2>
+                  </div>
+                  {renderActiveCards()}
+                </div>
+              )}
             </>
           )}
         </div>
       )}
 
-      {/* تبويب 2: الإعلانات النشطة حالياً (مع الرقم المرجعي وطريقة الدفع وزر النسخ) */}
-      {tab === "active" && (
+      {/* تبويب بانتظار التفعيل */}
+      {tab === "pending" && (
         <div className="space-y-3">
-          {activeFeaturedUnits.length === 0 ? (
+          {filteredPendingBoostRows.length === 0 &&
+          filteredLegacyPendingUnits.length === 0 ? (
             <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-xs font-bold text-slate-400">
-              {pm.emptyActive}
+              {pm.emptyPending}
             </div>
           ) : (
-            activeFeaturedUnits
-              .filter((u) => {
-                const approvedRow = latestApprovedByUnitMap.get(String(u.id))
-                const refStr =
-                  u.documents?.__unit_meta?.boost_active?.order_ref ||
-                  approvedRow?.order_ref ||
-                  u.featured_fawry_code ||
-                  ""
-                return matchesQuery(
-                  `${deriveShortUnitCode(u.id, u.code)} ${u.project_name || ""} ${u.name || ""} ${u.phone || ""} ${refStr}`
-                )
-              })
-              .map((unit) => {
-                const uCode = deriveShortUnitCode(unit.id, unit.code)
-                const isVipPlus = unit.boost_tier === "vip_plus"
-                const isBusy = isPending && busyId === unit.id
-                const activeMeta = (unit.documents?.__unit_meta?.boost_active ||
-                  {}) as Record<string, any>
-                const approvedRow = latestApprovedByUnitMap.get(String(unit.id))
-
-                const resolvedOrderRef: string =
-                  activeMeta.order_ref ||
-                  approvedRow?.order_ref ||
-                  unit.featured_fawry_code ||
-                  ""
-                const resolvedStartedAt: string | null =
-                  activeMeta.started_at ||
-                  approvedRow?.approved_at ||
-                  approvedRow?.created_at ||
-                  null
-                const resolvedPayMethod = String(
-                  activeMeta.payment_method ||
-                    approvedRow?.payment_method ||
-                    (resolvedOrderRef.startsWith("FL-")
-                      ? "flitt"
-                      : "cash_manual")
-                ).toLowerCase()
-                const isFlittSource =
-                  resolvedPayMethod.includes("flitt") ||
-                  resolvedOrderRef.startsWith("FL-")
-                const resolvedAmount = Number(
-                  activeMeta.amount_gel ??
-                    approvedRow?.amount_gel ??
-                    unit.featured_price ??
-                    0
-                )
-
-                const totalViews = Math.max(0, Number(unit.views_count) || 0)
-                const viewsGained =
-                  typeof activeMeta.views_baseline === "number"
-                    ? Math.max(0, totalViews - activeMeta.views_baseline)
-                    : null
-
-                return (
-                  <div
-                    key={unit.id}
-                    className="rounded-2xl border border-amber-300 bg-white p-3.5 shadow-2xs sm:p-4"
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1 space-y-1">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <span
-                            dir="ltr"
-                            className="inline-block rounded-md bg-[#0f1d40] px-2 py-0.5 font-mono text-[10px] font-bold text-white"
-                          >
-                            {uCode}
-                          </span>
-                          <Link
-                            href={`/opportunities/${unit.id}`}
-                            target="_blank"
-                            className="truncate text-xs font-black text-[#0f1d40] hover:text-[#007a5a] hover:underline sm:text-sm"
-                          >
-                            {getPropertyHeadline(
-                              unit,
-                              propDict.table?.unspecifiedProject
-                            )}
-                          </Link>
-                          <span
-                            className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-black ${
-                              isVipPlus
-                                ? "bg-indigo-100 text-indigo-900"
-                                : "bg-amber-100 text-amber-900"
-                            }`}
-                          >
-                            {isVipPlus ? (
-                              <Flame className="size-3" />
-                            ) : (
-                              <Crown className="size-3" />
-                            )}
-                            <span>{isVipPlus ? "+VIP" : "SUPER VIP"}</span>
-                          </span>
-                        </div>
-
-                        <p className="text-[11px] font-semibold text-slate-500">
-                          {cleanPropertyAreaDisplay(unit.area, locale)} ·{" "}
-                          {unit.name} (
-                          <span dir="ltr" className="inline-block font-mono">
-                            {unit.phone}
-                          </span>
-                          )
-                        </p>
-
-                        {/* شارة طريقة الدفع والرقم المرجعي للتحقق والمطابقة */}
-                        <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                          {isFlittSource ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-[#007a5a] px-2.5 py-0.5 text-[10px] font-extrabold text-white">
-                              <CreditCard className="size-2.5" />
-                              <span>{pm.paidFlittBadge}</span>
-                              {resolvedAmount > 0 && (
-                                <span dir="ltr" className="inline-block">
-                                  · {resolvedAmount} ₾
-                                </span>
-                              )}
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-[10px] font-extrabold text-slate-700">
-                              <Banknote className="size-3 text-[#007a5a]" />
-                              <span>{pm.manualBadge}</span>
-                              {resolvedAmount > 0 && (
-                                <span dir="ltr" className="inline-block">
-                                  · {resolvedAmount} ₾
-                                </span>
-                              )}
-                            </span>
-                          )}
-
-                          {resolvedOrderRef && (
-                            <button
-                              type="button"
-                              onClick={() => handleCopyRef(resolvedOrderRef)}
-                              className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-[#eaf8f2]/70 px-2.5 py-0.5 text-[10px] font-extrabold text-[#007a5a] transition hover:bg-[#eaf8f2]"
-                            >
-                              <span>{pm.refCodeLabel}:</span>
-                              <span dir="ltr" className="inline-block font-mono">
-                                {resolvedOrderRef}
-                              </span>
-                              <Copy className="size-2.5" />
-                              {copiedRef === resolvedOrderRef && (
-                                <span>{pm.copiedRefToast}</span>
-                              )}
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      {renderUnitStatusBadge(unit)}
-                    </div>
-
-                    <div className="mt-3 grid grid-cols-2 gap-2 text-start text-[11px] sm:grid-cols-4">
-                      <div className="rounded-xl border border-slate-200/75 bg-slate-50/70 p-2.5">
-                        <span className="flex items-center gap-1 text-[9.5px] font-bold text-slate-400">
-                          <CalendarClock className="size-3 shrink-0 text-[#007a5a]" />
-                          <span>{pm.startedAtLabel}</span>
-                        </span>
-                        <strong className="mt-1 block text-[10.5px] text-[#0f1d40]">
-                          <span dir="ltr" className="inline-block font-mono">
-                            {formatDateTimeCompact(resolvedStartedAt)}
-                          </span>
-                        </strong>
-                      </div>
-
-                      <div className="rounded-xl border border-slate-200/75 bg-slate-50/70 p-2.5">
-                        <span className="flex items-center gap-1 text-[9.5px] font-bold text-slate-400">
-                          <Clock className="size-3 shrink-0 text-amber-600" />
-                          <span>{pm.endsAtLabel}</span>
-                        </span>
-                        <strong className="mt-1 block text-[10.5px] text-[#0f1d40]">
-                          <span dir="ltr" className="inline-block font-mono">
-                            {formatDateTimeCompact(unit.featured_until)}
-                          </span>
-                        </strong>
-                      </div>
-
-                      <div className="rounded-xl border border-emerald-200/80 bg-[#eaf8f2]/60 p-2.5">
-                        <span className="block text-[9.5px] font-bold text-[#007a5a]">
-                          {pm.remainingTimeLabel}
-                        </span>
-                        <strong className="mt-1 block text-[11px] font-black text-[#007a5a]">
-                          {formatRemainingDetailed(
-                            unit.featured_until,
-                            pm,
-                            unit.featured_days || 7
-                          )}
-                        </strong>
-                      </div>
-
-                      <div className="rounded-xl border border-blue-200/70 bg-blue-50/50 p-2.5">
-                        <span className="flex items-center gap-1 text-[9.5px] font-bold text-[#2563eb]">
-                          <Eye className="size-3 shrink-0" />
-                          <span>{pm.viewsLabel}</span>
-                        </span>
-                        <strong className="mt-1 block text-[11px] font-black text-[#0f1d40]">
-                          <span dir="ltr" className="inline-block tabular-nums">
-                            {totalViews.toLocaleString("en-US")}
-                          </span>
-                          {viewsGained !== null ? (
-                            <span className="ms-1 text-[10px] font-extrabold text-[#007a5a]">
-                              (+{viewsGained})
-                            </span>
-                          ) : null}
-                        </strong>
-                      </div>
-                    </div>
-
-                    <div className="mt-3 grid grid-cols-3 gap-2 border-t border-slate-100 pt-2.5 sm:flex sm:items-center sm:justify-end">
-                      {unit.phone && (
-                        <a
-                          href={`https://wa.me/${String(unit.phone).replace(/\D/g, "")}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex h-8.5 items-center justify-center gap-1 rounded-xl bg-[#25D366] px-3 text-[11px] font-extrabold text-white"
-                        >
-                          <MessageCircle className="size-3.5" />
-                          <span>{pm.contactSellerWaBtn}</span>
-                        </a>
-                      )}
-
-                      <Link
-                        href={`/admin/properties?unitId=${unit.id}`}
-                        className="inline-flex h-8.5 items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-[11px] font-bold text-[#0f1d40] hover:bg-slate-50"
-                      >
-                        <ExternalLink className="size-3.5 text-[#007a5a]" />
-                        <span>{propDict.actions?.detailsBtn}</span>
-                      </Link>
-
-                      <button
-                        type="button"
-                        disabled={isBusy}
-                        onClick={() => {
-                          setManualModalUnit(unit)
-                          setManualTier(isVipPlus ? "vip_plus" : "super_vip")
-                          setManualDays(7)
-                          setManualCashGel("0")
-                        }}
-                        className="inline-flex h-8.5 items-center justify-center gap-1 rounded-xl border border-emerald-200 bg-[#eaf8f2] px-3 text-[11px] font-extrabold text-[#007a5a] hover:bg-emerald-100"
-                      >
-                        <Plus className="size-3.5" />
-                        <span>{pm.extendManualBtn}</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        disabled={isBusy}
-                        onClick={() => handleStopActivePromo(unit.id)}
-                        className="col-span-3 inline-flex h-8.5 items-center justify-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 text-[11px] font-extrabold text-red-700 hover:bg-red-100 disabled:opacity-50 sm:col-span-1"
-                      >
-                        {isBusy ? (
-                          <Loader2 className="size-3.5 animate-spin" />
-                        ) : (
-                          <XCircle className="size-3.5" />
-                        )}
-                        <span>{pm.stopPromoBtn}</span>
-                      </button>
-                    </div>
-                  </div>
-                )
-              })
+            renderPendingCards()
           )}
         </div>
       )}
 
-      {/* تبويب 3: السجل */}
+      {/* تبويب نشطة حالياً */}
+      {tab === "active" && (
+        <div className="space-y-3">
+          {filteredActiveFeaturedUnits.length === 0 ? (
+            <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-xs font-bold text-slate-400">
+              {pm.emptyActive}
+            </div>
+          ) : (
+            renderActiveCards()
+          )}
+        </div>
+      )}
+
+      {/* تبويب السجل */}
       {tab === "history" && (
         <div className="space-y-2.5">
           {historyBoostRows.length === 0 ? (
@@ -1251,7 +1304,7 @@ export function PromotionsManager({
         </div>
       )}
 
-      {/* تبويب 4: تمييز يدوي / كاش */}
+      {/* تبويب تمييز يدوي / كاش */}
       {tab === "manual" && (
         <div className="space-y-2.5">
           <div className="rounded-xl border border-blue-100 bg-blue-50/70 px-3.5 py-2 text-[11px] font-semibold text-blue-950 sm:text-xs">
@@ -1384,7 +1437,7 @@ export function PromotionsManager({
         </DialogContent>
       </Dialog>
 
-      {/* نافذة التمييز / التمديد اليدوي (مع دعم تسجيل المبلغ الكاش في السجل) */}
+      {/* نافذة التمييز / التمديد اليدوي والكاش */}
       <Dialog
         open={Boolean(manualModalUnit)}
         onOpenChange={(o) => !o && setManualModalUnit(null)}

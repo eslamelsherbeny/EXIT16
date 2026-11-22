@@ -82,10 +82,12 @@ function BuyersPageContent() {
   const { t: dict, locale, dir, siteSettings } = useTranslation()
   const b = dict.buy
   const bVal = (b.validation as Record<string, string>) || {}
+  const bStep3 = (b.stepThree as Record<string, string>) || {}
   const bSuccess =
     ((b as Record<string, any>).successScreen as Record<string, string>) || {}
   const sellVal = (dict.sell?.validation as Record<string, string>) || {}
   const currency = '$'
+  const commPct = String(siteSettings?.buyerCommission || '1.25')
 
   const localizedUnitTypes: string[] =
     (dict as Record<string, any>).buyerFunnelPage?.unitTypes ||
@@ -125,6 +127,7 @@ function BuyersPageContent() {
     contactMessengers: ['whatsapp', 'viber'],
   }))
 
+  const [agreedTerms, setAgreedTerms] = useState(false)
   const [areaDisplayLabels, setAreaDisplayLabels] = useState<
     Record<string, string>
   >({})
@@ -322,7 +325,7 @@ function BuyersPageContent() {
 
     setSubmittedOrder({
       reqId: info?.reqId || '',
-      orderRef: info?.orderRef || 'AE-BUY',
+      orderRef: info?.orderRef || 'DD-BUY',
       buyerName: effectiveName,
       availableCash: Number(data.available_cash) || 0,
       budget: Number(data.budget) || Number(data.available_cash) || 0,
@@ -374,9 +377,19 @@ function BuyersPageContent() {
       }
     }
 
+    if (!agreedTerms) {
+      nextErrors.agreedTerms = bVal.termsRequired || bVal.required
+      missing.push(bStep3.termsLinkText || bVal.required)
+    }
+
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors)
       setMissingFieldsList(missing)
+      if (nextErrors.agreedTerms && Object.keys(nextErrors).length === 1) {
+        document
+          .getElementById('field-wrap-buyer-agreedTerms')
+          ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
       return
     }
 
@@ -451,7 +464,7 @@ function BuyersPageContent() {
   const siteOrigin =
     typeof window !== 'undefined'
       ? window.location.origin
-      : 'https://exit-16.vercel.app'
+      : 'https://dualdealz.com'
 
   if (submittedOrder) {
     const areasText = submittedOrder.areas.join(dir === 'rtl' ? '، ' : ', ')
@@ -486,12 +499,11 @@ function BuyersPageContent() {
                 <span className="block text-[11px] text-gray-400">
                   {b.stepOne.availableCashLabel}
                 </span>
-                <strong
-                  dir="ltr"
-                  className="mt-1 block text-sm font-black text-[#007a5a] tabular-nums"
-                >
-                  {currency}
-                  {submittedOrder.availableCash.toLocaleString('en-US')}
+                <strong className="mt-1 block text-sm font-black text-[#007a5a]">
+                  <span dir="ltr" className="inline-block tabular-nums">
+                    {currency}
+                    {submittedOrder.availableCash.toLocaleString('en-US')}
+                  </span>
                 </strong>
               </div>
 
@@ -499,12 +511,11 @@ function BuyersPageContent() {
                 <span className="block text-[11px] text-gray-400">
                   {b.stepOne.budgetLabel}
                 </span>
-                <strong
-                  dir="ltr"
-                  className="mt-1 block text-sm font-black text-[#0a1122] tabular-nums"
-                >
-                  {currency}
-                  {submittedOrder.budget.toLocaleString('en-US')}
+                <strong className="mt-1 block text-sm font-black text-[#0a1122]">
+                  <span dir="ltr" className="inline-block tabular-nums">
+                    {currency}
+                    {submittedOrder.budget.toLocaleString('en-US')}
+                  </span>
                 </strong>
               </div>
 
@@ -560,21 +571,25 @@ function BuyersPageContent() {
         {step <= 2 && (
           <>
             <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:gap-4">
-              {b.header.benefits.map((item, index) => (
-                <div
-                  key={item}
-                  className={`flex items-start gap-2.5 rounded-xl border px-4 py-3 text-start text-xs leading-relaxed sm:items-center sm:gap-3 sm:px-5 sm:text-sm ${
-                    index === 3
-                      ? 'border-teal-300 bg-teal-50 font-bold text-teal-700'
-                      : index === 4
-                        ? 'border-slate-500 bg-transparent font-semibold'
-                        : 'border-slate-200 bg-white text-slate-700'
-                  }`}
-                >
-                  <Check className="mt-0.5 size-4 shrink-0 text-teal-700 sm:mt-0" />
-                  <span>{item}</span>
-                </div>
-              ))}
+              {b.header.benefits.map((rawItem, index) => {
+                // ربط نسبة العمولة المذكورة في قائمة المزايا بنسبة الإعدادات الفعلية
+                const item = String(rawItem).replace(/1\.25%/g, `${commPct}%`)
+                return (
+                  <div
+                    key={rawItem}
+                    className={`flex items-start gap-2.5 rounded-xl border px-4 py-3 text-start text-xs leading-relaxed sm:items-center sm:gap-3 sm:px-5 sm:text-sm ${
+                      index === 3
+                        ? 'border-teal-300 bg-teal-50 font-bold text-teal-700'
+                        : index === 4
+                          ? 'border-slate-500 bg-transparent font-semibold'
+                          : 'border-slate-200 bg-white text-slate-700'
+                    }`}
+                  >
+                    <Check className="mt-0.5 size-4 shrink-0 text-teal-700 sm:mt-0" />
+                    <span>{item}</span>
+                  </div>
+                )
+              })}
             </div>
             <div className="mt-5 rounded-2xl border border-slate-300 bg-white p-4 text-start shadow-2xs sm:mt-8 sm:p-5">
               <div className="flex items-center gap-2 text-xs font-extrabold text-[#0a1122] sm:text-sm">
@@ -643,6 +658,13 @@ function BuyersPageContent() {
                   setMissingFieldsList([])
                   setError('')
                 }}
+                agreedTerms={agreedTerms}
+                setAgreedTerms={(val) => {
+                  setAgreedTerms(val)
+                  setErrors((prev) => ({ ...prev, agreedTerms: '' }))
+                  setMissingFieldsList([])
+                }}
+                commissionPct={commPct}
                 conflictState={conflictState}
                 setConflictState={setConflictState}
                 onSuccessRedirect={(info) => {

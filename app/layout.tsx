@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import Script from 'next/script'
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Cairo } from 'next/font/google'
@@ -121,26 +122,23 @@ export default async function RootLayout({
 
   return (
     <html lang={locale} dir={dir}>
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              window.__deferredPwaPrompt = null;
-              window.addEventListener('beforeinstallprompt', function(e) {
-                e.preventDefault();
-                window.__deferredPwaPrompt = e;
-                window.dispatchEvent(new Event('pwa-prompt-ready'));
-              });
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function() {});
-                });
-              }
-            `,
-          }}
-        />
-      </head>
       <body className={`${cairo.variable} ${cairo.className} antialiased`}>
+        <Script id="pwa-sw-init" strategy="afterInteractive">
+          {`
+            window.__deferredPwaPrompt = null;
+            window.addEventListener('beforeinstallprompt', function(e) {
+              e.preventDefault();
+              window.__deferredPwaPrompt = e;
+              window.dispatchEvent(new Event('pwa-prompt-ready'));
+            });
+            if ('serviceWorker' in navigator) {
+              window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function() {});
+              });
+            }
+          `}
+        </Script>
+
         <LanguageProvider
           initialLocale={locale}
           initialCountry={country}

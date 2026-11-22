@@ -401,10 +401,7 @@ export default async function AdminPage() {
     {
       label: t.adRequests || nav.promotions || "",
       value: activeFeaturedUnits.length.toLocaleString("en-US"),
-      note:
-        pendingAdTotalCount > 0
-          ? `${pendingAdTotalCount} ${t.adPendingNote || ""}`
-          : `${activeFeaturedUnits.length} ${t.adActiveNote || ""}`,
+      note: `${pendingAdTotalCount} ${t.adPendingNote || ""}`,
       icon: Star,
       href: "/admin/promotions",
       iconWrap: "bg-amber-50 text-amber-600",

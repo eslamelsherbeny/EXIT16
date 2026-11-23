@@ -28,61 +28,60 @@ export type { HomeUnitCardItem }
 
 const CONTAINER_CLS = 'mx-auto w-full max-w-[1280px] px-4 sm:px-6 lg:px-8'
 const FAVORITES_STORAGE_KEY = 'darak_favorites'
-const HERO_ARCH_IMAGE =
-  'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1920&q=85'
 
 function HeroMatteArchitecturalBackdrop({ isRtl }: { isRtl: boolean }) {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none absolute inset-0 z-0 overflow-hidden bg-[#0b1730] select-none"
+      className="pointer-events-none absolute inset-0 z-0 overflow-hidden bg-[#112447] select-none"
     >
-      {/* واجهة معمارية حديثة بأسلوب مطفي عميق بدون بهتان رمادي */}
+      {/* غلاف منفصل لقلب الاتجاه في LTR حتى لا يتعارض مع أنيميشن حركة الكاميرا */}
+      <div className={`absolute inset-0 ${isRtl ? '' : '-scale-x-100'}`}>
+        <div
+          className="hero-ken-burns absolute inset-0 bg-cover bg-no-repeat bg-[54%_45%] sm:bg-[48%_52%] lg:bg-[32%_60%]"
+          style={{
+            backgroundImage: 'url("/hero-home.jpg")',
+            opacity: 0.78,
+            filter: 'brightness(1.12) saturate(1.06) contrast(1.04)',
+          }}
+        />
+      </div>
+
+      {/* تدرج عمودي ناعم ومفتوح مخصص للموبايل والتابلت لضمان وضوح النص والبيت معاً */}
       <div
-        className="absolute inset-0 bg-cover bg-center"
+        className="absolute inset-0 lg:hidden"
         style={{
-          backgroundImage: `url("${HERO_ARCH_IMAGE}")`,
-          backgroundPosition: isRtl ? 'left 35%' : 'right 35%',
-          opacity: 0.3,
-          filter: 'saturate(0.45) contrast(1.15) brightness(0.75)',
+          background:
+            'linear-gradient(180deg, rgba(16,35,70,0.82) 0%, rgba(16,38,74,0.62) 44%, rgba(14,48,68,0.48) 72%, rgba(15,34,66,0.72) 100%)',
         }}
       />
 
-      {/* تدرج كحلي زمردي عميق: هادئ ومركز خلف النص ويكشف المعمار بأناقة خلف الكروت */}
+      {/* تدرج أفقي مفتوح للكمبيوتر: يحفظ قراءة النص على اليمين ويكشف البيت بإضاءة دافئة في الوسط واليسار */}
+      <div
+        className="absolute inset-0 hidden lg:block"
+        style={{
+          background: isRtl
+            ? 'linear-gradient(270deg, rgba(16,35,70,0.84) 0%, rgba(16,38,74,0.58) 40%, rgba(14,54,72,0.22) 72%, rgba(12,68,68,0.32) 100%)'
+            : 'linear-gradient(90deg, rgba(16,35,70,0.84) 0%, rgba(16,38,74,0.58) 40%, rgba(14,54,72,0.22) 72%, rgba(12,68,68,0.32) 100%)',
+        }}
+      />
+
+      {/* توهج زمردي وسماوي خفيف متحرك يعطي إشراقة وعمق عصري للهيرو */}
+      <div
+        className="hero-ambient-glow absolute -top-24 size-[360px] rounded-full blur-[95px] sm:size-[480px]"
+        style={{
+          [isRtl ? 'left' : 'right']: '-6%',
+          background:
+            'radial-gradient(circle, rgba(46,229,157,0.26) 0%, rgba(56,189,248,0.10) 45%, transparent 72%)',
+        }}
+      />
+
+      {/* دمج ناعم جداً عند الحافة العلوية والسفلية */}
       <div
         className="absolute inset-0"
         style={{
-          background: isRtl
-            ? 'linear-gradient(270deg, rgba(11,23,48,0.97) 0%, rgba(11,23,48,0.90) 44%, rgba(12,42,56,0.68) 76%, rgba(8,56,52,0.58) 100%)'
-            : 'linear-gradient(90deg, rgba(11,23,48,0.97) 0%, rgba(11,23,48,0.90) 44%, rgba(12,42,56,0.68) 76%, rgba(8,56,52,0.58) 100%)',
-        }}
-      />
-
-      {/* توهج زمردي خفيف للعمق المعماري */}
-      <div
-        className="absolute -top-24 size-[460px] rounded-full opacity-35 blur-[90px]"
-        style={{
-          [isRtl ? 'left' : 'right']: '-4%',
           background:
-            'radial-gradient(circle, rgba(0,168,120,0.45) 0%, transparent 70%)',
-        }}
-      />
-      <div
-        className="absolute -bottom-32 size-[420px] rounded-full opacity-25 blur-[90px]"
-        style={{
-          [isRtl ? 'right' : 'left']: '8%',
-          background:
-            'radial-gradient(circle, rgba(37,99,235,0.35) 0%, transparent 70%)',
-        }}
-      />
-
-      {/* شبكة هندسية دقيقة جداً باللون الأبيض الخافت */}
-      <div
-        className="absolute inset-0 opacity-[0.045]"
-        style={{
-          backgroundImage:
-            'linear-gradient(to right, #ffffff 1px, transparent 1px), linear-gradient(to bottom, #ffffff 1px, transparent 1px)',
-          backgroundSize: '56px 56px',
+            'linear-gradient(180deg, rgba(16,35,70,0.28) 0%, transparent 18%, transparent 84%, rgba(16,35,70,0.44) 100%)',
         }}
       />
     </div>
@@ -193,20 +192,20 @@ export function HybridHomeClient({
       {/* الويدجت العائم لصاحب الإعلان النشط فقط */}
       <ActiveBoostFloatingWidget items={myActiveBoosts} />
 
-      {/* 1. الهيرو الكحلي المعماري المطفي */}
-      <section className="relative flex items-center overflow-hidden bg-[#0b1730] py-10 text-white lg:min-h-[590px] lg:py-14">
+      {/* 1. الهيرو المعماري المشرق والمتجاوب مع أنيميشن سينمائي هادئ */}
+      <section className="relative flex items-center overflow-hidden bg-[#112447] py-8 text-white sm:py-11 lg:min-h-[590px] lg:py-14">
         <HeroMatteArchitecturalBackdrop isRtl={isRtl} />
 
         <div
-          className={`relative z-10 ${CONTAINER_CLS} grid grid-cols-1 items-center gap-10 lg:grid-cols-[1.14fr_0.86fr] lg:gap-14`}
+          className={`relative z-10 ${CONTAINER_CLS} grid grid-cols-1 items-center gap-8 sm:gap-10 lg:grid-cols-[1.14fr_0.86fr] lg:gap-14`}
         >
           <ScrollReveal className="text-start">
-            <span className="mb-5 inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-4 py-1.5 text-xs font-bold text-[#6ee7b7] backdrop-blur-sm">
+            <span className="mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-300/35 bg-[#0f2544]/65 px-3.5 py-1.5 text-[11px] font-bold text-[#6ee7b7] backdrop-blur-md sm:mb-5 sm:px-4 sm:text-xs">
               <span className="size-2 animate-pulse rounded-full bg-[#2ee59d]" />
               <span>{t?.hero?.badge}</span>
             </span>
 
-            <h1 className="heading-hero text-white">
+            <h1 className="heading-hero text-white drop-shadow-[0_2px_14px_rgba(8,19,41,0.35)]">
               {t?.hero?.titleLine1}
               <br className="hidden sm:inline" /> {t?.hero?.titleLine2}{' '}
               <span className="bg-gradient-to-l from-[#2ee59d] via-[#34d399] to-[#6ee7b7] bg-clip-text text-transparent">
@@ -215,14 +214,15 @@ export function HybridHomeClient({
               </span>
             </h1>
 
-            <p className="mt-5 max-w-[575px] text-[13.5px] font-medium leading-[1.95] text-slate-300 sm:text-[15px] lg:text-[15.5px]">
+            <p className="mt-4 max-w-[575px] text-[13.5px] font-medium leading-[1.85] text-slate-100/95 sm:mt-5 sm:text-[15px] sm:leading-[1.95] lg:text-[15.5px]">
               {t?.hero?.description}
             </p>
 
-            <div className="mt-7 flex flex-wrap items-center justify-start gap-3.5 sm:mt-8">
+            {/* أزرار متناسقة جنباً إلى جنب على الموبايل والكمبيوتر */}
+            <div className="mt-6 grid grid-cols-2 gap-2.5 sm:mt-8 sm:flex sm:flex-wrap sm:items-center sm:justify-start sm:gap-3.5">
               <Button
                 size="lg"
-                className="h-12 flex-1 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-7 text-sm font-bold text-white shadow-[0_12px_28px_rgba(255,100,55,0.38)] transition-all hover:scale-[1.02] hover:opacity-95 sm:flex-none sm:px-8 sm:text-[15px]"
+                className="h-11 w-full rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-4 text-[13px] font-bold text-white shadow-[0_12px_28px_rgba(255,100,55,0.38)] transition-all hover:scale-[1.02] hover:opacity-95 sm:h-12 sm:w-auto sm:px-8 sm:text-[15px]"
                 render={<Link href="/sell" />}
               >
                 {t?.hero?.sellBtn}
@@ -230,35 +230,35 @@ export function HybridHomeClient({
               <Button
                 size="lg"
                 variant="outline"
-                className="h-12 flex-1 rounded-full border border-white/25 bg-white/10 px-7 text-sm font-bold text-white backdrop-blur-sm transition-all hover:border-emerald-300/60 hover:bg-white/15 hover:text-white sm:flex-none sm:px-8 sm:text-[15px]"
+                className="h-11 w-full rounded-full border border-white/30 bg-white/12 px-4 text-[13px] font-bold text-white backdrop-blur-md transition-all hover:border-emerald-300/65 hover:bg-white/20 hover:text-white sm:h-12 sm:w-auto sm:px-8 sm:text-[15px]"
                 render={<Link href="/opportunities" />}
               >
                 {t?.hero?.buyBtn}
               </Button>
             </div>
 
-            <div className="mt-6 flex items-start justify-start gap-2 text-[11px] font-medium leading-relaxed text-slate-300/90 sm:items-center sm:text-xs">
+            <div className="mt-5 flex items-start justify-start gap-2 text-[11px] font-medium leading-relaxed text-slate-200/95 sm:mt-6 sm:items-center sm:text-xs">
               <ShieldCheck className="mt-0.5 size-4 shrink-0 text-[#2ee59d] sm:mt-0" />
               <p>{t?.hero?.trustNote}</p>
             </div>
           </ScrollReveal>
 
-          {/* كارتا المقارنة البيض بتباين حاد وواضح فوق الخلفية المعمارية الداكنة */}
+          {/* كارتا المقارنة البيض بتباين واضح وتنسيق مشدود على الموبايل */}
           <ScrollReveal
             delay={120}
-            className="relative mx-auto flex w-full max-w-[460px] flex-col items-center gap-4 lg:me-0"
+            className="relative mx-auto flex w-full max-w-[460px] flex-col items-center gap-3.5 sm:gap-4 lg:me-0"
           >
-            <div className="w-full rounded-[22px] border border-white/15 bg-white p-5 text-[#0f1d40] shadow-[0_24px_55px_-15px_rgba(0,0,0,0.45)] transition hover:-translate-y-0.5 sm:p-6">
-              <div className="flex items-center justify-start gap-3">
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-rose-100 text-xs font-bold text-rose-600">
+            <div className="w-full rounded-[20px] border border-white/25 bg-white/97 p-4 text-[#0f1d40] shadow-[0_22px_50px_-14px_rgba(8,19,41,0.42)] backdrop-blur-sm transition duration-300 hover:-translate-y-1 sm:rounded-[22px] sm:p-6">
+              <div className="flex items-center justify-start gap-2.5 sm:gap-3">
+                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-rose-100 text-[11px] font-bold text-rose-600 sm:size-7 sm:text-xs">
                   ✕
                 </span>
-                <p className="text-sm font-bold text-[#0f1d40]">
+                <p className="text-[13px] font-bold text-[#0f1d40] sm:text-sm">
                   {t?.hero?.lossCardTitle}
                 </p>
               </div>
 
-              <div className="mt-4 flex items-end justify-between gap-2">
+              <div className="mt-3.5 flex items-end justify-between gap-2 sm:mt-4">
                 <div className="text-start">
                   <p className="text-[11px] font-medium text-slate-400 sm:text-xs">
                     {t?.hero?.lossCardLabel}
@@ -274,32 +274,32 @@ export function HybridHomeClient({
                   <p className="text-[11px] font-medium text-slate-400 sm:text-xs">
                     {t?.hero?.lossCardDurationLabel}
                   </p>
-                  <p className="mt-1 text-sm font-bold text-slate-700 sm:text-base">
+                  <p className="mt-1 text-xs font-bold text-slate-700 sm:text-base">
                     {t?.hero?.lossCardDurationValue}
                   </p>
                 </div>
               </div>
 
-              <div className="mt-4 rounded-xl bg-rose-50 px-4 py-2.5 text-center text-[11px] font-semibold text-rose-600 sm:text-xs">
+              <div className="mt-3.5 rounded-xl bg-rose-50 px-3 py-2 text-center text-[11px] font-semibold text-rose-600 sm:mt-4 sm:px-4 sm:py-2.5 sm:text-xs">
                 {t?.hero?.lossCardFooter}
               </div>
             </div>
 
-            <div className="z-20 -my-6 flex size-9 items-center justify-center rounded-full border-2 border-[#0b1730] bg-gradient-to-r from-[#007a5a] to-[#2ee59d] text-[11px] font-black uppercase text-white shadow-lg">
+            <div className="hero-vs-pulse z-20 -my-5 flex size-8 items-center justify-center rounded-full border-2 border-[#112447] bg-gradient-to-r from-[#007a5a] to-[#2ee59d] text-[10px] font-black uppercase text-white shadow-lg sm:-my-6 sm:size-9 sm:text-[11px]">
               vs
             </div>
 
-            <div className="w-full rounded-[22px] border-2 border-[#2ee59d] bg-white p-5 text-[#0f1d40] shadow-[0_26px_60px_-14px_rgba(0,122,90,0.45)] transition hover:-translate-y-0.5 sm:p-6">
-              <div className="flex items-center justify-start gap-3">
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#d8f3e5] text-xs font-bold text-[#007a5a]">
+            <div className="w-full rounded-[20px] border-2 border-[#2ee59d] bg-white p-4 text-[#0f1d40] shadow-[0_24px_55px_-12px_rgba(0,122,90,0.45)] transition duration-300 hover:-translate-y-1 sm:rounded-[22px] sm:p-6">
+              <div className="flex items-center justify-start gap-2.5 sm:gap-3">
+                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[#d8f3e5] text-[11px] font-bold text-[#007a5a] sm:size-7 sm:text-xs">
                   ✓
                 </span>
-                <p className="text-sm font-bold text-[#0f1d40]">
+                <p className="text-[13px] font-bold text-[#0f1d40] sm:text-sm">
                   {t?.hero?.winCardTitle}
                 </p>
               </div>
 
-              <div className="mt-4 text-start">
+              <div className="mt-3.5 text-start sm:mt-4">
                 <p className="text-[11px] font-medium text-slate-500 sm:text-xs">
                   {t?.hero?.winCardLabel}
                 </p>
@@ -314,7 +314,7 @@ export function HybridHomeClient({
                 </p>
               </div>
 
-              <div className="mt-4 rounded-xl bg-[#eaf8f2] px-4 py-2.5 text-center text-[11px] font-bold text-[#007a5a] sm:text-xs">
+              <div className="mt-3.5 rounded-xl bg-[#eaf8f2] px-3 py-2 text-center text-[11px] font-bold text-[#007a5a] sm:mt-4 sm:px-4 sm:py-2.5 sm:text-xs">
                 {t?.hero?.winCardFooter}
               </div>
             </div>

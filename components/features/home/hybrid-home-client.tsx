@@ -28,6 +28,66 @@ export type { HomeUnitCardItem }
 
 const CONTAINER_CLS = 'mx-auto w-full max-w-[1280px] px-4 sm:px-6 lg:px-8'
 const FAVORITES_STORAGE_KEY = 'darak_favorites'
+const HERO_ARCH_IMAGE =
+  'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1920&q=85'
+
+function HeroMatteArchitecturalBackdrop({ isRtl }: { isRtl: boolean }) {
+  return (
+    <div
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-0 z-0 overflow-hidden bg-[#0b1730] select-none"
+    >
+      {/* واجهة معمارية حديثة بأسلوب مطفي عميق بدون بهتان رمادي */}
+      <div
+        className="absolute inset-0 bg-cover bg-center"
+        style={{
+          backgroundImage: `url("${HERO_ARCH_IMAGE}")`,
+          backgroundPosition: isRtl ? 'left 35%' : 'right 35%',
+          opacity: 0.3,
+          filter: 'saturate(0.45) contrast(1.15) brightness(0.75)',
+        }}
+      />
+
+      {/* تدرج كحلي زمردي عميق: هادئ ومركز خلف النص ويكشف المعمار بأناقة خلف الكروت */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background: isRtl
+            ? 'linear-gradient(270deg, rgba(11,23,48,0.97) 0%, rgba(11,23,48,0.90) 44%, rgba(12,42,56,0.68) 76%, rgba(8,56,52,0.58) 100%)'
+            : 'linear-gradient(90deg, rgba(11,23,48,0.97) 0%, rgba(11,23,48,0.90) 44%, rgba(12,42,56,0.68) 76%, rgba(8,56,52,0.58) 100%)',
+        }}
+      />
+
+      {/* توهج زمردي خفيف للعمق المعماري */}
+      <div
+        className="absolute -top-24 size-[460px] rounded-full opacity-35 blur-[90px]"
+        style={{
+          [isRtl ? 'left' : 'right']: '-4%',
+          background:
+            'radial-gradient(circle, rgba(0,168,120,0.45) 0%, transparent 70%)',
+        }}
+      />
+      <div
+        className="absolute -bottom-32 size-[420px] rounded-full opacity-25 blur-[90px]"
+        style={{
+          [isRtl ? 'right' : 'left']: '8%',
+          background:
+            'radial-gradient(circle, rgba(37,99,235,0.35) 0%, transparent 70%)',
+        }}
+      />
+
+      {/* شبكة هندسية دقيقة جداً باللون الأبيض الخافت */}
+      <div
+        className="absolute inset-0 opacity-[0.045]"
+        style={{
+          backgroundImage:
+            'linear-gradient(to right, #ffffff 1px, transparent 1px), linear-gradient(to bottom, #ffffff 1px, transparent 1px)',
+          backgroundSize: '56px 56px',
+        }}
+      />
+    </div>
+  )
+}
 
 export function HybridHomeClient({
   dbUnits,
@@ -44,6 +104,7 @@ export function HybridHomeClient({
 }) {
   const { t: dict, locale, dir } = useTranslation()
   const activeLocale = (locale as LocaleCode) || 'ar'
+  const isRtl = dir === 'rtl'
   const t = dict.home
   const cT = dict.home.carouselTitles
   const USD = '$'
@@ -132,42 +193,36 @@ export function HybridHomeClient({
       {/* الويدجت العائم لصاحب الإعلان النشط فقط */}
       <ActiveBoostFloatingWidget items={myActiveBoosts} />
 
-      {/* 1. الهيرو */}
-      <section className="aqar-animated-hero relative flex min-h-[640px] items-center overflow-hidden border-b border-slate-200/80 py-10 lg:min-h-[700px] lg:py-16">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 overflow-hidden"
-        >
-          <div className="aqar-floating-orb-1" />
-          <div className="aqar-floating-orb-2" />
-        </div>
+      {/* 1. الهيرو الكحلي المعماري المطفي */}
+      <section className="relative flex items-center overflow-hidden bg-[#0b1730] py-10 text-white lg:min-h-[590px] lg:py-14">
+        <HeroMatteArchitecturalBackdrop isRtl={isRtl} />
 
         <div
-          className={`relative z-10 ${CONTAINER_CLS} grid grid-cols-1 items-center gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:gap-14`}
+          className={`relative z-10 ${CONTAINER_CLS} grid grid-cols-1 items-center gap-10 lg:grid-cols-[1.14fr_0.86fr] lg:gap-14`}
         >
           <ScrollReveal className="text-start">
-            <span className="mb-5 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white/95 px-4 py-1.5 text-xs font-bold text-[#007a5a] shadow-2xs">
-              <span className="size-2 animate-pulse rounded-full bg-[#ff6437]" />
+            <span className="mb-5 inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-4 py-1.5 text-xs font-bold text-[#6ee7b7] backdrop-blur-sm">
+              <span className="size-2 animate-pulse rounded-full bg-[#2ee59d]" />
               <span>{t?.hero?.badge}</span>
             </span>
 
-            <h1 className="heading-hero text-[#0f1d40]">
+            <h1 className="heading-hero text-white">
               {t?.hero?.titleLine1}
               <br className="hidden sm:inline" /> {t?.hero?.titleLine2}{' '}
-              <span className="bg-gradient-to-r from-[#007a5a] via-[#2563eb] to-[#ff6437] bg-clip-text text-transparent">
+              <span className="bg-gradient-to-l from-[#2ee59d] via-[#34d399] to-[#6ee7b7] bg-clip-text text-transparent">
                 {t?.hero?.titleAccentLine1}
                 <br className="hidden sm:inline" /> {t?.hero?.titleAccentLine2}
               </span>
             </h1>
 
-            <p className="mt-5 max-w-[585px] text-[13.5px] font-medium leading-[1.95] text-[#475569] sm:text-[15px] lg:text-[15.5px]">
+            <p className="mt-5 max-w-[575px] text-[13.5px] font-medium leading-[1.95] text-slate-300 sm:text-[15px] lg:text-[15.5px]">
               {t?.hero?.description}
             </p>
 
             <div className="mt-7 flex flex-wrap items-center justify-start gap-3.5 sm:mt-8">
               <Button
                 size="lg"
-                className="h-12 flex-1 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-7 text-sm font-bold text-white shadow-[0_10px_24px_rgba(255,100,55,0.28)] transition-all hover:scale-[1.02] hover:opacity-95 sm:flex-none sm:px-8 sm:text-[15px]"
+                className="h-12 flex-1 rounded-full bg-gradient-to-r from-[#ff6437] to-[#ff4f69] px-7 text-sm font-bold text-white shadow-[0_12px_28px_rgba(255,100,55,0.38)] transition-all hover:scale-[1.02] hover:opacity-95 sm:flex-none sm:px-8 sm:text-[15px]"
                 render={<Link href="/sell" />}
               >
                 {t?.hero?.sellBtn}
@@ -175,24 +230,25 @@ export function HybridHomeClient({
               <Button
                 size="lg"
                 variant="outline"
-                className="h-12 flex-1 rounded-full border border-slate-200 bg-white px-7 text-sm font-bold text-[#0f1d40] shadow-xs transition-all hover:border-[#2563eb] hover:bg-blue-50/40 hover:text-[#2563eb] sm:flex-none sm:px-8 sm:text-[15px]"
+                className="h-12 flex-1 rounded-full border border-white/25 bg-white/10 px-7 text-sm font-bold text-white backdrop-blur-sm transition-all hover:border-emerald-300/60 hover:bg-white/15 hover:text-white sm:flex-none sm:px-8 sm:text-[15px]"
                 render={<Link href="/opportunities" />}
               >
                 {t?.hero?.buyBtn}
               </Button>
             </div>
 
-            <div className="mt-6 flex items-start justify-start gap-2 text-[11px] font-medium leading-relaxed text-slate-500 sm:items-center sm:text-xs">
-              <ShieldCheck className="mt-0.5 size-4 shrink-0 text-[#007a5a] sm:mt-0" />
+            <div className="mt-6 flex items-start justify-start gap-2 text-[11px] font-medium leading-relaxed text-slate-300/90 sm:items-center sm:text-xs">
+              <ShieldCheck className="mt-0.5 size-4 shrink-0 text-[#2ee59d] sm:mt-0" />
               <p>{t?.hero?.trustNote}</p>
             </div>
           </ScrollReveal>
 
+          {/* كارتا المقارنة البيض بتباين حاد وواضح فوق الخلفية المعمارية الداكنة */}
           <ScrollReveal
             delay={120}
             className="relative mx-auto flex w-full max-w-[460px] flex-col items-center gap-4 lg:me-0"
           >
-            <div className="w-full rounded-[22px] border border-rose-200/80 bg-white/95 p-5 text-[#0f1d40] shadow-lg backdrop-blur-sm transition hover:-translate-y-0.5 sm:p-6">
+            <div className="w-full rounded-[22px] border border-white/15 bg-white p-5 text-[#0f1d40] shadow-[0_24px_55px_-15px_rgba(0,0,0,0.45)] transition hover:-translate-y-0.5 sm:p-6">
               <div className="flex items-center justify-start gap-3">
                 <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-rose-100 text-xs font-bold text-rose-600">
                   ✕
@@ -202,14 +258,16 @@ export function HybridHomeClient({
                 </p>
               </div>
 
-              <div className="mt-5 flex items-end justify-between gap-2">
+              <div className="mt-4 flex items-end justify-between gap-2">
                 <div className="text-start">
                   <p className="text-[11px] font-medium text-slate-400 sm:text-xs">
                     {t?.hero?.lossCardLabel}
                   </p>
-                  <strong className="mt-1 flex items-baseline gap-1.5 text-xl font-bold text-rose-600 tabular-nums sm:text-[26px]">
-                    <span dir="ltr">- {t?.hero?.lossCardAmount}</span>
-                    <span>{USD}</span>
+                  <strong className="mt-1 block text-xl font-bold text-rose-600 tabular-nums sm:text-[26px]">
+                    <span dir="ltr" className="inline-block">
+                      -{USD}
+                      {t?.hero?.lossCardAmount}
+                    </span>
                   </strong>
                 </div>
                 <div className="shrink-0 text-end">
@@ -222,16 +280,16 @@ export function HybridHomeClient({
                 </div>
               </div>
 
-              <div className="mt-5 rounded-xl bg-rose-50/80 px-4 py-2.5 text-center text-[11px] font-semibold text-rose-600 sm:text-xs">
+              <div className="mt-4 rounded-xl bg-rose-50 px-4 py-2.5 text-center text-[11px] font-semibold text-rose-600 sm:text-xs">
                 {t?.hero?.lossCardFooter}
               </div>
             </div>
 
-            <div className="z-20 -my-6 flex size-9 items-center justify-center rounded-full border-2 border-white bg-gradient-to-r from-[#2563eb] to-[#007a5a] text-[11px] font-bold uppercase text-white shadow-md">
+            <div className="z-20 -my-6 flex size-9 items-center justify-center rounded-full border-2 border-[#0b1730] bg-gradient-to-r from-[#007a5a] to-[#2ee59d] text-[11px] font-black uppercase text-white shadow-lg">
               vs
             </div>
 
-            <div className="w-full rounded-[22px] border-2 border-[#007a5a] bg-white p-5 text-[#0f1d40] shadow-2xl transition hover:-translate-y-0.5 sm:p-6">
+            <div className="w-full rounded-[22px] border-2 border-[#2ee59d] bg-white p-5 text-[#0f1d40] shadow-[0_26px_60px_-14px_rgba(0,122,90,0.45)] transition hover:-translate-y-0.5 sm:p-6">
               <div className="flex items-center justify-start gap-3">
                 <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#d8f3e5] text-xs font-bold text-[#007a5a]">
                   ✓
@@ -241,20 +299,22 @@ export function HybridHomeClient({
                 </p>
               </div>
 
-              <div className="mt-5 text-start">
+              <div className="mt-4 text-start">
                 <p className="text-[11px] font-medium text-slate-500 sm:text-xs">
                   {t?.hero?.winCardLabel}
                 </p>
-                <strong className="mt-1 flex items-baseline gap-1.5 text-2xl font-bold text-[#007a5a] tabular-nums sm:text-[32px]">
-                  <span dir="ltr">{t?.hero?.winCardAmount}</span>
-                  <span>{USD}</span>
+                <strong className="mt-1 block text-2xl font-bold text-[#007a5a] tabular-nums sm:text-[32px]">
+                  <span dir="ltr" className="inline-block">
+                    {USD}
+                    {t?.hero?.winCardAmount}
+                  </span>
                 </strong>
                 <p className="mt-1 text-xs font-bold text-[#0f1d40]">
                   {t?.hero?.winCardSub}
                 </p>
               </div>
 
-              <div className="mt-5 rounded-xl bg-[#eaf8f2] px-4 py-2.5 text-center text-[11px] font-bold text-[#007a5a] sm:text-xs">
+              <div className="mt-4 rounded-xl bg-[#eaf8f2] px-4 py-2.5 text-center text-[11px] font-bold text-[#007a5a] sm:text-xs">
                 {t?.hero?.winCardFooter}
               </div>
             </div>

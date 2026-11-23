@@ -128,23 +128,23 @@
 .heading-hero {
   font-size: 30px;
   font-weight: 800;
-  line-height: 1.32;
+  line-height: 1.3;
   letter-spacing: -0.025em;
 }
 @media (min-width: 640px) {
   .heading-hero {
-    font-size: 40px;
+    font-size: 38px;
   }
 }
 @media (min-width: 768px) {
   .heading-hero {
-    font-size: 44px;
+    font-size: 42px;
   }
 }
 @media (min-width: 1024px) {
   .heading-hero {
-    font-size: 48px;
-    line-height: 1.28;
+    font-size: 46px;
+    line-height: 1.25;
   }
 }
 
@@ -166,124 +166,80 @@
 }
 
 /* ==========================================================================
-   خلفية الهيرو المعمارية الاحترافية (Luxury Real Estate Mesh + Blueprint Grid)
+   خلفية الهيرو المعمارية الراقية (Luxury Real Estate Daylight)
    ========================================================================== */
 .aqar-animated-hero {
   position: relative;
   isolation: isolate;
-  background-color: #f8fafd;
+  background-color: #fafcff;
   background-image:
-    radial-gradient(at 12% 15%, rgba(0, 122, 90, 0.14) 0px, transparent 52%),
-    radial-gradient(at 88% 12%, rgba(37, 99, 235, 0.13) 0px, transparent 50%),
-    radial-gradient(at 52% 85%, rgba(255, 100, 55, 0.1) 0px, transparent 55%),
-    radial-gradient(at 82% 82%, rgba(16, 185, 129, 0.12) 0px, transparent 48%),
-    linear-gradient(135deg, #f0f9f6 0%, #f6f9ff 48%, #fff8f4 100%);
-  background-size: 180% 180%;
-  animation: aqarGradientFlow 16s ease-in-out infinite alternate;
+    radial-gradient(at 14% 16%, rgba(0, 122, 90, 0.08) 0px, transparent 50%),
+    radial-gradient(at 88% 18%, rgba(15, 29, 64, 0.05) 0px, transparent 48%),
+    linear-gradient(155deg, #f8fcfa 0%, #fafcff 50%, #f3f7fb 100%);
 }
 
-/* شبكة المخطط الهندسي المعماري الناعمة في الخلفية */
-.aqar-animated-hero::before {
-  content: "";
+.aqar-hero-grid-overlay {
   position: absolute;
   inset: 0;
-  z-index: 0;
   pointer-events: none;
   background-image:
-    linear-gradient(to right, rgba(15, 29, 64, 0.045) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(15, 29, 64, 0.045) 1px, transparent 1px),
-    linear-gradient(to right, rgba(0, 122, 90, 0.025) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(0, 122, 90, 0.025) 1px, transparent 1px);
-  background-size: 64px 64px, 64px 64px, 16px 16px, 16px 16px;
+    linear-gradient(to right, rgba(15, 29, 64, 0.028) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(15, 29, 64, 0.028) 1px, transparent 1px);
+  background-size: 48px 48px;
   mask-image: radial-gradient(
-    ellipse 85% 75% at 50% 42%,
-    rgba(0, 0, 0, 0.95) 20%,
-    rgba(0, 0, 0, 0.35) 65%,
-    transparent 100%
+    ellipse 85% 75% at 50% 40%,
+    rgba(0, 0, 0, 0.8) 15%,
+    transparent 85%
   );
   -webkit-mask-image: radial-gradient(
-    ellipse 85% 75% at 50% 42%,
-    rgba(0, 0, 0, 0.95) 20%,
-    rgba(0, 0, 0, 0.35) 65%,
-    transparent 100%
+    ellipse 85% 75% at 50% 40%,
+    rgba(0, 0, 0, 0.8) 15%,
+    transparent 85%
   );
-}
-
-/* توهج علوي زجاجي يعطي فخامة وعمقاً خلف النصوص والكروت */
-.aqar-animated-hero::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(
-      circle 520px at 50% -80px,
-      rgba(255, 255, 255, 0.85),
-      transparent 70%
-    ),
-    linear-gradient(
-      to bottom,
-      rgba(255, 255, 255, 0.25) 0%,
-      transparent 35%,
-      rgba(246, 248, 252, 0.85) 100%
-    );
-}
-
-@keyframes aqarGradientFlow {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 35%;
-  }
-  100% {
-    background-position: 25% 100%;
-  }
 }
 
 .aqar-floating-orb-1 {
   position: absolute;
-  top: -8%;
-  left: 6%;
-  width: 440px;
-  height: 440px;
-  border-radius: 9999px;
-  background: radial-gradient(
-    circle,
-    rgba(0, 122, 90, 0.2) 0%,
-    rgba(46, 229, 157, 0.08) 45%,
-    transparent 72%
-  );
-  filter: blur(55px);
-  pointer-events: none;
-  animation: aqarOrbDrift 12s ease-in-out infinite alternate;
-}
-
-.aqar-floating-orb-2 {
-  position: absolute;
-  bottom: -6%;
-  right: 6%;
+  top: -12%;
+  left: 4%;
   width: 420px;
   height: 420px;
   border-radius: 9999px;
   background: radial-gradient(
     circle,
-    rgba(37, 99, 235, 0.16) 0%,
-    rgba(255, 100, 55, 0.12) 48%,
+    rgba(0, 122, 90, 0.14) 0%,
+    rgba(46, 229, 157, 0.04) 48%,
     transparent 72%
   );
-  filter: blur(55px);
+  filter: blur(65px);
   pointer-events: none;
-  animation: aqarOrbDrift 14s ease-in-out infinite alternate-reverse;
+  animation: aqarOrbDrift 16s ease-in-out infinite alternate;
+}
+
+.aqar-floating-orb-2 {
+  position: absolute;
+  bottom: -6%;
+  right: 8%;
+  width: 380px;
+  height: 380px;
+  border-radius: 9999px;
+  background: radial-gradient(
+    circle,
+    rgba(15, 29, 64, 0.07) 0%,
+    rgba(0, 122, 90, 0.06) 50%,
+    transparent 72%
+  );
+  filter: blur(65px);
+  pointer-events: none;
+  animation: aqarOrbDrift 18s ease-in-out infinite alternate-reverse;
 }
 
 @keyframes aqarOrbDrift {
   0% {
-    transform: translate(-25px, -15px) scale(0.96);
+    transform: translate(-18px, -10px) scale(0.97);
   }
   100% {
-    transform: translate(30px, 20px) scale(1.06);
+    transform: translate(22px, 14px) scale(1.04);
   }
 }
 

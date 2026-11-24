@@ -1,8 +1,8 @@
 'use client'
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { createBrowserClient } from '@supabase/ssr'
 import { MapPin, Star } from 'lucide-react'
+import { getPublicOpportunitiesListAction } from '@/actions/public-opportunities-actions'
 import {
   getLocalizedUnitTypes,
   toEnglishDigits,
@@ -16,17 +16,14 @@ import {
 import { type SearchFiltersState } from '@/components/features/opportunities/search-filter-popovers'
 import { Search3DMapView } from '@/components/features/opportunities/search-3d-map-view'
 import {
-  CORE_SAFE_UNIT_COLUMNS,
   getQuickCategoryChips,
   InlineAdSlotCard,
   localizePropertyTypeLabel,
   OpportunitiesFilterSection,
   OpportunitiesPagination,
-  PUBLIC_SAFE_UNIT_COLUMNS,
 } from '@/components/features/opportunities/opportunities-page-parts'
 import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
 import { useTranslation, type LocaleCode } from '@/lib/i18n'
-import { isNonGeorgianLegacyArea } from '@/lib/smart-matcher'
 
 const PAGE_SIZE = 9
 const FAVORITES_STORAGE_KEY = 'darak_favorites'
@@ -227,60 +224,8 @@ export default function OpportunitiesPage() {
     async function loadApprovedProperties() {
       setLoading(true)
       try {
-        const supabase = createBrowserClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-        )
-
-        const [primaryRes, acceptedOffersRes] = await Promise.all([
-          supabase
-            .from('sell_requests')
-            .select(PUBLIC_SAFE_UNIT_COLUMNS)
-            .in('status', ['active', 'approved', 'published', 'offer_received'])
-            .order('is_featured', { ascending: false })
-            .order('created_at', { ascending: false })
-            .limit(5000),
-          supabase
-            .from('property_offers')
-            .select('property_id')
-            .eq('status', 'accepted'),
-        ])
-
-        const lockedUnitIds = new Set(
-          (acceptedOffersRes.data || []).map((o: any) => String(o.property_id))
-        )
-
-        let rows: any[] | null = primaryRes.data as any[] | null
-        let queryError = primaryRes.error
-
-        if (queryError) {
-          const fallbackRes = await supabase
-            .from('sell_requests')
-            .select(CORE_SAFE_UNIT_COLUMNS)
-            .in('status', ['active', 'approved', 'published', 'offer_received'])
-            .order('created_at', { ascending: false })
-            .limit(5000)
-          rows = fallbackRes.data as any[] | null
-          queryError = fallbackRes.error
-        }
-
-        if (!queryError && rows) {
-          setRawDbRows(
-            rows.filter((row: any) => {
-              const isValidUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(
-                String(row?.id || '')
-              )
-              const cleanSt = String(row?.status || '').toLowerCase()
-              return (
-                isValidUuid &&
-                cleanSt !== 'transferring' &&
-                cleanSt !== 'sold' &&
-                !lockedUnitIds.has(String(row.id)) &&
-                !isNonGeorgianLegacyArea(row.area)
-              )
-            })
-          )
-        }
+        const res = await getPublicOpportunitiesListAction()
+        setRawDbRows(res.rows || [])
       } catch (err) {
         console.error('Failed to load approved properties:', err)
       } finally {

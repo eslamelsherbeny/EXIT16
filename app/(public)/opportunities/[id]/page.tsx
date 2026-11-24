@@ -3,9 +3,8 @@
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
-import { createBrowserClient } from '@supabase/ssr'
 import { Building2, Clock, Handshake, ShieldCheck } from 'lucide-react'
-import { getCurrentSellerProfileAction } from '@/actions/submit-forms'
+import { getPublicUnitDetailsAction } from '@/actions/public-opportunities-actions'
 import * as UnitInterestFormModule from '@/components/features/opportunities/unit-interest-form'
 import {
   translateStoredFinishing,
@@ -14,7 +13,6 @@ import {
 } from '@/components/features/seller/seller-options-data'
 import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
 import { useTranslation } from '@/lib/i18n'
-import { isNonGeorgianLegacyArea } from '@/lib/smart-matcher'
 import {
   getUnifiedUnitCode,
   getUnifiedUnitHeadline,
@@ -38,13 +36,6 @@ const FALLBACK_UNIT_IMAGE =
 const FAVORITES_STORAGE_KEY = 'darak_favorites'
 const RECENTLY_VIEWED_STORAGE_KEY = 'aqar_recently_viewed'
 const DEVICE_VIEWER_KEY_STORAGE = 'aqar_device_viewer_fingerprint'
-
-// سحب __unit_meta فقط بدون تعريض روابط العقود أو جوازات السفر داخل عمود documents
-const PUBLIC_UNIT_DETAIL_COLUMNS =
-  'id, code, user_id, project_name, developer_name, area, exact_street, house_number, cadastral_code, unit_type, size, kitchen_area, balcony_area, loggia_area, terrace_area, garden_size, rooms, bedrooms, bathrooms, floor_number, total_floors, finishing, building_status, heating_type, year_built, delivery_status, delivery_month, delivery_year, features, video_url, tour_3d_url, allow_online_viewing, description, contract_price, paid_amount, market_price, price_per_sqm, installment_amount, installment_frequency, contract_month, contract_year, years_left, willing_to_discount, discount_amount, images, status, is_featured, boost_tier, featured_until, docs_verified, views_count, approved_at, created_at, unit_meta:documents->__unit_meta'
-
-const CORE_UNIT_DETAIL_COLUMNS =
-  'id, user_id, project_name, developer_name, area, unit_type, size, rooms, bathrooms, finishing, delivery_status, features, description, contract_price, paid_amount, market_price, installment_amount, installment_frequency, contract_year, years_left, willing_to_discount, discount_amount, images, status, created_at'
 
 function parseSafeNumber(val: unknown, fallback = 0): number {
   if (typeof val === 'number' && Number.isFinite(val) && val > 0) return val
@@ -211,173 +202,22 @@ export default function PropertyDetailsPage() {
     async function fetchPropertyDetails() {
       setLoading(true)
       try {
-        const profileRes = await getCurrentSellerProfileAction()
-        const loggedId =
-          profileRes.isLoggedIn && profileRes.user?.id
-            ? profileRes.user.id
-            : null
-        const loggedEmail =
-          profileRes.isLoggedIn && profileRes.user?.email
-            ? String(profileRes.user.email).toLowerCase().trim()
-            : null
-        setCurrentUserId(loggedId)
-
-        const supabase = createBrowserClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-        )
-
-        const { data: acceptedOffersList } = await supabase
-          .from('property_offers')
-          .select('id, property_id, buyer_user_id')
-          .eq('status', 'accepted')
-
-        const lockedUnitIds = new Set(
-          (acceptedOffersList || []).map((o: any) => String(o.property_id))
-        )
-        const acceptedOfferOnThisUnit = (acceptedOffersList || []).find(
-          (o: any) => String(o.property_id) === String(rawId)
-        )
-
-        if (rawId) {
-          const primaryUnitRes = await supabase
-            .from('sell_requests')
-            .select(PUBLIC_UNIT_DETAIL_COLUMNS)
-            .eq('id', rawId)
-            .neq('status', 'deleted_by_seller')
-            .maybeSingle()
-
-          let dbUnit: any = primaryUnitRes.data
-
-          if (primaryUnitRes.error) {
-            const fallbackUnit = await supabase
-              .from('sell_requests')
-              .select(CORE_UNIT_DETAIL_COLUMNS)
-              .eq('id', rawId)
-              .neq('status', 'deleted_by_seller')
-              .maybeSingle()
-            dbUnit = fallbackUnit.data as any
+        let viewerFp: string | undefined
+        try {
+          const fp = getOrCreateDeviceFingerprint()
+          const localViewedKey = `aqar_viewed_${rawId}_${fp}`
+          if (!localStorage.getItem(localViewedKey)) {
+            localStorage.setItem(localViewedKey, '1')
+            viewerFp = fp
           }
+        } catch {}
 
-          if (dbUnit) {
-            const cleanSt = String(dbUnit.status || '').toLowerCase()
-            const isUnderContractDeal =
-              cleanSt === 'transferring' || Boolean(acceptedOfferOnThisUnit)
-            const isSoldFinal = cleanSt === 'sold'
-
-            const isPublicStatus =
-              [
-                'active',
-                'approved',
-                'published',
-                'offer_received',
-                'transferring',
-              ].includes(cleanSt) && !isSoldFinal
-
-            const isOwnerViewing = Boolean(
-              loggedId && dbUnit.user_id && dbUnit.user_id === loggedId
-            )
-            const isAcceptedBuyerViewing = Boolean(
-              loggedId &&
-                acceptedOfferOnThisUnit?.buyer_user_id &&
-                String(acceptedOfferOnThisUnit.buyer_user_id) ===
-                  String(loggedId)
-            )
-
-            if (
-              isPublicStatus ||
-              isOwnerViewing ||
-              isAcceptedBuyerViewing ||
-              isStaff
-            ) {
-              setUnitRow({
-                ...dbUnit,
-                __isUnderContractDeal: isUnderContractDeal,
-                __isAcceptedBuyerViewing: isAcceptedBuyerViewing,
-              })
-              setLiveViewsCount(Math.max(1, Number(dbUnit.views_count) || 1))
-
-              if (!isOwnerViewing) {
-                const viewerIdentity = loggedId
-                  ? `user_${loggedId}`
-                  : loggedEmail
-                    ? `email_${loggedEmail}`
-                    : getOrCreateDeviceFingerprint()
-                const localViewedKey = `aqar_viewed_${rawId}_${viewerIdentity}`
-
-                if (!localStorage.getItem(localViewedKey)) {
-                  localStorage.setItem(localViewedKey, '1')
-                  const { data: updatedViews, error: rpcErr } =
-                    await supabase.rpc('record_unique_unit_view', {
-                      target_unit_id: rawId,
-                      p_viewer_key: viewerIdentity,
-                    })
-
-                  if (!rpcErr && typeof updatedViews === 'number') {
-                    setLiveViewsCount(updatedViews)
-                  } else if (rpcErr) {
-                    await supabase.rpc('increment_unit_views', {
-                      target_unit_id: rawId,
-                    })
-                  }
-                }
-              }
-
-              const unitArea = dbUnit.area
-              if (unitArea) {
-                const { count } = await supabase
-                  .from('sell_requests')
-                  .select('id', { count: 'exact', head: true })
-                  .in('status', [
-                    'active',
-                    'approved',
-                    'published',
-                    'offer_received',
-                  ])
-                  .eq('area', unitArea)
-                  .neq('id', rawId)
-
-                setSameProjectCount(count || 0)
-              }
-            } else {
-              setUnitRow(null)
-            }
-          }
-        }
-
-        const primaryOthersRes = await supabase
-          .from('sell_requests')
-          .select(PUBLIC_UNIT_DETAIL_COLUMNS)
-          .in('status', ['active', 'approved', 'published', 'offer_received'])
-          .neq('id', rawId)
-          .order('is_featured', { ascending: false })
-          .order('created_at', { ascending: false })
-          .limit(12)
-
-        let otherUnits: any[] | null = primaryOthersRes.data as any[] | null
-
-        if (primaryOthersRes.error) {
-          const fallbackOthers = await supabase
-            .from('sell_requests')
-            .select(CORE_UNIT_DETAIL_COLUMNS)
-            .in('status', ['active', 'approved', 'published', 'offer_received'])
-            .neq('id', rawId)
-            .order('created_at', { ascending: false })
-            .limit(12)
-          otherUnits = fallbackOthers.data as any[] | null
-        }
-
-        if (otherUnits && otherUnits.length > 0) {
-          setRawSimilarRows(
-            otherUnits
-              .filter(
-                (u: any) =>
-                  !isNonGeorgianLegacyArea(u.area) &&
-                  !lockedUnitIds.has(String(u.id))
-              )
-              .slice(0, 6)
-          )
-        }
+        const res = await getPublicUnitDetailsAction(rawId, viewerFp)
+        setCurrentUserId(res.currentUserId)
+        setUnitRow(res.unitRow)
+        setLiveViewsCount(res.liveViewsCount)
+        setSameProjectCount(res.sameProjectCount)
+        setRawSimilarRows(res.similarRows || [])
       } catch (err) {
         console.error('Error loading unit details:', err)
       } finally {
@@ -386,7 +226,7 @@ export default function PropertyDetailsPage() {
     }
 
     fetchPropertyDetails()
-  }, [rawId, isStaff])
+  }, [rawId])
 
   const similarDbUnits = useMemo(() => {
     return rawSimilarRows.map((u) => {

@@ -181,6 +181,7 @@ async function canModifySellUnit(
   }
 
   const emailMatch =
+    Boolean(sessionUser.is_verified) &&
     sessionUser.email &&
     unit.email &&
     String(sessionUser.email).trim().toLowerCase() ===
@@ -253,50 +254,14 @@ async function resilientUpdateUnit(
   return { error }
 }
 
-async function resolveSellerUserOrFallback(
-  supabase: any,
-  formData: FormData
-): Promise<any | null> {
-  const sessionUser = await getVerifiedSellerSession(supabase)
-  if (sessionUser) return sessionUser
-
-  const fallbackUserId = text(formData, 'user_id')
-  const fallbackUnitId = text(formData, 'unit_id')
-
-  if (fallbackUserId && fallbackUnitId) {
-    const [{ data: dbUser }, { data: unitMatch }] = await Promise.all([
-      supabase
-        .from('users')
-        .select('id, name, email, phone, role, status, is_verified')
-        .eq('id', fallbackUserId)
-        .maybeSingle(),
-      supabase
-        .from('sell_requests')
-        .select('id, user_id')
-        .eq('id', fallbackUnitId)
-        .maybeSingle(),
-    ])
-
-    if (
-      dbUser &&
-      String(dbUser.status || 'active').toLowerCase() !== 'suspended' &&
-      unitMatch &&
-      String(unitMatch.user_id) === String(dbUser.id)
-    ) {
-      return dbUser
-    }
-  }
-
-  return null
-}
-
 export async function saveSellProgress(
   formData: FormData
 ): Promise<SubmitResult> {
   const { t: msg } = await getFormsDict()
   try {
     const supabase = await getSupabase()
-    const sessionUser = await resolveSellerUserOrFallback(supabase, formData)
+    // الاعتماد حصرياً على الجلسة الموقّعة لمنع أي تعديل غير مصرح به
+    const sessionUser = await getVerifiedSellerSession(supabase)
     const unitId = text(formData, 'unit_id')
 
     if (!sessionUser) {
@@ -420,7 +385,7 @@ export async function saveSellProgress(
         isAlreadyLiveOrReviewed || completeness.isFullyCompleteForAdmin,
       ...(isValidGeorgiaCoord(rawLat, rawLng)
         ? { lat: rawLat, lng: rawLng }
-          : {}),
+        : {}),
       ...(locDisplay ? { location_display: locDisplay } : {}),
       ...(hideCad ? { hide_cadastral: hideCad === 'true' } : {}),
     }
@@ -455,7 +420,8 @@ export async function submitSellRequest(
   const { t: msg } = await getFormsDict()
   try {
     const supabase = await getSupabase()
-    const sessionUser = await resolveSellerUserOrFallback(supabase, formData)
+    // الاعتماد حصرياً على الجلسة الموقّعة
+    const sessionUser = await getVerifiedSellerSession(supabase)
     let existingUnitId = text(formData, 'unit_id')
     const projectName = text(formData, 'project_name')
     const unitCountry = ACTIVE_COUNTRY_CODE
@@ -463,6 +429,11 @@ export async function submitSellRequest(
     if (!sessionUser) {
       return { success: false, error: msg.sessionExpired }
     }
+
+    const verMap = await _getUsersVerificationMapAction([sessionUser.id])
+    const isSellerEmailVerified = Boolean(
+      sessionUser.is_verified || verMap[sessionUser.id]?.emailVerified
+    )
 
     if (!existingUnitId) {
       const { data: recentDraft } = await supabase
@@ -545,6 +516,12 @@ export async function submitSellRequest(
       )
       const completeness = checkUnitHasCompleteMediaAndDetails(payload)
 
+      const effectiveEmailVerified = Boolean(
+        isSellerEmailVerified ||
+          isStaff ||
+          prevUnit?.documents?.__unit_meta?.email_verified
+      )
+
       payload.user_id = prevUnit.user_id || sessionUser.id
       payload.name =
         text(formData, 'name') || prevUnit.name || sessionUser.name
@@ -558,17 +535,19 @@ export async function submitSellRequest(
         sessionUser.email ||
         null
       payload.is_original_owner = true
-      // إذا كان على الوحدة عروض نشطة عند البائع، نحافظ على حالتها حتى لا تختفي العروض القائمة
       payload.status = isLockedByDeal
         ? prevUnit.status
-        : hasLiveOffersWithSeller
-          ? 'offer_received'
-          : 'pending'
+        : !effectiveEmailVerified
+          ? 'draft_unverified'
+          : hasLiveOffersWithSeller
+            ? 'offer_received'
+            : 'pending'
       payload.docs_verified = Boolean(prevUnit.docs_verified)
       payload.documents.__unit_meta = {
         ...(payload.documents.__unit_meta || {}),
-        email_verified: true,
-        ready_for_admin_review: completeness.isFullyCompleteForAdmin,
+        email_verified: effectiveEmailVerified,
+        ready_for_admin_review:
+          effectiveEmailVerified && completeness.isFullyCompleteForAdmin,
       }
 
       await enrichUnitPayloadWithLocationAndNearbyCache(
@@ -613,21 +592,25 @@ export async function submitSellRequest(
           .from('users')
           .update({
             contact_messengers: payload.contact_messengers,
-            ...(payload.phone ? { phone: payload.phone } : {}),
+            ...(!sessionUser.phone && payload.phone
+              ? { phone: payload.phone }
+              : {}),
           })
           .eq('id', sessionUser.id)
 
-        await supabase.from('notifications').insert({
-          user_id: null,
-          role: 'admin',
-          title: completeness.isFullyCompleteForAdmin
-            ? `✅ ${msg.completedUnitAdminTitle} (${unitCountry}): ${projectName || msg.unitWord}`
-            : `📝 ${msg.newDraftUnitAdminTitle} (${unitCountry}): ${projectName || msg.unitWord}`,
-          message: `${payload.name || ''} · (${payload.documents.__unit_meta?.location_display || payload.area || '—'})`,
-          type: 'property',
-          link: `/admin/properties?unitId=${existingUnitId}`,
-          is_read: false,
-        })
+        if (effectiveEmailVerified) {
+          await supabase.from('notifications').insert({
+            user_id: null,
+            role: 'admin',
+            title: completeness.isFullyCompleteForAdmin
+              ? `✅ ${msg.completedUnitAdminTitle} (${unitCountry}): ${projectName || msg.unitWord}`
+              : `📝 ${msg.newDraftUnitAdminTitle} (${unitCountry}): ${projectName || msg.unitWord}`,
+            message: `${payload.name || ''} · (${payload.documents.__unit_meta?.location_display || payload.area || '—'})`,
+            type: 'property',
+            link: `/admin/properties?unitId=${existingUnitId}`,
+            is_read: false,
+          })
+        }
       } catch {}
 
       revalidatePath('/account', 'page')
@@ -651,13 +634,14 @@ export async function submitSellRequest(
     payload.email =
       normalizeEmail(text(formData, 'email')) || sessionUser.email || null
     payload.is_original_owner = true
-    payload.status = 'pending'
+    payload.status = isSellerEmailVerified ? 'pending' : 'draft_unverified'
     payload.views_count = 1
     payload.docs_verified = false
     payload.documents.__unit_meta = {
       ...(payload.documents.__unit_meta || {}),
-      email_verified: true,
-      ready_for_admin_review: completeness.isFullyCompleteForAdmin,
+      email_verified: isSellerEmailVerified,
+      ready_for_admin_review:
+        isSellerEmailVerified && completeness.isFullyCompleteForAdmin,
     }
 
     await enrichUnitPayloadWithLocationAndNearbyCache(formData, payload, null)
@@ -706,21 +690,25 @@ export async function submitSellRequest(
         .from('users')
         .update({
           contact_messengers: payload.contact_messengers,
-          ...(payload.phone ? { phone: payload.phone } : {}),
+          ...(!sessionUser.phone && payload.phone
+            ? { phone: payload.phone }
+            : {}),
         })
         .eq('id', sessionUser.id)
 
-      await supabase.from('notifications').insert({
-        user_id: null,
-        role: 'admin',
-        title: completeness.isFullyCompleteForAdmin
-          ? `✅ ${msg.newUnitReviewAdminTitle} (${unitCountry}): ${projectName || msg.unitWord}`
-          : `📝 ${msg.newDraftUnitAdminTitle} (${unitCountry}): ${projectName || msg.unitWord}`,
-        message: `${payload.name} · ${payload.documents.__unit_meta?.location_display || payload.area || '—'}`,
-        type: 'property',
-        link: `/admin/properties?unitId=${finalId}`,
-        is_read: false,
-      })
+      if (isSellerEmailVerified) {
+        await supabase.from('notifications').insert({
+          user_id: null,
+          role: 'admin',
+          title: completeness.isFullyCompleteForAdmin
+            ? `✅ ${msg.newUnitReviewAdminTitle} (${unitCountry}): ${projectName || msg.unitWord}`
+            : `📝 ${msg.newDraftUnitAdminTitle} (${unitCountry}): ${projectName || msg.unitWord}`,
+          message: `${payload.name} · ${payload.documents.__unit_meta?.location_display || payload.area || '—'}`,
+          type: 'property',
+          link: `/admin/properties?unitId=${finalId}`,
+          is_read: false,
+        })
+      }
     } catch {}
 
     revalidatePath('/account', 'page')

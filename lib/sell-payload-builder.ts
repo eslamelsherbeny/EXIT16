@@ -13,15 +13,56 @@ export const REQUIRED_DOC_KEYS = [
   'passport',
 ] as const
 
+const ALLOWED_DOC_KEY_SET = new Set<string>(REQUIRED_DOC_KEYS)
+
+function sanitizeSafeHttpUrl(
+  rawUrl: unknown,
+  opts?: { requireSupabaseStorage?: boolean }
+): string | null {
+  const clean = String(rawUrl || '').trim()
+  if (!clean || clean.length > 2000) return null
+
+  try {
+    const parsed = new URL(clean)
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+      return null
+    }
+    if (
+      process.env.NODE_ENV === 'production' &&
+      parsed.protocol !== 'https:'
+    ) {
+      return null
+    }
+
+    if (opts?.requireSupabaseStorage) {
+      const supabaseOrigin = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()
+      if (supabaseOrigin) {
+        const expectedOrigin = new URL(supabaseOrigin).origin
+        if (
+          parsed.origin !== expectedOrigin ||
+          !parsed.pathname.includes('/storage/v1/object/')
+        ) {
+          return null
+        }
+      }
+    }
+
+    return parsed.toString()
+  } catch {
+    return null
+  }
+}
+
 export function generateOfficialUnitCode(): string {
   const randomFiveDigits = Math.floor(10000 + Math.random() * 90000)
   return `U-${randomFiveDigits}`
 }
 
 export function safeInt(val: unknown): number | null {
-  if (val === null || val === undefined || String(val).trim() === '') return null
+  if (val === null || val === undefined || String(val).trim() === '')
+    return null
   const parsed = parseInt(String(val).replace(/[^0-9-]/g, ''), 10)
-   return Number.isFinite(parsed) ? parsed : null
+  return Number.isFinite(parsed) ? parsed : null
 }
 
 export function safeNum(
@@ -54,7 +95,10 @@ export function extractCanonicalCityAndDistrict(
   let districtKey = ''
 
   if (display.includes(',')) {
-    const parts = display.split(',').map((s) => s.trim()).filter(Boolean)
+    const parts = display
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
     if (parts.length >= 2) {
       districtKey = parts[0].replace(/\s*\(.*?\)\s*/g, '').trim()
       cityKey = parts[parts.length - 1].replace(/\s*\(.*?\)\s*/g, '').trim()
@@ -142,11 +186,6 @@ export function buildUnitPayloadWithMetaBackup(
   existingDocuments?: Record<string, any> | null,
   existingCode?: string | null
 ) {
-  let parsedDocuments: Record<string, any> =
-    existingDocuments && typeof existingDocuments === 'object'
-      ? { ...existingDocuments }
-      : {}
-
   const existingMeta =
     existingDocuments &&
     typeof existingDocuments === 'object' &&
@@ -155,18 +194,52 @@ export function buildUnitPayloadWithMetaBackup(
       ? { ...existingDocuments.__unit_meta }
       : {}
 
+  const parsedDocuments: Record<string, any> = {}
+  if (existingDocuments && typeof existingDocuments === 'object') {
+    for (const k of REQUIRED_DOC_KEYS) {
+      if (existingDocuments[k]) {
+        parsedDocuments[k] = existingDocuments[k]
+      }
+    }
+    if (existingDocuments.national_id && !parsedDocuments.passport) {
+      parsedDocuments.passport = existingDocuments.national_id
+    }
+  }
+
+  // قراءة المستندات الـ 4 المسموح بها فقط ومنع حقن __unit_meta أو روابط خارجية خبيثة
   const rawDocsJson = text(formData, 'documents_json')
   if (rawDocsJson) {
     try {
       const parsed = JSON.parse(rawDocsJson)
       if (parsed && typeof parsed === 'object') {
-        parsedDocuments = {
-          ...parsedDocuments,
-          ...parsed,
-          __unit_meta: {
-            ...existingMeta,
-            ...(parsed.__unit_meta || {}),
-          },
+        for (const [rawKey, entry] of Object.entries(parsed)) {
+          const normalizedKey =
+            rawKey === 'national_id' ? 'passport' : rawKey
+          if (!ALLOWED_DOC_KEY_SET.has(normalizedKey)) continue
+          if (!entry || typeof entry !== 'object') continue
+
+          const safeDocUrl = sanitizeSafeHttpUrl((entry as any).url, {
+            requireSupabaseStorage: true,
+          })
+          if (!safeDocUrl) continue
+
+          const prevEntry = parsedDocuments[normalizedKey]
+          const isUnchangedUrl =
+            prevEntry &&
+            typeof prevEntry === 'object' &&
+            prevEntry.url === safeDocUrl
+
+          parsedDocuments[normalizedKey] = {
+            url: safeDocUrl,
+            name: String((entry as any).name || normalizedKey).slice(0, 180),
+            uploaded_at: isUnchangedUrl
+              ? prevEntry.uploaded_at || new Date().toLocaleDateString('en-GB')
+              : new Date().toLocaleDateString('en-GB'),
+            status:
+              isUnchangedUrl && prevEntry.status === 'verified'
+                ? 'verified'
+                : 'pending_review',
+          }
         }
       }
     } catch {}
@@ -185,24 +258,21 @@ export function buildUnitPayloadWithMetaBackup(
   }
 
   const officialCode =
-    existingCode ||
-    parsedDocuments.__unit_meta?.code ||
-    existingMeta.code ||
-    generateOfficialUnitCode()
+    existingCode || existingMeta.code || generateOfficialUnitCode()
 
   const listingCategoryVal =
     text(formData, 'listing_category') ||
-    parsedDocuments.__unit_meta?.listing_category ||
+    existingMeta.listing_category ||
     'exit'
   const isRent =
     listingCategoryVal === 'rent_monthly' || listingCategoryVal === 'rent_daily'
   const isDirectSale =
     listingCategoryVal === 'sale' || listingCategoryVal === 'pledge'
 
-  const deliveryStatusRaw = text(formData, 'delivery_status')
+  const deliveryStatusRaw = text(formData, 'delivery_status').slice(0, 80)
   const parsedDel = parseDeliveryDateFromStatus(deliveryStatusRaw)
 
-  const sizeVal = safeNum(formData.get('size'), 0) || 0
+  const sizeVal = Math.max(0, safeNum(formData.get('size'), 0) || 0)
   const kitchenAreaVal = safeNum(formData.get('kitchen_area'), null)
   const balconyAreaVal = safeNum(formData.get('balcony_area'), null)
   const loggiaAreaVal = safeNum(formData.get('loggia_area'), 0) ?? 0
@@ -239,34 +309,49 @@ export function buildUnitPayloadWithMetaBackup(
       : rawTotalFloors
   const maxGuestsVal = safeInt(formData.get('max_guests'))
 
-  const finishingVal = text(formData, 'finishing') || null
-  const buildingStatusVal = text(formData, 'building_status') || null
-  const buildingSeriesVal = text(formData, 'building_series') || null
-  const floorTypeVal = text(formData, 'floor_type') || null
-  const heatingTypeVal = text(formData, 'heating_type') || null
-  const buildingMaterialVal = text(formData, 'building_material') || null
+  const finishingVal = text(formData, 'finishing').slice(0, 80) || null
+  const buildingStatusVal =
+    text(formData, 'building_status').slice(0, 80) || null
+  const buildingSeriesVal =
+    text(formData, 'building_series').slice(0, 80) || null
+  const floorTypeVal = text(formData, 'floor_type').slice(0, 80) || null
+  const heatingTypeVal = text(formData, 'heating_type').slice(0, 80) || null
+  const buildingMaterialVal =
+    text(formData, 'building_material').slice(0, 80) || null
   const yearBuiltVal = safeInt(formData.get('year_built'))
 
   const areaVal =
-    text(formData, 'area') ||
-    text(formData, 'location') ||
-    parsedDocuments.__unit_meta?.area ||
-    null
+    (text(formData, 'area') || text(formData, 'location') || existingMeta.area || '')
+      .slice(0, 140) || null
   const locationDisplayVal =
-    text(formData, 'location_display') ||
-    text(formData, 'locationDisplay') ||
-    parsedDocuments.__unit_meta?.location_display ||
-    null
+    (
+      text(formData, 'location_display') ||
+      text(formData, 'locationDisplay') ||
+      existingMeta.location_display ||
+      ''
+    ).slice(0, 180) || null
 
   const { cityKey, districtKey, locationDisplay } =
     extractCanonicalCityAndDistrict(areaVal, locationDisplayVal)
 
   const exactStreetVal =
-    text(formData, 'exact_street') || text(formData, 'exactStreet') || null
+    (
+      text(formData, 'exact_street') ||
+      text(formData, 'exactStreet') ||
+      ''
+    ).slice(0, 180) || null
   const houseNumberVal =
-    text(formData, 'house_number') || text(formData, 'houseNumber') || null
+    (
+      text(formData, 'house_number') ||
+      text(formData, 'houseNumber') ||
+      ''
+    ).slice(0, 40) || null
   const cadastralCodeVal =
-    text(formData, 'cadastral_code') || text(formData, 'cadastralCode') || null
+    (
+      text(formData, 'cadastral_code') ||
+      text(formData, 'cadastralCode') ||
+      ''
+    ).slice(0, 80) || null
   const hideCadastralVal =
     formData.get('hide_cadastral') === 'on' ||
     formData.get('hide_cadastral') === 'true' ||
@@ -274,15 +359,9 @@ export function buildUnitPayloadWithMetaBackup(
     formData.get('hideCadastral') === 'true'
 
   const latVal =
-    safeNum(formData.get('lat'), null) ??
-    parsedDocuments.__unit_meta?.lat ??
-    existingMeta.lat ??
-    null
+    safeNum(formData.get('lat'), null) ?? existingMeta.lat ?? null
   const lngVal =
-    safeNum(formData.get('lng'), null) ??
-    parsedDocuments.__unit_meta?.lng ??
-    existingMeta.lng ??
-    null
+    safeNum(formData.get('lng'), null) ?? existingMeta.lng ?? null
 
   const rawDeveloper =
     text(formData, 'developer_name') || text(formData, 'developer')
@@ -294,11 +373,12 @@ export function buildUnitPayloadWithMetaBackup(
   ]
   const developerNameVal =
     rawDeveloper && !invalidDevNames.includes(rawDeveloper.trim().toLowerCase())
-      ? rawDeveloper.trim()
+      ? rawDeveloper.trim().slice(0, 140)
       : null
 
-  const videoUrlVal = text(formData, 'video_url') || null
-  const tour3dUrlVal = text(formData, 'tour_3d_url') || null
+  // فحص الروابط لمنع حقن javascript: XSS
+  const videoUrlVal = sanitizeSafeHttpUrl(text(formData, 'video_url'))
+  const tour3dUrlVal = sanitizeSafeHttpUrl(text(formData, 'tour_3d_url'))
   const allowOnlineViewingVal =
     formData.get('allow_online_viewing') === 'on' ||
     formData.get('allow_online_viewing') === 'true'
@@ -310,22 +390,32 @@ export function buildUnitPayloadWithMetaBackup(
     formData.get('exchange_possible') === 'true'
   const isExclusiveVal = false
 
-  const unitTypeVal = text(formData, 'unit_type') || null
-  const contractMonthVal = text(formData, 'contract_month') || null
+  const unitTypeVal = text(formData, 'unit_type').slice(0, 80) || null
+  const contractMonthVal = text(formData, 'contract_month').slice(0, 10) || null
   const contractYearVal = safeInt(formData.get('contract_year'))
-  const yearsLeftVal = safeInt(formData.get('years_left')) ?? 0
-  const instAmountVal = safeNum(formData.get('installment_amount'), 0) ?? 0
-  const instFreqVal = text(formData, 'installment_frequency') || null
-  const featuresList = list(formData, 'feature')
-  const messengersList = list(formData, 'contact_messenger')
+  const yearsLeftVal = Math.max(0, safeInt(formData.get('years_left')) ?? 0)
+  const instAmountVal = Math.max(
+    0,
+    safeNum(formData.get('installment_amount'), 0) ?? 0
+  )
+  const instFreqVal =
+    text(formData, 'installment_frequency').slice(0, 40) || null
+  const featuresList = list(formData, 'feature').slice(0, 60)
+  const messengersList = list(formData, 'contact_messenger').slice(0, 5)
 
-  const rentPriceVal = safeNum(formData.get('rent_price'), 0) ?? 0
+  const rentPriceVal = Math.max(0, safeNum(formData.get('rent_price'), 0) ?? 0)
   const rentPeriodVal =
-    text(formData, 'rent_period') ||
+    text(formData, 'rent_period').slice(0, 20) ||
     (listingCategoryVal === 'rent_daily' ? 'daily' : 'monthly')
 
-  const rawContractPrice = safeNum(formData.get('contract_price'), 0) ?? 0
-  const rawPaidAmount = safeNum(formData.get('paid_amount'), 0) ?? 0
+  const rawContractPrice = Math.max(
+    0,
+    safeNum(formData.get('contract_price'), 0) ?? 0
+  )
+  const rawPaidAmount = Math.max(
+    0,
+    safeNum(formData.get('paid_amount'), 0) ?? 0
+  )
 
   const effectiveContractPrice = isRent
     ? rentPriceVal || rawPaidAmount || rawContractPrice
@@ -339,24 +429,25 @@ export function buildUnitPayloadWithMetaBackup(
   const pricePerSqmVal =
     sizeVal > 0 && effectiveContractPrice > 0
       ? Math.round(effectiveContractPrice / sizeVal)
-      : safeNum(formData.get('price_per_sqm'), 0) ?? 0
+      : Math.max(0, safeNum(formData.get('price_per_sqm'), 0) ?? 0)
 
   const deliveryMonthResolved =
-    text(formData, 'delivery_month') || parsedDel.deliveryMonth || null
+    text(formData, 'delivery_month').slice(0, 10) ||
+    parsedDel.deliveryMonth ||
+    null
   const deliveryYearResolved =
     safeInt(formData.get('delivery_year')) || parsedDel.deliveryYear || null
 
   const imagesList = list(formData, 'image')
+    .map((img) => sanitizeSafeHttpUrl(img))
+    .filter((u): u is string => Boolean(u))
+    .slice(0, 25)
 
   const finalCachedPlaces =
-    preFetchedNearbyPlaces ||
-    parsedDocuments.__unit_meta?.cached_nearby_places_v5 ||
-    existingMeta.cached_nearby_places_v5 ||
-    null
+    preFetchedNearbyPlaces || existingMeta.cached_nearby_places_v5 || null
 
   parsedDocuments.__unit_meta = {
     ...existingMeta,
-    ...(parsedDocuments.__unit_meta || {}),
     code: officialCode,
     listing_category: listingCategoryVal,
     rent_price: isRent ? effectivePaidAmount : rentPriceVal,
@@ -426,7 +517,8 @@ export function buildUnitPayloadWithMetaBackup(
     code: officialCode,
     country: ACTIVE_COUNTRY_CODE,
     country_code: ACTIVE_COUNTRY_CODE,
-    currency_code: text(formData, 'currency_code') || ACTIVE_CURRENCY_CODE,
+    currency_code:
+      text(formData, 'currency_code').slice(0, 10) || ACTIVE_CURRENCY_CODE,
     listing_category: listingCategoryVal,
     rent_price: isRent ? effectivePaidAmount : rentPriceVal,
     rent_period: rentPeriodVal,
@@ -457,7 +549,10 @@ export function buildUnitPayloadWithMetaBackup(
       messengersList.length > 0 ? messengersList : ['whatsapp'],
     developer_name: developerNameVal,
     project_name:
-      text(formData, 'project_name') || text(formData, 'project') || null,
+      (text(formData, 'project_name') || text(formData, 'project')).slice(
+        0,
+        180
+      ) || null,
     area: areaVal,
     unit_type: unitTypeVal,
     size: sizeVal,
@@ -470,7 +565,7 @@ export function buildUnitPayloadWithMetaBackup(
     delivery_month: deliveryMonthResolved,
     delivery_year: deliveryYearResolved,
     features: featuresList,
-    description: text(formData, 'description') || null,
+    description: text(formData, 'description').slice(0, 5000) || null,
     contract_price: effectiveContractPrice,
     paid_amount: effectivePaidAmount,
     market_price:
@@ -483,18 +578,27 @@ export function buildUnitPayloadWithMetaBackup(
     years_left: isRent ? 0 : yearsLeftVal,
     has_annual_installment:
       !isRent && formData.get('has_annual_installment') === 'on',
-    annual_installment_amount:
-      safeNum(formData.get('annual_installment_amount'), 0) ?? 0,
+    annual_installment_amount: Math.max(
+      0,
+      safeNum(formData.get('annual_installment_amount'), 0) ?? 0
+    ),
     willing_to_discount:
       formData.get('willing_to_discount') === 'on' ||
       formData.get('willing_to_discount') === 'true',
-    discount_amount: safeNum(formData.get('discount_amount'), 0) ?? 0,
+    discount_amount: Math.max(
+      0,
+      safeNum(formData.get('discount_amount'), 0) ?? 0
+    ),
     has_overdue_installments:
       !isRent && formData.get('has_overdue_installments') === 'on',
-    overdue_installments:
-      safeNum(formData.get('overdue_installments'), 0) ?? 0,
-    overdue_total_amount:
-      safeNum(formData.get('overdue_total_amount'), 0) ?? 0,
+    overdue_installments: Math.max(
+      0,
+      safeNum(formData.get('overdue_installments'), 0) ?? 0
+    ),
+    overdue_total_amount: Math.max(
+      0,
+      safeNum(formData.get('overdue_total_amount'), 0) ?? 0
+    ),
     images: imagesList,
     documents: parsedDocuments,
   }

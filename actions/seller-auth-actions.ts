@@ -1,7 +1,7 @@
 'use server'
 
 import { cookies } from 'next/headers'
-import { createHmac, timingSafeEqual } from 'node:crypto'
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import {
   ACTIVE_COUNTRY_CODE,
@@ -41,6 +41,58 @@ export type Step2AuthResponse = {
   error?: string
 }
 
+function isStaffRole(role?: string | null): boolean {
+  const clean = String(role || 'user').trim().toLowerCase()
+  return (
+    clean === 'owner' ||
+    clean === 'admin' ||
+    clean === 'moderator' ||
+    clean === 'sales'
+  )
+}
+
+function isSuspendedStatus(status?: string | null): boolean {
+  return String(status || 'active').trim().toLowerCase() === 'suspended'
+}
+
+// مقبض مؤقت موقّع (15 دقيقة) لطلب رابط الاستعادة بدون كشف UUID أو إيميل الضحية
+function createSignedRecoveryHandle(userId: string): string {
+  const expiresAt = Date.now() + 15 * 60 * 1000
+  const payload = `${userId}:${expiresAt}`
+  const sig = createHmac('sha256', getSecret())
+    .update(`rec_handle:${payload}`)
+    .digest('hex')
+    .slice(0, 32)
+  const encoded = Buffer.from(`${payload}:${sig}`, 'utf8').toString('base64url')
+  return `rh.${encoded}`
+}
+
+function parseSignedRecoveryHandle(handle?: string | null): string | null {
+  try {
+    const raw = String(handle || '').trim()
+    if (!raw.startsWith('rh.')) return null
+    const decoded = Buffer.from(raw.slice(3), 'base64url').toString('utf8')
+    const [userId, expStr, sig] = decoded.split(':')
+    const exp = Number(expStr)
+    if (!userId || !exp || !sig || Date.now() > exp) return null
+
+    const expectedSig = createHmac('sha256', getSecret())
+      .update(`rec_handle:${userId}:${exp}`)
+      .digest('hex')
+      .slice(0, 32)
+
+    if (
+      sig.length !== expectedSig.length ||
+      !timingSafeEqual(Buffer.from(sig), Buffer.from(expectedSig))
+    ) {
+      return null
+    }
+    return userId
+  } catch {
+    return null
+  }
+}
+
 export async function getUsersVerificationMapAction(
   userIds?: string[]
 ): Promise<
@@ -48,6 +100,12 @@ export async function getUsersVerificationMapAction(
 > {
   try {
     const supabase = await getSupabase()
+    const sessionUser = await getVerifiedSellerSession(supabase)
+    if (!sessionUser) return {}
+
+    const staff = isStaffRole(sessionUser.role)
+    const allowedIds = staff ? userIds : [String(sessionUser.id)]
+
     const result: Record<
       string,
       { emailVerified: boolean; phoneVerified: boolean }
@@ -56,8 +114,8 @@ export async function getUsersVerificationMapAction(
     let usersQuery = supabase
       .from('users')
       .select('id, is_verified, phone_verified')
-    if (userIds && userIds.length > 0) {
-      usersQuery = usersQuery.in('id', userIds)
+    if (allowedIds && allowedIds.length > 0) {
+      usersQuery = usersQuery.in('id', allowedIds)
     }
     const { data: usersData, error: uErr } = await usersQuery
 
@@ -70,8 +128,8 @@ export async function getUsersVerificationMapAction(
       }
     } else {
       let fallbackQuery = supabase.from('users').select('id, is_verified')
-      if (userIds && userIds.length > 0) {
-        fallbackQuery = fallbackQuery.in('id', userIds)
+      if (allowedIds && allowedIds.length > 0) {
+        fallbackQuery = fallbackQuery.in('id', allowedIds)
       }
       const { data: fbUsers } = await fallbackQuery
       for (const u of fbUsers || []) {
@@ -86,8 +144,8 @@ export async function getUsersVerificationMapAction(
       .from('notifications')
       .select('user_id, message')
       .eq('title', '__USER_VERIFICATION_META__')
-    if (userIds && userIds.length > 0) {
-      notifQuery = notifQuery.in('user_id', userIds)
+    if (allowedIds && allowedIds.length > 0) {
+      notifQuery = notifQuery.in('user_id', allowedIds)
     }
     const { data: notifData } = await notifQuery
 
@@ -126,16 +184,7 @@ export async function markUserPhoneVerifiedAction(payload: {
       return { success: false, error: msg.unauthorized || msg.sessionExpired }
     }
 
-    const role = String(currentSessionUser.role || 'user')
-      .trim()
-      .toLowerCase()
-    const isStaff =
-      role === 'owner' ||
-      role === 'admin' ||
-      role === 'moderator' ||
-      role === 'sales'
-
-    if (!isStaff) {
+    if (!isStaffRole(currentSessionUser.role)) {
       return {
         success: false,
         error: msg.onlyAdminCanVerifyPhone || msg.unauthorized,
@@ -194,7 +243,7 @@ export async function markUserPhoneVerifiedAction(payload: {
   }
 }
 
-export async function sendSellerReviewOtpAction(payload?: {
+export async function sendSellerReviewOtpAction(_payload?: {
   email?: string
   unitId?: string
   userId?: string
@@ -202,22 +251,14 @@ export async function sendSellerReviewOtpAction(payload?: {
   const { t: msg, dir } = await getFormsDict()
   try {
     const supabase = await getSupabase()
+    // إلزام وجود جلسة موقّعة وإرسال الكود لإيميل صاحب الجلسة فقط
     const sessionUser = await getVerifiedSellerSession(supabase)
 
-    let targetUser = sessionUser
-    if (!targetUser && payload?.userId) {
-      const { data: u } = await supabase
-        .from('users')
-        .select('id, name, email')
-        .eq('id', payload.userId)
-        .maybeSingle()
-      targetUser = u
+    if (!sessionUser) {
+      return { success: false, error: msg.sessionExpired }
     }
 
-    const targetEmail = normalizeEmail(
-      payload?.email || targetUser?.email || ''
-    )
-
+    const targetEmail = normalizeEmail(sessionUser.email || '')
     if (!targetEmail) {
       return { success: false, error: msg.emailNotFound }
     }
@@ -229,7 +270,7 @@ export async function sendSellerReviewOtpAction(payload?: {
     const cookieStore = await cookies()
     const isProd = process.env.NODE_ENV === 'production'
     const sig = createHmac('sha256', getSecret())
-      .update(`${targetEmail}:${otp}:${expiresAt}`)
+      .update(`${sessionUser.id}:${targetEmail}:${otp}:${expiresAt}`)
       .digest('hex')
 
     cookieStore.set('sell_verify_otp', `${expiresAt}.${sig}`, {
@@ -240,15 +281,12 @@ export async function sendSellerReviewOtpAction(payload?: {
       httpOnly: true,
     })
 
-    const activeUserId = targetUser?.id || payload?.userId
-    if (activeUserId) {
-      try {
-        await supabase
-          .from('users')
-          .update({ otp_code: otp, otp_expiry: expiryIso })
-          .eq('id', activeUserId)
-      } catch {}
-    }
+    try {
+      await supabase
+        .from('users')
+        .update({ otp_code: otp, otp_expiry: expiryIso })
+        .eq('id', sessionUser.id)
+    } catch {}
 
     const comma = dir === 'rtl' ? '،' : ','
 
@@ -257,7 +295,7 @@ export async function sendSellerReviewOtpAction(payload?: {
       senderName: msg.emailSenderName,
       subject: `${otp} — ${msg.otpSubjectPrefix} ${otp}`,
       html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.8; color: #0a1122;">
-               <p style="font-size: 15px;">${msg.greetingWord} <strong>${targetUser?.name || ''}</strong>${comma}</p>
+               <p style="font-size: 15px;">${msg.greetingWord} <strong>${sessionUser.name || ''}</strong>${comma}</p>
                <p>${msg.otpSubjectPrefix}</p>
                <div style="background: #eaf8f2; border: 1px solid #aae3cb; padding: 16px; border-radius: 12px; text-align: center; margin: 18px 0;">
                  <span style="font-family: monospace; font-size: 30px; font-weight: 900; letter-spacing: 6px; color: #007a5a;">${otp}</span>
@@ -284,12 +322,14 @@ export async function verifySellerReviewOtpAction(payload: {
   const { t: msg } = await getFormsDict()
   try {
     const supabase = await getSupabase()
+    // إلزام وجود جلسة موقّعة وتوثيق صاحب الجلسة فقط
     const sessionUser = await getVerifiedSellerSession(supabase)
-    const activeUserId = sessionUser?.id || payload.userId || ''
+    if (!sessionUser) {
+      return { success: false, error: msg.sessionExpired }
+    }
 
-    const targetEmail = normalizeEmail(
-      payload.email || sessionUser?.email || ''
-    )
+    const activeUserId = String(sessionUser.id)
+    const targetEmail = normalizeEmail(sessionUser.email || '')
     const cleanOtp = normalizeDigits(payload.otp || '').replace(/\D/g, '')
 
     if (!targetEmail || cleanOtp.length !== 6) {
@@ -305,7 +345,7 @@ export async function verifySellerReviewOtpAction(payload: {
       const exp = Number(expStr)
       if (exp && Date.now() <= exp) {
         const expectedSig = createHmac('sha256', getSecret())
-          .update(`${targetEmail}:${cleanOtp}:${exp}`)
+          .update(`${activeUserId}:${targetEmail}:${cleanOtp}:${exp}`)
           .digest('hex')
         if (
           sig.length === expectedSig.length &&
@@ -316,17 +356,19 @@ export async function verifySellerReviewOtpAction(payload: {
       }
     }
 
-    if (!isValid && activeUserId) {
+    if (!isValid) {
       const { data: dbUser } = await supabase
         .from('users')
         .select('otp_code, otp_expiry')
         .eq('id', activeUserId)
         .maybeSingle()
 
+      const storedOtp = String(dbUser?.otp_code || '').trim()
       if (
-        dbUser?.otp_code &&
-        String(dbUser.otp_code).trim() === cleanOtp &&
-        (!dbUser.otp_expiry || new Date(dbUser.otp_expiry) >= new Date())
+        storedOtp.length === 6 &&
+        dbUser?.otp_expiry &&
+        new Date(dbUser.otp_expiry) >= new Date() &&
+        timingSafeEqual(Buffer.from(storedOtp), Buffer.from(cleanOtp))
       ) {
         isValid = true
       }
@@ -338,26 +380,26 @@ export async function verifySellerReviewOtpAction(payload: {
 
     cookieStore.delete('sell_verify_otp')
 
-    if (activeUserId) {
-      try {
-        await supabase
-          .from('users')
-          .update({ is_verified: true, otp_code: null })
-          .eq('id', activeUserId)
-      } catch {}
+    try {
+      await supabase
+        .from('users')
+        .update({ is_verified: true, otp_code: null, otp_expiry: null })
+        .eq('id', activeUserId)
+    } catch {}
 
-      await upsertUserVerificationMeta(supabase, activeUserId, {
-        emailVerified: true,
-      })
-    }
+    await upsertUserVerificationMeta(supabase, activeUserId, {
+      emailVerified: true,
+    })
 
     if (payload.unitId) {
       try {
         const { data: unit } = await supabase
           .from('sell_requests')
-          .select('documents')
+          .select('id, user_id, documents')
           .eq('id', payload.unitId)
+          .eq('user_id', activeUserId)
           .maybeSingle()
+
         if (unit) {
           const docs =
             unit.documents && typeof unit.documents === 'object'
@@ -371,6 +413,7 @@ export async function verifySellerReviewOtpAction(payload: {
             .from('sell_requests')
             .update({ documents: docs })
             .eq('id', payload.unitId)
+            .eq('user_id', activeUserId)
         }
       } catch {}
     }
@@ -408,12 +451,6 @@ export async function verifyMagicTokenAction(token: string) {
     }
 
     const supabase = await getSupabase()
-    const { data: unit } = await supabase
-      .from('sell_requests')
-      .select('*')
-      .eq('id', unitId)
-      .eq('user_id', userId)
-      .maybeSingle()
 
     const { data: userRow } = await supabase
       .from('users')
@@ -421,12 +458,23 @@ export async function verifyMagicTokenAction(token: string) {
       .eq('id', userId)
       .maybeSingle()
 
-    if (
-      !userRow ||
-      !unit ||
-      String(userRow.status || 'active').trim().toLowerCase() === 'suspended'
-    ) {
+    if (!userRow || isSuspendedStatus(userRow.status)) {
       return { valid: false, error: msg.invalidLink }
+    }
+
+    let unit: any = null
+    if (unitId) {
+      const { data: unitRow } = await supabase
+        .from('sell_requests')
+        .select('*')
+        .eq('id', unitId)
+        .eq('user_id', userId)
+        .maybeSingle()
+
+      if (!unitRow) {
+        return { valid: false, error: msg.invalidLink }
+      }
+      unit = unitRow
     }
 
     try {
@@ -440,7 +488,7 @@ export async function verifyMagicTokenAction(token: string) {
       emailVerified: true,
     })
 
-    await setUserSession(userId, userRow?.password_hash)
+    await setUserSession(userId, userRow.password_hash)
 
     return {
       valid: true,
@@ -535,7 +583,7 @@ export async function processSellerStep2Action(payload: {
     const activeMessengers =
       Array.isArray(payload.contactMessengers) &&
       payload.contactMessengers.length > 0
-        ? payload.contactMessengers
+        ? payload.contactMessengers.slice(0, 5)
         : ['whatsapp']
 
     const invalidDevNames = [
@@ -547,19 +595,29 @@ export async function processSellerStep2Action(payload: {
     const cleanDeveloper =
       payload.developer &&
       !invalidDevNames.includes(payload.developer.trim().toLowerCase())
-        ? payload.developer.trim()
+        ? payload.developer.trim().slice(0, 140)
         : null
 
     async function syncUserMessengersAndPhone(
       userId: string,
+      currentPhone?: string | null,
       newPhone?: string
     ) {
       try {
         const userUpdates: Record<string, any> = {
           contact_messengers: activeMessengers,
         }
-        if (newPhone && newPhone.trim().length >= 8) {
-          userUpdates.phone = formatPrimaryPhone(newPhone)
+        if (!currentPhone && newPhone && newPhone.trim().length >= 8) {
+          const formatted = formatPrimaryPhone(newPhone)
+          const { data: phoneConflict } = await supabase
+            .from('users')
+            .select('id')
+            .eq('phone', formatted)
+            .neq('id', userId)
+            .limit(1)
+          if (!phoneConflict || phoneConflict.length === 0) {
+            userUpdates.phone = formatted
+          }
         }
         await supabase.from('users').update(userUpdates).eq('id', userId)
       } catch {}
@@ -567,16 +625,25 @@ export async function processSellerStep2Action(payload: {
 
     async function upsertDraftUnit(
       userId: string,
-      contact: { name: string; phone: string; email: string }
+      contact: {
+        name: string
+        phone: string
+        email: string
+        currentPhone?: string | null
+      }
     ) {
-      await syncUserMessengersAndPhone(userId, contact.phone)
+      await syncUserMessengersAndPhone(
+        userId,
+        contact.currentPhone,
+        contact.phone
+      )
 
       const effectivePaid = isRent
-        ? Number(payload.rentPrice || payload.paidAmount) || 0
-        : Number(payload.paidAmount || payload.contractPrice) || 0
+        ? Math.max(0, Number(payload.rentPrice || payload.paidAmount) || 0)
+        : Math.max(0, Number(payload.paidAmount || payload.contractPrice) || 0)
       const effectiveContract = isRent
         ? effectivePaid
-        : Number(payload.contractPrice || payload.paidAmount) || 0
+        : Math.max(0, Number(payload.contractPrice || payload.paidAmount) || 0)
 
       const generatedCode = generateOfficialUnitCode()
 
@@ -595,15 +662,16 @@ export async function processSellerStep2Action(payload: {
           payload.rentPeriod ||
           (listingCategory === 'rent_daily' ? 'daily' : 'monthly'),
         developer_name: cleanDeveloper,
-        project_name: payload.project || null,
+        project_name: payload.project ? payload.project.slice(0, 180) : null,
         contract_price: effectiveContract,
         paid_amount: effectivePaid,
-        market_price: Number(payload.marketPrice) || effectiveContract,
+        market_price:
+          Math.max(0, Number(payload.marketPrice) || 0) || effectiveContract,
         name: contact.name || msg.unitOwnerFallback,
         phone: contact.phone,
         email: contact.email || null,
         is_original_owner: true,
-        status: 'pending',
+        status: 'draft_unverified',
         submission_type: 'draft',
         documents: {
           __unit_meta: {
@@ -623,12 +691,13 @@ export async function processSellerStep2Action(payload: {
       if (payload.existingUnitId) {
         const { data: existingRow } = await supabase
           .from('sell_requests')
-          .select('id, code, user_id, documents')
+          .select('id, code, user_id, status, documents')
           .eq('id', payload.existingUnitId)
           .maybeSingle()
 
         if (existingRow && existingRow.user_id === userId) {
           unitData.code = existingRow.code || generatedCode
+          unitData.status = existingRow.status || 'pending'
           unitData.documents = {
             ...(existingRow.documents || {}),
             __unit_meta: {
@@ -721,6 +790,7 @@ export async function processSellerStep2Action(payload: {
         name: payload.name || currentUser.name || msg.unitOwnerFallback,
         phone: resolvedPhone,
         email: currentUser.email || '',
+        currentPhone: currentUser.phone,
       })
 
       const orderRef = generateOrderRef(unitId)
@@ -780,11 +850,16 @@ export async function processSellerStep2Action(payload: {
         return { status: 'error', error: msg.wrongPassword }
       }
 
+      if (isSuspendedStatus(matched.status)) {
+        return { status: 'error', error: msg.unauthorized || msg.wrongPassword }
+      }
+
       await setUserSession(matched.id, matched.password_hash)
       const unitId = await upsertDraftUnit(matched.id, {
         name: matched.name || msg.unitOwnerFallback,
         phone: matched.phone || '',
         email: matched.email || '',
+        currentPhone: matched.phone,
       })
 
       const orderRef = generateOrderRef(unitId)
@@ -809,7 +884,7 @@ export async function processSellerStep2Action(payload: {
       }
     }
 
-    const cleanName = (payload.name || '').trim()
+    const cleanName = (payload.name || '').trim().slice(0, 120)
     const cleanEmail = normalizeEmail(payload.email || '')
     const formattedPhone = formatPrimaryPhone(payload.phone || '')
     const phoneVariants = getPhoneVariants(payload.phone || '')
@@ -822,12 +897,12 @@ export async function processSellerStep2Action(payload: {
     const [{ data: emailMatches }, { data: phoneMatches }] = await Promise.all([
       supabase
         .from('users')
-        .select('id, name, phone, email, password_hash, is_verified')
+        .select('id, name, phone, email, password_hash, status, is_verified')
         .ilike('email', cleanEmail)
         .limit(1),
       supabase
         .from('users')
-        .select('id, name, phone, email, password_hash, is_verified')
+        .select('id, name, phone, email, password_hash, status, is_verified')
         .in('phone', phoneVariants)
         .limit(1),
     ])
@@ -836,12 +911,16 @@ export async function processSellerStep2Action(payload: {
     const phoneUser = phoneMatches?.[0] || null
 
     if (emailUser) {
+      if (isSuspendedStatus(emailUser.status)) {
+        return { status: 'error', error: msg.unauthorized || msg.wrongPassword }
+      }
       if (verifyPassword(password, emailUser.password_hash)) {
         await setUserSession(emailUser.id, emailUser.password_hash)
         const unitId = await upsertDraftUnit(emailUser.id, {
           name: emailUser.name || cleanName,
           phone: emailUser.phone || formattedPhone,
           email: emailUser.email,
+          currentPhone: emailUser.phone,
         })
         return {
           status: 'ok',
@@ -855,23 +934,27 @@ export async function processSellerStep2Action(payload: {
         }
       }
 
+      // عدم كشف اسم أو UUID صاحب الحساب — نعيد فقط الإيميل الذي أدخله المستخدم ومقبض استعادة موقّع
       return {
         status: 'email_exists_need_password',
-        userId: emailUser.id,
+        userId: createSignedRecoveryHandle(emailUser.id),
         unitId: '',
-        orderRef: 'AE-VERIFY',
-        userEmail: emailUser.email,
-        userName: emailUser.name,
+        orderRef: 'DD-VERIFY',
+        userEmail: cleanEmail,
       }
     }
 
     if (phoneUser && !emailUser) {
+      if (isSuspendedStatus(phoneUser.status)) {
+        return { status: 'error', error: msg.unauthorized || msg.wrongPassword }
+      }
       if (verifyPassword(password, phoneUser.password_hash)) {
         await setUserSession(phoneUser.id, phoneUser.password_hash)
         const unitId = await upsertDraftUnit(phoneUser.id, {
           name: phoneUser.name || cleanName,
           phone: phoneUser.phone,
           email: phoneUser.email,
+          currentPhone: phoneUser.phone,
         })
         return {
           status: 'ok',
@@ -885,13 +968,12 @@ export async function processSellerStep2Action(payload: {
         }
       }
 
+      // عدم كشف بريد أو رقم صاحب الحساب عند وجود تعارض
       return {
         status: 'phone_exists_different_email',
-        userId: phoneUser.id,
+        userId: createSignedRecoveryHandle(phoneUser.id),
         unitId: '',
-        orderRef: 'AE-VERIFY',
-        userEmail: phoneUser.email,
-        userPhone: phoneUser.phone,
+        orderRef: 'DD-VERIFY',
       }
     }
 
@@ -934,6 +1016,7 @@ export async function processSellerStep2Action(payload: {
       name: cleanName,
       phone: formattedPhone,
       email: cleanEmail,
+      currentPhone: formattedPhone,
     })
     const orderRef = generateOrderRef(unitId)
 
@@ -970,7 +1053,7 @@ export async function verifyExistingEmailPasswordAction(payload: {
     const cleanEmail = normalizeEmail(payload.email)
     const { data: users } = await supabase
       .from('users')
-      .select('id, name, email, phone, password_hash, is_verified')
+      .select('id, name, email, phone, password_hash, status, is_verified')
       .ilike('email', cleanEmail)
 
     const matched = (users || []).find((u) =>
@@ -979,6 +1062,10 @@ export async function verifyExistingEmailPasswordAction(payload: {
 
     if (!matched) {
       return { success: false, error: msg.wrongPassword }
+    }
+
+    if (isSuspendedStatus(matched.status)) {
+      return { success: false, error: msg.unauthorized || msg.wrongPassword }
     }
 
     await setUserSession(matched.id, matched.password_hash)
@@ -1007,38 +1094,55 @@ export async function sendSellerRecoveryLinkAction(payload: {
     const supabase = await getSupabase()
     let targetUser: any = null
 
-    if (payload.userId) {
+    const verifiedHandleUserId = parseSignedRecoveryHandle(payload.userId)
+    if (verifiedHandleUserId) {
       const { data } = await supabase
         .from('users')
-        .select('id, name, email')
-        .eq('id', payload.userId)
+        .select('id, name, email, status, otp_expiry')
+        .eq('id', verifiedHandleUserId)
         .maybeSingle()
       targetUser = data
     } else if (payload.email) {
-      const { data } = await supabase
-        .from('users')
-        .select('id, name, email')
-        .ilike('email', normalizeEmail(payload.email))
-        .limit(1)
-      targetUser = data?.[0]
+      const cleanEmail = normalizeEmail(payload.email)
+      if (cleanEmail) {
+        const { data } = await supabase
+          .from('users')
+          .select('id, name, email, status, otp_expiry')
+          .ilike('email', cleanEmail)
+          .limit(1)
+        targetUser = data?.[0]
+      }
     }
 
-    if (!targetUser || !targetUser.email) {
+    if (
+      !targetUser ||
+      !targetUser.email ||
+      isSuspendedStatus(targetUser.status)
+    ) {
       return { success: false, error: msg.emailNotFound }
     }
 
+    // حماية من تكرار الإرسال السريع (Cooldown لمدة 60 ثانية)
+    if (targetUser.otp_expiry) {
+      const remainingMs = new Date(targetUser.otp_expiry).getTime() - Date.now()
+      if (remainingMs > 59 * 60 * 1000) {
+        return { success: true }
+      }
+    }
+
     const siteUrl = DEFAULT_SITE_URL
-    const expiresAt = Date.now() + 60 * 60 * 1000
-    const tokenHash = createMagicToken(
-      targetUser.id,
-      payload.unitId || '',
-      expiresAt
-    )
+    const oneTimeToken = randomBytes(24).toString('hex')
+    const expiryIso = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+
+    await supabase
+      .from('users')
+      .update({ otp_code: oneTimeToken, otp_expiry: expiryIso })
+      .eq('id', targetUser.id)
 
     const nextUrl = payload.unitId
-      ? `/sell?magic=${encodeURIComponent(tokenHash)}`
+      ? `/sell?editUnitId=${encodeURIComponent(payload.unitId)}`
       : '/account'
-    const resetLink = `${siteUrl}/set-password?token_hash=${encodeURIComponent(tokenHash)}&next=${encodeURIComponent(nextUrl)}`
+    const resetLink = `${siteUrl}/set-password?token_hash=${encodeURIComponent(oneTimeToken)}&next=${encodeURIComponent(nextUrl)}`
 
     await sendNotificationEmail({
       to: targetUser.email,
@@ -1068,35 +1172,81 @@ export async function setNewPasswordFromTokenAction(payload: {
       return { success: false, error: msg.shortPassword }
     }
 
-    const verify = await verifyMagicTokenAction(payload.tokenHash)
-    if (!verify.valid || !verify.userId) {
-      return {
-        success: false,
-        error: verify.error || msg.expiredLink,
-      }
+    const cleanToken = String(payload.tokenHash || '').trim()
+    if (cleanToken.length < 32) {
+      return { success: false, error: msg.invalidLink }
     }
 
     const supabase = await getSupabase()
+    let targetUserId = ''
+    let resolvedUnitId = ''
+
+    // 1. التحقق من التوكن أحادي الاستخدام المخزّن في قاعدة البيانات (استعادة كلمة المرور أو تفعيل حساب ضيف)
+    if (/^[0-9a-fA-F]{48}$/.test(cleanToken)) {
+      const { data: userByToken } = await supabase
+        .from('users')
+        .select('id, status, otp_code, otp_expiry')
+        .eq('otp_code', cleanToken)
+        .maybeSingle()
+
+      if (
+        !userByToken ||
+        isSuspendedStatus(userByToken.status) ||
+        !userByToken.otp_expiry ||
+        new Date(userByToken.otp_expiry) < new Date()
+      ) {
+        return { success: false, error: msg.expiredLink }
+      }
+
+      const stored = String(userByToken.otp_code || '')
+      if (
+        stored.length !== cleanToken.length ||
+        !timingSafeEqual(Buffer.from(stored), Buffer.from(cleanToken))
+      ) {
+        return { success: false, error: msg.invalidLink }
+      }
+
+      targetUserId = String(userByToken.id)
+    } else {
+      // 2. توافق مع الروابط القديمة الموقّعة
+      const verify = await verifyMagicTokenAction(cleanToken)
+      if (!verify.valid || !verify.userId) {
+        return {
+          success: false,
+          error: verify.error || msg.expiredLink,
+        }
+      }
+      targetUserId = verify.userId
+      resolvedUnitId = verify.unitId || ''
+    }
+
     const newHash = hashPassword(payload.newPassword)
 
+    // حذف التوكن فوراً بعد الاستخدام لمنع إعادة استخدام الرابط (Replay)
     const { error } = await supabase
       .from('users')
-      .update({ password_hash: newHash, is_verified: true, status: 'active' })
-      .eq('id', verify.userId)
+      .update({
+        password_hash: newHash,
+        is_verified: true,
+        status: 'active',
+        otp_code: null,
+        otp_expiry: null,
+      })
+      .eq('id', targetUserId)
 
     if (error) {
       return { success: false, error: msg.updatePassFailed }
     }
 
-    await upsertUserVerificationMeta(supabase, verify.userId, {
+    await upsertUserVerificationMeta(supabase, targetUserId, {
       emailVerified: true,
     })
 
-    await setUserSession(verify.userId, newHash)
+    await setUserSession(targetUserId, newHash)
 
     return {
       success: true,
-      unitId: verify.unitId,
+      unitId: resolvedUnitId,
     }
   } catch {
     return { success: false, error: msg.unexpected }

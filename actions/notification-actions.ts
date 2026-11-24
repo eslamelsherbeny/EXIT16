@@ -3,7 +3,10 @@
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import { revalidatePath } from "next/cache"
-import { extractUserIdFromCookie } from "@/lib/session-security"
+import {
+  extractUserIdFromCookie,
+  parseAndVerifySessionCookie,
+} from "@/lib/session-security"
 import { getServerI18n } from "@/lib/get-server-dictionary"
 import arDict from "@/dictionaries/ar.json"
 import enDict from "@/dictionaries/en.json"
@@ -11,16 +14,52 @@ import ruDict from "@/dictionaries/ru.json"
 import kaDict from "@/dictionaries/ka.json"
 
 const ALL_DICTS = [arDict, enDict, ruDict, kaDict] as Record<string, any>[]
+const RESERVED_SYSTEM_TITLES = new Set([
+  "__GLOBAL_SITE_CONFIG__",
+  "__USER_VERIFICATION_META__",
+])
 
 async function getSupabase() {
   const cookieStore = await cookies()
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} },
     }
   )
+}
+
+async function getVerifiedNotifSession(supabase: any) {
+  const cookieStore = await cookies()
+  const rawSession = cookieStore.get("user_session")?.value
+  const candidateId = extractUserIdFromCookie(rawSession)
+
+  if (!rawSession || !candidateId) return null
+
+  const { data: user } = await supabase
+    .from("users")
+    .select("id, role, status, password_hash")
+    .eq("id", candidateId)
+    .maybeSingle()
+
+  if (!user) return null
+
+  const check = parseAndVerifySessionCookie(rawSession, user.password_hash)
+  const cleanStatus = String(user.status || "active").trim().toLowerCase()
+  if (!check.valid || cleanStatus === "suspended") return null
+
+  const role = String(user.role || "user")
+    .replace(/[\r\n\s]+/g, "")
+    .toLowerCase()
+  const isAdmin =
+    role === "owner" ||
+    role === "admin" ||
+    role === "moderator" ||
+    role === "sales"
+
+  return { userId: String(user.id), role, isAdmin }
 }
 
 export type NotificationType =
@@ -173,34 +212,15 @@ export async function getUserNotificationsAction(
   limitCount: number = 60
 ) {
   try {
-    const cookieStore = await cookies()
-    const sessionId = extractUserIdFromCookie(
-      cookieStore.get("user_session")?.value
-    )
-
-    if (!sessionId) {
-      return { success: false, notifications: [], unreadCount: 0 }
-    }
-
     const [{ dict }, supabase] = await Promise.all([
       getServerI18n(),
       getSupabase(),
     ])
 
-    const { data: user } = await supabase
-      .from("users")
-      .select("role")
-      .eq("id", sessionId)
-      .maybeSingle()
-
-    const role = String(user?.role || "user")
-      .replace(/[\r\n\s]+/g, "")
-      .toLowerCase()
-    const isAdmin =
-      role === "owner" ||
-      role === "admin" ||
-      role === "moderator" ||
-      role === "sales"
+    const session = await getVerifiedNotifSession(supabase)
+    if (!session) {
+      return { success: false, notifications: [], unreadCount: 0 }
+    }
 
     let query = supabase
       .from("notifications")
@@ -210,10 +230,10 @@ export async function getUserNotificationsAction(
       .order("created_at", { ascending: false })
       .limit(Math.max(25, Math.min(150, limitCount)))
 
-    if (context === "admin" && isAdmin) {
+    if (context === "admin" && session.isAdmin) {
       query = query.is("user_id", null)
     } else {
-      query = query.eq("user_id", sessionId)
+      query = query.eq("user_id", session.userId)
     }
 
     const { data: notifications, error } = await query
@@ -223,9 +243,7 @@ export async function getUserNotificationsAction(
     }
 
     const rawList = (notifications || []).filter(
-      (n) =>
-        n.title !== "__GLOBAL_SITE_CONFIG__" &&
-        n.title !== "__USER_VERIFICATION_META__"
+      (n) => !RESERVED_SYSTEM_TITLES.has(String(n.title || ""))
     )
 
     const localizedList = await Promise.all(
@@ -255,6 +273,25 @@ export async function markNotificationAsReadAction(notificationId: string) {
   try {
     if (!notificationId) return { success: false }
     const supabase = await getSupabase()
+    const session = await getVerifiedNotifSession(supabase)
+    if (!session) return { success: false }
+
+    const { data: target } = await supabase
+      .from("notifications")
+      .select("id, user_id, title")
+      .eq("id", notificationId)
+      .maybeSingle()
+
+    if (!target || RESERVED_SYSTEM_TITLES.has(String(target.title || ""))) {
+      return { success: false }
+    }
+
+    const isOwner = target.user_id && String(target.user_id) === session.userId
+    const isAdminNotif = target.user_id === null && session.isAdmin
+
+    if (!isOwner && !isAdminNotif) {
+      return { success: false }
+    }
 
     await supabase
       .from("notifications")
@@ -276,41 +313,25 @@ export async function markAllNotificationsAsReadAction(
   context: "client" | "admin" = "client"
 ) {
   try {
-    const cookieStore = await cookies()
-    const sessionId = extractUserIdFromCookie(
-      cookieStore.get("user_session")?.value
-    )
-    if (!sessionId) return { success: false }
-
     const supabase = await getSupabase()
+    const session = await getVerifiedNotifSession(supabase)
+    if (!session) return { success: false }
 
-    const { data: user } = await supabase
-      .from("users")
-      .select("role")
-      .eq("id", sessionId)
-      .maybeSingle()
-
-    const role = String(user?.role || "user")
-      .replace(/[\r\n\s]+/g, "")
-      .toLowerCase()
-    const isAdmin =
-      role === "owner" ||
-      role === "admin" ||
-      role === "moderator" ||
-      role === "sales"
-
-    if (context === "admin" && isAdmin) {
+    if (context === "admin" && session.isAdmin) {
       await supabase
         .from("notifications")
         .update({ is_read: true })
         .is("user_id", null)
         .neq("title", "__GLOBAL_SITE_CONFIG__")
+        .neq("title", "__USER_VERIFICATION_META__")
         .eq("is_read", false)
     } else {
       await supabase
         .from("notifications")
         .update({ is_read: true })
-        .eq("user_id", sessionId)
+        .eq("user_id", session.userId)
+        .neq("title", "__GLOBAL_SITE_CONFIG__")
+        .neq("title", "__USER_VERIFICATION_META__")
         .eq("is_read", false)
     }
 
@@ -325,10 +346,6 @@ export async function markAllNotificationsAsReadAction(
   }
 }
 
-/**
- * الإشعارات تعتبر سجلاً رسمياً دائماً لحركات الحساب مثل موقع Exit ولا تُحذف من قاعدة البيانات،
- * بل يتم تعليمها كمقروءة (is_read: true) لإخفاء عداد التنبيهات مع بقاء السجل محفوظاً.
- */
 export async function deleteNotificationAction(notificationId: string) {
   return markNotificationAsReadAction(notificationId)
 }
@@ -348,12 +365,27 @@ export async function createNotification(payload: {
 }) {
   try {
     const supabase = await getSupabase()
+    const session = await getVerifiedNotifSession(supabase)
+    if (!session || !session.isAdmin) {
+      return { success: false }
+    }
+
+    const cleanTitle = String(payload.title || "").trim().slice(0, 240)
+    const cleanMessage = String(payload.message || "").trim().slice(0, 1000)
+    if (!cleanTitle || RESERVED_SYSTEM_TITLES.has(cleanTitle)) {
+      return { success: false }
+    }
+
+    const rawLink = String(payload.link || "/").trim()
+    const safeLink =
+      rawLink.startsWith("/") && !rawLink.startsWith("//") ? rawLink : "/"
+
     const { error } = await supabase.from("notifications").insert({
       user_id: payload.userId || null,
-      title: payload.title,
-      message: payload.message,
+      title: cleanTitle,
+      message: cleanMessage,
       type: payload.type,
-      link: payload.link || "/",
+      link: safeLink,
       is_read: false,
     })
 

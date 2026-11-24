@@ -22,7 +22,7 @@ import ruDict from '@/dictionaries/ru.json'
 import kaDict from '@/dictionaries/ka.json'
 
 export const DEFAULT_SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL || 'https://exit-16.vercel.app'
+  process.env.NEXT_PUBLIC_SITE_URL || 'https://dualdealz.com'
 export const ACTIVE_COUNTRY_CODE = 'GE'
 export const ACTIVE_CURRENCY_CODE = 'USD'
 
@@ -184,19 +184,25 @@ export async function getSupabase() {
   const cookieStore = await cookies()
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} },
     }
   )
 }
 
-export function getSecret() {
-  return (
-    process.env.SESSION_SECRET ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    'aqar-exit-enterprise-secret-key-2026'
-  )
+export function getSecret(): string {
+  const secret =
+    process.env.SESSION_SECRET?.trim() ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
+
+  if (secret) return secret
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('CRITICAL: SESSION_SECRET is not configured in production')
+  }
+  return 'dualdealz-local-dev-only-secret-change-in-prod'
 }
 
 export async function getVerifiedSellerSession(supabase: any) {
@@ -447,6 +453,13 @@ export function hashPassword(password: string) {
   return `scrypt$${salt}$${derived}`
 }
 
+function safeEqualText(a: string, b: string): boolean {
+  const bufA = Buffer.from(a, 'utf8')
+  const bufB = Buffer.from(b, 'utf8')
+  if (bufA.length !== bufB.length) return false
+  return timingSafeEqual(bufA, bufB)
+}
+
 export function verifyPassword(password: string, stored: string | null) {
   if (!stored) return false
   const cleanStored = stored.trim()
@@ -456,26 +469,17 @@ export function verifyPassword(password: string, stored: string | null) {
       const [, salt, expected] = cleanStored.split('$')
       if (!salt || !expected) return false
       const actual1 = scryptSync(password, salt, 64).toString('hex')
-      if (
-        actual1.length === expected.length &&
-        timingSafeEqual(Buffer.from(actual1), Buffer.from(expected))
-      ) {
+      if (safeEqualText(actual1, expected)) {
         return true
       }
       const actual2 = scryptSync(cleanPass, salt, 64).toString('hex')
-      return (
-        actual2.length === expected.length &&
-        timingSafeEqual(Buffer.from(actual2), Buffer.from(expected))
-      )
+      return safeEqualText(actual2, expected)
     }
     const actual = createHash('sha256').update(password).digest('hex')
-    if (
-      actual.length === cleanStored.length &&
-      timingSafeEqual(Buffer.from(actual), Buffer.from(cleanStored))
-    ) {
+    if (safeEqualText(actual, cleanStored)) {
       return true
     }
-    return cleanStored === password || cleanStored === cleanPass
+    return safeEqualText(cleanStored, password) || safeEqualText(cleanStored, cleanPass)
   } catch {
     return false
   }

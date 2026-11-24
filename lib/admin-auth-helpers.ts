@@ -20,14 +20,19 @@ import { getServerI18n } from "@/lib/get-server-dictionary"
 export type StaffRoleCode = "owner" | "admin" | "moderator" | "sales"
 
 export const DEFAULT_SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL || "https://exit-16.vercel.app"
+  process.env.NEXT_PUBLIC_SITE_URL || "https://dualdealz.com"
 
-export function getSessionSecret() {
-  return (
-    process.env.SESSION_SECRET ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    "aqar-exit-enterprise-secret-key-2026"
-  )
+export function getSessionSecret(): string {
+  const secret =
+    process.env.SESSION_SECRET?.trim() ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
+
+  if (secret) return secret
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("CRITICAL: SESSION_SECRET is not configured in production")
+  }
+  return "dualdealz-local-dev-only-secret-change-in-prod"
 }
 
 export function getEnvSuperAdminEmails(): string[] {
@@ -67,7 +72,8 @@ export async function getSupabase() {
   const cookieStore = await cookies()
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} },
     }
@@ -159,6 +165,13 @@ export function hashPassword(password: string) {
   return `scrypt$${salt}$${derived}`
 }
 
+function safeEqualText(a: string, b: string): boolean {
+  const bufA = Buffer.from(a, "utf8")
+  const bufB = Buffer.from(b, "utf8")
+  if (bufA.length !== bufB.length) return false
+  return timingSafeEqual(bufA, bufB)
+}
+
 export function verifyPassword(password: string, stored: string | null) {
   if (!stored) return false
   const cleanStored = stored.trim()
@@ -172,10 +185,7 @@ export function verifyPassword(password: string, stored: string | null) {
 
       for (const candidate of [password, cleanPass, normPass]) {
         const actual = scryptSync(candidate, salt, 64).toString("hex")
-        if (
-          actual.length === expected.length &&
-          timingSafeEqual(Buffer.from(actual), Buffer.from(expected))
-        ) {
+        if (safeEqualText(actual, expected)) {
           return true
         }
       }
@@ -184,18 +194,15 @@ export function verifyPassword(password: string, stored: string | null) {
 
     for (const candidate of [password, cleanPass, normPass]) {
       const sha = createHash("sha256").update(candidate).digest("hex")
-      if (
-        sha.length === cleanStored.length &&
-        timingSafeEqual(Buffer.from(sha), Buffer.from(cleanStored))
-      ) {
+      if (safeEqualText(sha, cleanStored)) {
         return true
       }
     }
 
     return (
-      cleanStored === password ||
-      cleanStored === cleanPass ||
-      cleanStored === normPass
+      safeEqualText(cleanStored, password) ||
+      safeEqualText(cleanStored, cleanPass) ||
+      safeEqualText(cleanStored, normPass)
     )
   } catch {
     return false
@@ -285,12 +292,19 @@ export async function verifyTurnstileOnServer(
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim()
 
   if (!secretKey || !siteKey) return true
-  if (!token || token === "dev-bypass-token") return true
+
+  const isProd = process.env.NODE_ENV === "production"
+  const cleanToken = String(token || "").trim()
+
+  // منع تجاوز Cloudflare Turnstile في الإنتاج نهائياً
+  if (!cleanToken || cleanToken === "dev-bypass-token") {
+    return !isProd
+  }
 
   try {
     const formData = new URLSearchParams()
     formData.append("secret", secretKey)
-    formData.append("response", token)
+    formData.append("response", cleanToken)
 
     const res = await fetch(
       "https://challenges.cloudflare.com/turnstile/v0/siteverify",
@@ -302,7 +316,7 @@ export async function verifyTurnstileOnServer(
     const data = await res.json()
     return Boolean(data.success)
   } catch {
-    return true
+    return !isProd
   }
 }
 

@@ -1,5 +1,6 @@
 'use server'
 
+import { randomInt } from 'node:crypto'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
@@ -19,18 +20,30 @@ import {
 const DEFAULT_SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || 'https://dualdealz.com'
 
+const ALLOWED_DOC_KEYS = new Set([
+  'contract',
+  'receipts',
+  'statement',
+  'passport',
+  'national_id',
+])
+
+const UUID_REGEX =
+  /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
+
 async function getAccDict() {
-  const { dict, dir } = await getServerI18n()
+  const { dict, dir, siteSettings } = await getServerI18n()
   const t = (dict as Record<string, any>)?.serverActions?.account || {}
   const oDict = (dict as Record<string, any>)?.accountPages?.offers || {}
-  return { t, oDict, dir }
+  return { t, oDict, dir, siteSettings }
 }
 
 async function getSupabase() {
   const cookieStore = await cookies()
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} },
     }
@@ -41,6 +54,104 @@ function normalizeDigits(str: string): string {
   return String(str || '')
     .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 1632))
     .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 1776))
+}
+
+function isAllowedStorageDocumentUrl(rawUrl: string): boolean {
+  const clean = String(rawUrl || '').trim()
+  if (!clean || clean.length > 2000) return false
+  try {
+    const parsed = new URL(clean)
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+      return false
+    }
+    if (
+      process.env.NODE_ENV === 'production' &&
+      parsed.protocol !== 'https:'
+    ) {
+      return false
+    }
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()
+    if (supabaseUrl) {
+      const expectedOrigin = new URL(supabaseUrl).origin
+      if (
+        parsed.origin !== expectedOrigin ||
+        !parsed.pathname.includes('/storage/v1/object/')
+      ) {
+        return false
+      }
+    }
+    return true
+  } catch {
+    return false
+  }
+}
+
+// إعادة حساب الباقة وعدد الأيام على السيرفر حصراً بناءً على إعدادات الأسعار لمنع أي تلاعب من المتصفح
+function resolveServerBoostPackage(
+  rawAmountGel: number,
+  vipPlusDaily: number,
+  superVipDaily: number
+): {
+  amountGel: number
+  dbTierCode: 'super_vip' | 'vip_plus'
+  packageLabel: 'SUPER VIP' | 'VIP+'
+  durationDays: number
+} {
+  const vipPlusRate = Math.max(1, Math.round(vipPlusDaily || 5))
+  const superVipRate = Math.max(
+    vipPlusRate + 1,
+    Math.round(superVipDaily || 10)
+  )
+
+  const amountGel = Math.max(
+    vipPlusRate,
+    Math.min(10000, Math.round(rawAmountGel || 0))
+  )
+
+  const tier50 = superVipRate * 5
+  const tier100 = superVipRate * 10
+  const daysAt50 = Math.max(6, Math.round(tier50 / (superVipRate * 0.75)))
+  const daysAt100 = Math.max(14, Math.round(tier100 / (superVipRate * 0.7)))
+
+  if (amountGel < superVipRate) {
+    return {
+      amountGel,
+      dbTierCode: 'vip_plus',
+      packageLabel: 'VIP+',
+      durationDays: Math.max(1, Math.floor(amountGel / vipPlusRate)),
+    }
+  }
+
+  if (amountGel < tier50) {
+    return {
+      amountGel,
+      dbTierCode: 'super_vip',
+      packageLabel: 'SUPER VIP',
+      durationDays: Math.max(1, Math.floor(amountGel / superVipRate)),
+    }
+  }
+
+  if (amountGel < tier100) {
+    return {
+      amountGel,
+      dbTierCode: 'super_vip',
+      packageLabel: 'SUPER VIP',
+      durationDays: Math.max(
+        daysAt50,
+        Math.round(amountGel / (superVipRate * 0.75))
+      ),
+    }
+  }
+
+  return {
+    amountGel,
+    dbTierCode: 'super_vip',
+    packageLabel: 'SUPER VIP',
+    durationDays: Math.max(
+      daysAt100,
+      Math.min(365, Math.round(amountGel / (superVipRate * 0.7)))
+    ),
+  }
 }
 
 function isUnitBoostEligible(unit: Record<string, any> | null): boolean {
@@ -70,7 +181,7 @@ async function getVerifiedSessionUser() {
   const supabase = await getSupabase()
   const { data: user } = await supabase
     .from('users')
-    .select('id, name, email, phone, role, status, password_hash')
+    .select('id, name, email, phone, role, status, is_verified, password_hash')
     .eq('id', candidateId)
     .maybeSingle()
 
@@ -94,6 +205,7 @@ async function verifyUnitOwnership(
     email?: string | null
     phone?: string | null
     role?: string | null
+    is_verified?: boolean | null
   }
 ) {
   if (!unitId || !user?.id) return null
@@ -118,6 +230,7 @@ async function verifyUnitOwnership(
   }
 
   const isOwnerByEmail =
+    Boolean(user.is_verified) &&
     user.email &&
     unit.email &&
     String(user.email).trim().toLowerCase() ===
@@ -250,7 +363,7 @@ export async function logoutAccountAction() {
 
 export async function incrementUnitViewsAction(unitId: string) {
   try {
-    if (!unitId || unitId.startsWith('1') || unitId.startsWith('showcase')) {
+    if (!unitId || !UUID_REGEX.test(String(unitId).trim())) {
       return { success: false }
     }
     const supabase = await getSupabase()
@@ -264,6 +377,7 @@ export async function incrementUnitViewsAction(unitId: string) {
         .select('views_count')
         .eq('id', unitId)
         .maybeSingle()
+      if (!row) return { success: false }
       const nextViews = (Number(row?.views_count) || 85) + 1
       await supabase
         .from('sell_requests')
@@ -286,7 +400,7 @@ export async function createBoostRequestAction(payload: {
   unitId?: string
   unitCode?: string
 }) {
-  const { t: msg } = await getAccDict()
+  const { t: msg, siteSettings } = await getAccDict()
   try {
     const supabase = await getSupabase()
     const session = await getVerifiedSessionUser()
@@ -295,16 +409,27 @@ export async function createBoostRequestAction(payload: {
     }
     const userId = session.user.id
 
-    const cleanAmount = Math.max(
-      5,
-      Math.min(10000, Math.round(Number(payload.amountGel) || 10))
+    const vipPlusDaily = Number(
+      (siteSettings as Record<string, any>)?.vipPlusDailyGel || 5
     )
-    const cleanDays = Math.max(
-      1,
-      Math.min(90, Math.round(Number(payload.durationDays) || 1))
+    const superVipDaily = Number(
+      (siteSettings as Record<string, any>)?.superVipDailyGel || 10
     )
-    const cleanTier = payload.packageTier === 'VIP+' ? 'VIP+' : 'SUPER VIP'
-    const dbTierCode = cleanTier === 'VIP+' ? 'vip_plus' : 'super_vip'
+
+    // حساب الباقة والأيام والمبلغ على السيرفر حصراً لمنع التلاعب
+    const {
+      amountGel: cleanAmount,
+      dbTierCode,
+      packageLabel: cleanTier,
+      durationDays: cleanDays,
+    } = resolveServerBoostPackage(
+      Number(payload.amountGel),
+      vipPlusDaily,
+      superVipDaily
+    )
+
+    const cleanPaymentMethod: 'card' | 'bank' =
+      payload.paymentMethod === 'card' ? 'card' : 'bank'
     const cleanCode = String(payload.unitCode || '')
       .replace('#', '')
       .trim()
@@ -366,12 +491,12 @@ export async function createBoostRequestAction(payload: {
     )
     const resolvedProjectName = resolvedUnit.project_name || ''
 
-    const prefix = payload.paymentMethod === 'bank' ? 'BK' : 'AD'
+    const prefix = cleanPaymentMethod === 'bank' ? 'BK' : 'AD'
     const refCore = resolvedUnitCode
       .replace(/[^A-Z0-9]/gi, '')
       .slice(-4)
       .toUpperCase()
-    const randomSuffix = Math.floor(100 + Math.random() * 900)
+    const randomSuffix = randomInt(100, 1000)
     const orderRef = `${prefix}-${refCore}${randomSuffix}`
 
     const { data: boostRow, error: insertErr } = await supabase
@@ -383,7 +508,7 @@ export async function createBoostRequestAction(payload: {
         amount_gel: cleanAmount,
         package_tier: cleanTier,
         duration_days: cleanDays,
-        payment_method: payload.paymentMethod,
+        payment_method: cleanPaymentMethod,
         status: 'pending_admin_approval',
         order_ref: orderRef,
       })
@@ -398,24 +523,32 @@ export async function createBoostRequestAction(payload: {
         amount_gel: cleanAmount,
         package_tier: cleanTier,
         duration_days: cleanDays,
-        payment_method: payload.paymentMethod,
+        payment_method: cleanPaymentMethod,
         status: 'pending_admin_approval',
       })
     }
 
-    await supabase
-      .from('sell_requests')
-      .update({
-        featured_days: cleanDays,
-        featured_price: cleanAmount,
-        featured_status: 'pending_payment',
-        featured_fawry_code: orderRef,
-        boost_tier: dbTierCode,
-      })
-      .eq('id', resolvedUnitId)
+    const isAlreadyActive =
+      Boolean(resolvedUnit.is_featured) &&
+      (!resolvedUnit.featured_until ||
+        new Date(resolvedUnit.featured_until) > new Date())
+
+    // لا نستبدل حالة إعلان نشط حالياً بطلب معلق إذا كان هذا تمديداً
+    if (!isAlreadyActive) {
+      await supabase
+        .from('sell_requests')
+        .update({
+          featured_days: cleanDays,
+          featured_price: cleanAmount,
+          featured_status: 'pending_payment',
+          featured_fawry_code: orderRef,
+          boost_tier: dbTierCode,
+        })
+        .eq('id', resolvedUnitId)
+    }
 
     const methodWord =
-      payload.paymentMethod === 'card'
+      cleanPaymentMethod === 'card'
         ? msg.methodCard || 'Card'
         : msg.methodBank || 'Bank'
 
@@ -449,6 +582,8 @@ export async function createBoostRequestAction(payload: {
       orderRef,
       unitId: resolvedUnitId,
       unitCode: resolvedUnitCode,
+      days: cleanDays,
+      price: cleanAmount,
       isPendingReviewUnit,
       message: successMsg,
     }
@@ -468,7 +603,7 @@ export async function updatePersonalInfoAction(payload: {
     if (!session) return { success: false, error: msg.sessionExpired }
     const { supabase, user } = session
 
-    const cleanName = (payload.name || '').trim().slice(0, 120)
+    const cleanName = (payload.name || '').replace(/[<>]/g, '').trim().slice(0, 120)
     const formattedPhone = formatPrimaryPhone(payload.phone)
 
     if (!cleanName || !formattedPhone || formattedPhone.length < 9) {
@@ -537,7 +672,7 @@ export async function updateEmailInfoAction(payload: { email: string }) {
     if (!session) return { success: false, error: msg.sessionExpired }
     const { supabase, user: currentUser } = session
 
-    const cleanEmail = (payload.email || '').trim().toLowerCase()
+    const cleanEmail = (payload.email || '').trim().toLowerCase().slice(0, 160)
     if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
       return { success: false, error: msg.invalidEmail }
     }
@@ -623,6 +758,10 @@ export async function requestAccountDeletionAction(payload: {
     if (!session) return { success: false, error: msg.sessionExpired }
     const { supabase, user } = session
 
+    const cleanReason = String(payload.reason || '')
+      .replace(/[<>]/g, '')
+      .trim()
+      .slice(0, 500)
     const siteUrl = DEFAULT_SITE_URL
     const nowIso = new Date().toISOString()
 
@@ -664,7 +803,7 @@ export async function requestAccountDeletionAction(payload: {
       .from('users')
       .update({
         deletion_requested: true,
-        deletion_reason: payload.reason || msg.noSpecificReason,
+        deletion_reason: cleanReason || msg.noSpecificReason,
         deletion_requested_at: nowIso,
         status: 'deletion_pending',
       })
@@ -675,7 +814,7 @@ export async function requestAccountDeletionAction(payload: {
         user_id: null,
         role: 'admin',
         title: `${msg.deletionNotifTitle}: ${user.name || msg.dearClient}`,
-        message: `${msg.reasonWord}: ${payload.reason || msg.noSpecificReason} · (${unitsCount})`,
+        message: `${msg.reasonWord}: ${cleanReason || msg.noSpecificReason} · (${unitsCount})`,
         type: 'admin_alert',
         link: '/admin/users',
         is_read: false,
@@ -933,12 +1072,21 @@ export async function saveUnitDocumentAction(payload: {
 }) {
   const { t: msg } = await getAccDict()
   try {
+    if (!ALLOWED_DOC_KEYS.has(payload.docKey)) {
+      return { success: false, error: msg.docSaveFailed }
+    }
+
     const session = await getVerifiedSessionUser()
     if (!session) return { success: false, error: msg.sessionExpired }
     const { supabase, user } = session
 
     const unit = await verifyUnitOwnership(supabase, payload.unitId, user)
     if (!unit) return { success: false, error: msg.unitNotFound }
+
+    const cleanFileUrl = String(payload.fileUrl || '').trim()
+    if (cleanFileUrl && !isAllowedStorageDocumentUrl(cleanFileUrl)) {
+      return { success: false, error: msg.docSaveFailed }
+    }
 
     const currentDocs =
       unit.documents && typeof unit.documents === 'object'
@@ -948,13 +1096,17 @@ export async function saveUnitDocumentAction(payload: {
     const normalizedKey =
       payload.docKey === 'national_id' ? 'passport' : payload.docKey
 
-    if (!payload.fileUrl) {
+    if (!cleanFileUrl) {
       delete currentDocs[normalizedKey]
       if (normalizedKey === 'passport') delete currentDocs.national_id
     } else {
+      const safeFileName = String(payload.fileName || normalizedKey)
+        .replace(/[<>]/g, '')
+        .trim()
+        .slice(0, 180)
       currentDocs[normalizedKey] = {
-        url: payload.fileUrl,
-        name: payload.fileName,
+        url: cleanFileUrl,
+        name: safeFileName,
         uploaded_at: new Date().toLocaleDateString('en-GB'),
         status: 'pending_review',
       }
@@ -978,9 +1130,13 @@ export async function saveUnitDocumentAction(payload: {
       ready_for_admin_review: isNowFullyReady,
     }
 
+    // لا يُمنح docs_verified تلقائياً من قِبل العميل — يتم اعتماده فقط بعد مراجعة الإدارة
     const updateFields: Record<string, any> = {
       documents: currentDocs,
-      docs_verified: isNowFullyReady,
+    }
+
+    if (!isNowFullyReady && !currentDocs.__unit_meta?.whatsapp_docs_verified) {
+      updateFields.docs_verified = false
     }
 
     if (
@@ -1005,7 +1161,7 @@ export async function saveUnitDocumentAction(payload: {
         .eq('id', payload.unitId)
     }
 
-    if (payload.fileUrl) {
+    if (cleanFileUrl) {
       try {
         await supabase.from('notifications').insert({
           user_id: null,
@@ -1065,21 +1221,44 @@ export async function updateBuyerPreferencesAction(payload: {
     if (!session) return { success: false, error: msg.sessionExpired }
     const { supabase, user } = session
 
+    const safeCash = Math.max(0, Number(payload.available_cash) || 0)
+    const safeInst = Math.max(0, Number(payload.max_installment) || 0)
+    const safeBudget = Math.max(safeCash, Number(payload.budget) || 0)
+    const safeRooms = Math.max(
+      0,
+      Math.min(20, Math.round(Number(payload.min_rooms) || 0))
+    )
+
     const updateData = {
       country: 'GE',
       country_code: 'GE',
       currency_code: 'USD',
       target_category: 'exit',
-      available_cash: Number(payload.available_cash) || 0,
-      max_installment: Number(payload.max_installment) || 0,
-      payment_plan: payload.payment_plan || msg.defaultMonthly,
-      budget: Number(payload.budget) || Number(payload.available_cash) || 0,
-      unit_types: payload.unit_types || [],
-      min_rooms: Number(payload.min_rooms) || 0,
-      delivery_status: payload.delivery_status || msg.defaultReady,
-      preferred_areas: payload.preferred_areas || [],
-      notify_exact_match: payload.notify_exact_match,
-      notify_featured: payload.notify_featured,
+      available_cash: safeCash,
+      max_installment: safeInst,
+      payment_plan: String(payload.payment_plan || msg.defaultMonthly).slice(
+        0,
+        60
+      ),
+      budget: safeBudget,
+      unit_types: Array.isArray(payload.unit_types)
+        ? payload.unit_types
+            .map((t) => String(t || '').trim().slice(0, 60))
+            .filter(Boolean)
+            .slice(0, 20)
+        : [],
+      min_rooms: safeRooms,
+      delivery_status: String(
+        payload.delivery_status || msg.defaultReady
+      ).slice(0, 60),
+      preferred_areas: Array.isArray(payload.preferred_areas)
+        ? payload.preferred_areas
+            .map((a) => String(a || '').trim().slice(0, 120))
+            .filter(Boolean)
+            .slice(0, 25)
+        : [],
+      notify_exact_match: Boolean(payload.notify_exact_match),
+      notify_featured: Boolean(payload.notify_featured),
     }
 
     if (payload.buyRequestId) {
@@ -1095,7 +1274,8 @@ export async function updateBuyerPreferencesAction(payload: {
 
       const isLeadOwner = targetLead.user_id
         ? targetLead.user_id === user.id
-        : (user.email &&
+        : (Boolean(user.is_verified) &&
+            user.email &&
             targetLead.email &&
             String(targetLead.email).trim().toLowerCase() ===
               String(user.email).trim().toLowerCase()) ||
@@ -1199,8 +1379,8 @@ export async function requestUnitPromotionAction(payload: {
     return {
       success: true,
       fawryCode: res.orderRef || '',
-      days: payload.days,
-      price: payload.price,
+      days: res.days ?? payload.days,
+      price: res.price ?? payload.price,
       isPendingReviewUnit: res.isPendingReviewUnit,
       message: res.message,
     }

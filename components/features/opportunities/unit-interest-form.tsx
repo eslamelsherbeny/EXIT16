@@ -18,6 +18,7 @@ import {
   Loader2,
   Mail,
   MessageCircle,
+  ShieldCheck,
   Wallet,
   X,
   ZoomIn,
@@ -29,6 +30,46 @@ import { TurnstileBox } from '@/components/layouts/auth-layout'
 import { CountrySelector } from '@/components/shared/country-selector'
 import { toEnglishDigits } from '@/components/features/seller/seller-shared'
 import { useTranslation } from '@/lib/i18n'
+
+const LEGAL_AGREE_COPY: Record<
+  string,
+  {
+    prefix: string
+    terms: string
+    and: string
+    privacy: string
+    suffix: string
+  }
+> = {
+  ar: {
+    prefix: 'أوافق على',
+    terms: 'الشروط والأحكام',
+    and: 'و',
+    privacy: 'سياسة الخصوصية',
+    suffix: 'الخاصة بمنصة DualDealz.',
+  },
+  en: {
+    prefix: 'I agree to the DualDealz',
+    terms: 'Terms & Conditions',
+    and: 'and',
+    privacy: 'Privacy Policy',
+    suffix: '.',
+  },
+  ru: {
+    prefix: 'Я согласен с',
+    terms: 'Условиями использования',
+    and: 'и',
+    privacy: 'Политикой конфиденциальности',
+    suffix: 'DualDealz.',
+  },
+  ka: {
+    prefix: 'ვეთანხმები DualDealz-ის',
+    terms: 'წესებსა და პირობებს',
+    and: 'და',
+    privacy: 'კონფიდენციალურობის პოლიტიკას',
+    suffix: '.',
+  },
+}
 
 export function UnitGalleryWithLightbox({
   gallery,
@@ -432,9 +473,10 @@ export function UnitInterestForm({
     ? params.id[0]
     : (params?.id as string) || ''
 
-  const { t: dict, siteSettings } = useTranslation()
+  const { t: dict, locale, siteSettings } = useTranslation()
   const f = dict.unitDetailsPage.interestForm as Record<string, string>
   const oT = dict.accountPages.offers as Record<string, any>
+  const legalCopy = LEGAL_AGREE_COPY[locale] || LEGAL_AGREE_COPY.en
   const cur = '$'
   const supportWhatsApp = String(
     siteSettings?.whatsappNumber || dict.footer?.phone || '+201018595959'
@@ -444,9 +486,7 @@ export function UnitInterestForm({
   const sanityMinFloor = Math.round(Math.max(1, requiredCash) * 0.5)
 
   const [offerMode, setOfferMode] = useState<'full' | 'negotiate'>('full')
-  const [offeredCashStr, setOfferedCashStr] = useState(
-    requiredCash > 0 ? requiredCash.toLocaleString('en-US') : ''
-  )
+  const [offeredCashStr, setOfferedCashStr] = useState('')
   const [buyerName, setBuyerName] = useState('')
   const [buyerEmail, setBuyerEmail] = useState('')
   const [buyerPhone, setBuyerPhone] = useState('')
@@ -459,6 +499,7 @@ export function UnitInterestForm({
     'bank_check' | 'bank_transfer'
   >('bank_check')
   const [agreedToCommission, setAgreedToCommission] = useState(false)
+  const [agreedToTerms, setAgreedToTerms] = useState(false)
   const [submittingOffer, setSubmittingOffer] = useState(false)
   const [submittedOfferData, setSubmittedOfferData] = useState<{
     offerId: string
@@ -469,15 +510,16 @@ export function UnitInterestForm({
   } | null>(null)
   const [offerError, setOfferError] = useState('')
 
-  const numericCash =
+  const isNegotiatingCustom = allowNegotiation && offerMode === 'negotiate'
+  const typedNumericCash =
     Number(toEnglishDigits(offeredCashStr).replace(/,/g, '')) || 0
-  const isFullPrice = offerMode === 'full' && numericCash === requiredCash
-  const isOverPaidError = numericCash > requiredCash
+  const effectiveCash = isNegotiatingCustom ? typedNumericCash : requiredCash
+
+  const isOverPaidError = isNegotiatingCustom && typedNumericCash > requiredCash
   const isSanityIncompleteError =
-    allowNegotiation &&
-    offerMode === 'negotiate' &&
-    numericCash > 0 &&
-    numericCash < sanityMinFloor
+    isNegotiatingCustom &&
+    typedNumericCash > 0 &&
+    typedNumericCash < sanityMinFloor
 
   const emailFieldLabel =
     f.emailFieldLabel ||
@@ -505,7 +547,7 @@ export function UnitInterestForm({
       }
     }
 
-    if (numericCash <= 0 || isOverPaidError) {
+    if (effectiveCash <= 0 || isOverPaidError) {
       setOfferError(
         `${oT.errOfferExceedsPaid} (${requiredCash.toLocaleString('en-US')} ${cur})`
       )
@@ -514,6 +556,11 @@ export function UnitInterestForm({
 
     if (isSanityIncompleteError) {
       setOfferError(oT.errOfferSanityIncomplete)
+      return
+    }
+
+    if (!agreedToCommission || !agreedToTerms) {
+      setOfferError(f.errorSubmit)
       return
     }
 
@@ -526,7 +573,7 @@ export function UnitInterestForm({
 
       const res = await submitBuyerOfferAction({
         propertyId: rawPropertyId,
-        offeredCash: allowNegotiation ? numericCash : requiredCash,
+        offeredCash: effectiveCash,
         paymentReadiness: readiness,
         paymentMethod,
         guestName: buyerName.trim(),
@@ -541,7 +588,7 @@ export function UnitInterestForm({
         setSubmittedOfferData({
           offerId: res.offerId || '',
           offerRef: res.offerRef || `OF-${unitCode}`,
-          amount: allowNegotiation ? numericCash : requiredCash,
+          amount: effectiveCash,
           isBackupWaitlist: res.isBackupWaitlist,
           accountCreated: res.accountCreated,
         })
@@ -639,144 +686,142 @@ export function UnitInterestForm({
             </div>
           )}
 
-          <div className="rounded-2xl border border-gray-200/90 bg-[#f8faf9] p-4">
-            <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
-              <label className="text-xs font-extrabold text-[#0a1122]">
-                1. {oT.selectOfferTypeLabel || f.selectCashOfferLabel}:
-              </label>
-              <span className="rounded-lg bg-emerald-100/80 px-2.5 py-0.5 text-[11px] font-extrabold text-[#007a5a]">
-                {f.requiredExitCashPrefix}{' '}
-                {requiredCash.toLocaleString('en-US')} $
-              </span>
+          {/* قسم قيمة العرض: عرض نظيف ومباشر حسب حالة التفاوض */}
+          {!allowNegotiation ? (
+            <div className="rounded-2xl border border-emerald-200/90 bg-[#eaf8f2]/65 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="size-4 shrink-0 text-[#007a5a]" />
+                  <span className="text-xs font-extrabold text-[#0a1122]">
+                    {f.requiredExitCashPrefix?.replace(/[:：]\s*$/, '')}
+                  </span>
+                </div>
+                <strong
+                  dir="ltr"
+                  className="text-lg font-black text-[#007a5a] tabular-nums sm:text-xl"
+                >
+                  {cur}
+                  {requiredCash.toLocaleString('en-US')}
+                </strong>
+              </div>
+              <p className="mt-1.5 text-[11px] leading-relaxed font-semibold text-[#007a5a]/90">
+                {oT.nonNegotiableUnitNote ||
+                  `${f.nonNegotiableUnitPrefix}${requiredCash.toLocaleString('en-US')} ${cur}${f.nonNegotiableUnitSuffix}`}
+              </p>
             </div>
+          ) : (
+            <div className="rounded-2xl border border-gray-200/90 bg-[#f8faf9] p-4">
+              <label className="mb-3 block text-xs font-extrabold text-[#0a1122]">
+                {oT.selectOfferTypeLabel || f.selectCashOfferLabel}
+              </label>
 
-            {allowNegotiation ? (
-              <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    setOfferMode('full')
-                    setOfferedCashStr(requiredCash.toLocaleString('en-US'))
-                  }}
-                  className={`flex flex-col justify-between rounded-xl border p-3 text-start transition ${
+                  onClick={() => setOfferMode('full')}
+                  className={`flex flex-col justify-between rounded-xl border p-3.5 text-start transition ${
                     offerMode === 'full'
                       ? 'border-2 border-[#007a5a] bg-[#eaf8f2] text-[#007a5a]'
                       : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                   }`}
                 >
-                  <span className="block text-[11px] font-extrabold">
+                  <span className="block text-xs font-extrabold">
                     ✓ {oT.fullPriceOptionTitle || f.fullPriceOptionTitle}
                   </span>
                   <strong
                     dir="ltr"
-                    className="mt-1 block text-sm font-black tabular-nums"
+                    className="mt-1.5 block text-base font-black tabular-nums"
                   >
-                    {requiredCash.toLocaleString('en-US')} {cur}{' '}
-                    <span className="font-sans text-[10px] font-bold opacity-80">
-                      ({f.paidCashBadge})
-                    </span>
+                    {cur}
+                    {requiredCash.toLocaleString('en-US')}
                   </strong>
+                  <span className="mt-1 block text-[10.5px] font-semibold opacity-85">
+                    {oT.fullPricePriorityHint || f.fullPricePriorityHint}
+                  </span>
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => {
-                    setOfferMode('negotiate')
-                    if (numericCash >= requiredCash) {
-                      setOfferedCashStr('')
-                    }
-                  }}
-                  className={`flex flex-col justify-between rounded-xl border p-3 text-start transition ${
+                  onClick={() => setOfferMode('negotiate')}
+                  className={`flex flex-col justify-between rounded-xl border p-3.5 text-start transition ${
                     offerMode === 'negotiate'
                       ? 'border-2 border-amber-500 bg-amber-50 text-amber-950'
                       : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                   }`}
                 >
-                  <span className="block text-[11px] font-extrabold">
+                  <span className="block text-xs font-extrabold">
                     💬 {oT.negotiateOptionTitle || f.negotiateOptionTitle}
                   </span>
-                  <span className="mt-1 block text-[10.5px] font-semibold text-gray-600">
+                  <span className="mt-1.5 block text-[11px] leading-relaxed font-semibold text-gray-600">
                     {oT.negotiateOptionSubHint}
                   </span>
                 </button>
               </div>
-            ) : (
-              <div className="mb-3 rounded-xl border border-emerald-200 bg-[#eaf8f2] p-3 text-[11px] font-bold text-[#007a5a]">
-                {oT.nonNegotiableUnitNote ||
-                  `${f.nonNegotiableUnitPrefix}${requiredCash.toLocaleString('en-US')} $${f.nonNegotiableUnitSuffix}`}
-              </div>
-            )}
 
-            <label className="mb-1.5 block text-[11px] font-bold text-gray-600">
-              {allowNegotiation && offerMode === 'negotiate'
-                ? `${oT.maxNegotiableCashInputLabel} (${requiredCash.toLocaleString('en-US')} ${cur}):`
-                : f.yourCashOfferInputLabel}
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                inputMode="numeric"
-                dir="ltr"
-                required
-                placeholder={
-                  offerMode === 'negotiate' ? f.negotiatePlaceholder : ''
-                }
-                readOnly={!allowNegotiation || offerMode === 'full'}
-                value={offeredCashStr}
-                onChange={(e) => {
-                  if (!allowNegotiation) return
-                  const digits = toEnglishDigits(e.target.value).replace(
-                    /\D/g,
-                    ''
-                  )
-                  const num = Number(digits) || 0
-                  setOfferedCashStr(
-                    digits ? num.toLocaleString('en-US') : ''
-                  )
-                }}
-                className={`h-12 w-full rounded-xl border pr-4 pl-12 text-left text-base font-black text-[#0a1122] tabular-nums placeholder:text-xs placeholder:font-semibold placeholder:text-gray-400 focus:outline-none ${
-                  !allowNegotiation || offerMode === 'full'
-                    ? 'cursor-not-allowed border-gray-200 bg-gray-100'
-                    : 'border-gray-300 bg-white focus:border-[#007a5a]'
-                }`}
-              />
-              <span className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-xs font-extrabold text-gray-400">
-                {cur}
-              </span>
+              {isNegotiatingCustom && (
+                <div className="mt-3.5 border-t border-gray-200/80 pt-3.5">
+                  <label className="mb-1.5 block text-[11px] font-bold text-gray-700">
+                    {oT.maxNegotiableCashInputLabel} (
+                    <span dir="ltr" className="inline-block font-extrabold">
+                      {cur}
+                      {requiredCash.toLocaleString('en-US')}
+                    </span>
+                    ):
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      dir="ltr"
+                      required
+                      placeholder={f.negotiatePlaceholder}
+                      value={offeredCashStr}
+                      onChange={(e) => {
+                        const digits = toEnglishDigits(e.target.value).replace(
+                          /\D/g,
+                          ''
+                        )
+                        const num = Number(digits) || 0
+                        setOfferedCashStr(
+                          digits ? num.toLocaleString('en-US') : ''
+                        )
+                      }}
+                      className="h-12 w-full rounded-xl border border-gray-300 bg-white pr-4 pl-10 text-left text-base font-black text-[#0a1122] tabular-nums placeholder:text-xs placeholder:font-semibold placeholder:text-gray-400 focus:border-[#007a5a] focus:outline-none"
+                    />
+                    <span className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-sm font-extrabold text-gray-400">
+                      {cur}
+                    </span>
+                  </div>
+
+                  {isOverPaidError ? (
+                    <div className="mt-2.5 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-2.5 text-[11px] font-bold text-red-700">
+                      <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+                      <span>
+                        {oT.errOfferExceedsPaid} (
+                        <strong dir="ltr">
+                          {cur}
+                          {requiredCash.toLocaleString('en-US')}
+                        </strong>
+                        )
+                      </span>
+                    </div>
+                  ) : isSanityIncompleteError ? (
+                    <div className="mt-2.5 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-2.5 text-[11px] font-bold text-red-700">
+                      <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+                      <span>{oT.errOfferSanityIncomplete}</span>
+                    </div>
+                  ) : (
+                    <div className="mt-2.5 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-[11px] leading-relaxed font-bold text-amber-900">
+                      <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+                      <span>
+                        {oT.fomoNegotiationWarning || f.fomoNegotiationWarning}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-
-            {isOverPaidError ? (
-              <div className="mt-2.5 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-2.5 text-[11px] font-bold text-red-700">
-                <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-                <span>
-                  {oT.errOfferExceedsPaid} (
-                  <strong dir="ltr">
-                    {requiredCash.toLocaleString('en-US')} {cur}
-                  </strong>
-                  )
-                </span>
-              </div>
-            ) : isSanityIncompleteError ? (
-              <div className="mt-2.5 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-2.5 text-[11px] font-bold text-red-700">
-                <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-                <span>{oT.errOfferSanityIncomplete}</span>
-              </div>
-            ) : isFullPrice || numericCash === requiredCash ? (
-              <div className="mt-2.5 flex items-center gap-2 rounded-xl border border-emerald-200 bg-[#eaf8f2] p-2.5 text-[11px] font-bold text-[#007a5a]">
-                <CheckCircle2 className="size-4 shrink-0" />
-                <span>
-                  {oT.fullPricePriorityHint || f.fullPricePriorityHint}
-                </span>
-              </div>
-            ) : (
-              <div className="mt-2.5 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-[11px] leading-relaxed font-bold text-amber-900">
-                <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
-                <span>
-                  {oT.fomoNegotiationWarning || f.fomoNegotiationWarning}
-                </span>
-              </div>
-            )}
-          </div>
+          )}
 
           {!currentUserId && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -842,7 +887,7 @@ export function UnitInterestForm({
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-                2. {oT.buyerReadinessLabel || f.readinessLegend}
+                {oT.buyerReadinessLabel || f.readinessLegend}
               </label>
               <div className="grid grid-cols-3 gap-2">
                 {(
@@ -870,7 +915,7 @@ export function UnitInterestForm({
 
             <div>
               <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-                3. {oT.paymentMethodLabel || f.paymentMethodLabel}
+                {oT.paymentMethodLabel || f.paymentMethodLabel}
               </label>
               <div className="grid grid-cols-2 gap-2">
                 {(
@@ -913,16 +958,49 @@ export function UnitInterestForm({
             />
           </div>
 
-          <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-gray-200 bg-gray-50/70 p-3.5 text-xs leading-relaxed text-gray-700">
-            <input
-              type="checkbox"
-              checked={agreedToCommission}
-              onChange={(e) => setAgreedToCommission(e.target.checked)}
-              required
-              className="mt-0.5 size-4 rounded accent-[var(--brand-primary,#007a5a)]"
-            />
-            <span>{f.commissionAgree}</span>
-          </label>
+          <div className="space-y-2.5 rounded-xl border border-gray-200 bg-gray-50/70 p-3.5">
+            <label className="flex cursor-pointer items-start gap-2.5 text-xs leading-relaxed text-gray-700">
+              <input
+                type="checkbox"
+                checked={agreedToCommission}
+                onChange={(e) => setAgreedToCommission(e.target.checked)}
+                required
+                className="mt-0.5 size-4 shrink-0 rounded accent-[var(--brand-primary,#007a5a)]"
+              />
+              <span>{f.commissionAgree}</span>
+            </label>
+
+            <div className="border-t border-gray-200/80 pt-2.5">
+              <label className="flex cursor-pointer items-start gap-2.5 text-xs leading-relaxed text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={agreedToTerms}
+                  onChange={(e) => setAgreedToTerms(e.target.checked)}
+                  required
+                  className="mt-0.5 size-4 shrink-0 rounded accent-[var(--brand-primary,#007a5a)]"
+                />
+                <span>
+                  {legalCopy.prefix}{' '}
+                  <Link
+                    href="/terms"
+                    target="_blank"
+                    className="font-bold text-[#007a5a] underline underline-offset-2 hover:text-[#006248]"
+                  >
+                    {legalCopy.terms}
+                  </Link>{' '}
+                  {legalCopy.and}{' '}
+                  <Link
+                    href="/privacy"
+                    target="_blank"
+                    className="font-bold text-[#007a5a] underline underline-offset-2 hover:text-[#006248]"
+                  >
+                    {legalCopy.privacy}
+                  </Link>{' '}
+                  {legalCopy.suffix}
+                </span>
+              </label>
+            </div>
+          </div>
 
           <TurnstileBox />
 
@@ -930,7 +1008,7 @@ export function UnitInterestForm({
             type="submit"
             disabled={
               submittingOffer ||
-              numericCash <= 0 ||
+              effectiveCash <= 0 ||
               isOverPaidError ||
               isSanityIncompleteError
             }

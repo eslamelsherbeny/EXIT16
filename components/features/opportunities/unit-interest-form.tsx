@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import {
+  AlertCircle,
   AlertTriangle,
   Calendar,
   Camera,
@@ -30,46 +31,6 @@ import { TurnstileBox } from '@/components/layouts/auth-layout'
 import { CountrySelector } from '@/components/shared/country-selector'
 import { toEnglishDigits } from '@/components/features/seller/seller-shared'
 import { useTranslation } from '@/lib/i18n'
-
-const LEGAL_AGREE_COPY: Record<
-  string,
-  {
-    prefix: string
-    terms: string
-    and: string
-    privacy: string
-    suffix: string
-  }
-> = {
-  ar: {
-    prefix: 'أوافق على',
-    terms: 'الشروط والأحكام',
-    and: 'و',
-    privacy: 'سياسة الخصوصية',
-    suffix: 'الخاصة بمنصة DualDealz.',
-  },
-  en: {
-    prefix: 'I agree to the DualDealz',
-    terms: 'Terms & Conditions',
-    and: 'and',
-    privacy: 'Privacy Policy',
-    suffix: '.',
-  },
-  ru: {
-    prefix: 'Я согласен с',
-    terms: 'Условиями использования',
-    and: 'и',
-    privacy: 'Политикой конфиденциальности',
-    suffix: 'DualDealz.',
-  },
-  ka: {
-    prefix: 'ვეთანხმები DualDealz-ის',
-    terms: 'წესებსა და პირობებს',
-    and: 'და',
-    privacy: 'კონფიდენციალურობის პოლიტიკას',
-    suffix: '.',
-  },
-}
 
 export function UnitGalleryWithLightbox({
   gallery,
@@ -442,6 +403,14 @@ export function UnitGalleryWithLightbox({
   )
 }
 
+type OfferFieldErrorKey =
+  | 'offeredCash'
+  | 'buyerName'
+  | 'buyerPhone'
+  | 'buyerEmail'
+  | 'agreedToCommission'
+  | 'agreedToTerms'
+
 export function UnitInterestForm({
   unitCode,
   projectName,
@@ -473,11 +442,11 @@ export function UnitInterestForm({
     ? params.id[0]
     : (params?.id as string) || ''
 
-  const { t: dict, locale, siteSettings } = useTranslation()
+  const { t: dict, siteSettings } = useTranslation()
   const f = dict.unitDetailsPage.interestForm as Record<string, string>
   const oT = dict.accountPages.offers as Record<string, any>
-  const legalCopy = LEGAL_AGREE_COPY[locale] || LEGAL_AGREE_COPY.en
   const cur = '$'
+  const commPct = String(siteSettings?.buyerCommission || '1.25')
   const supportWhatsApp = String(
     siteSettings?.whatsappNumber || dict.footer?.phone || '+201018595959'
   ).replace(/\D/g, '')
@@ -500,6 +469,9 @@ export function UnitInterestForm({
   >('bank_check')
   const [agreedToCommission, setAgreedToCommission] = useState(false)
   const [agreedToTerms, setAgreedToTerms] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<
+    Partial<Record<OfferFieldErrorKey, string>>
+  >({})
   const [submittingOffer, setSubmittingOffer] = useState(false)
   const [submittedOfferData, setSubmittedOfferData] = useState<{
     offerId: string
@@ -526,44 +498,75 @@ export function UnitInterestForm({
     dict.buy?.stepThree?.emailLabel?.replace('*', '').trim() ||
     ''
 
+  const commissionAgreeText = String(f.commissionAgree || '').replace(
+    /1\.25%/g,
+    `${commPct}%`
+  )
+
+  const clearFieldError = (key: OfferFieldErrorKey) => {
+    setFieldErrors((prev) => {
+      if (!prev[key]) return prev
+      const next = { ...prev }
+      delete next[key]
+      return next
+    })
+    setOfferError('')
+  }
+
   const handleInterestSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setOfferError('')
 
+    const nextErrors: Partial<Record<OfferFieldErrorKey, string>> = {}
     const cleanDigits = toEnglishDigits(buyerPhone)
       .replace(/^0+/, '')
       .replace(/\D/g, '')
       .trim()
     const cleanEmail = buyerEmail.trim().toLowerCase()
 
+    if (isNegotiatingCustom) {
+      if (typedNumericCash <= 0) {
+        nextErrors.offeredCash = f.errOfferAmountRequired || f.errorSubmit
+      } else if (typedNumericCash > requiredCash) {
+        nextErrors.offeredCash = `${oT.errOfferExceedsPaid} (${cur}${requiredCash.toLocaleString('en-US')})`
+      } else if (typedNumericCash < sanityMinFloor) {
+        nextErrors.offeredCash = oT.errOfferSanityIncomplete
+      }
+    } else if (requiredCash <= 0) {
+      nextErrors.offeredCash = f.errOfferAmountRequired || f.errorSubmit
+    }
+
     if (!currentUserId) {
-      if (
-        !buyerName.trim() ||
-        cleanDigits.length < 7 ||
-        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)
-      ) {
-        setOfferError(f.errorSubmit)
-        return
+      if (buyerName.trim().length < 2) {
+        nextErrors.buyerName = f.errNameRequired || f.errorSubmit
+      }
+      if (cleanDigits.length < 7 || cleanDigits.length > 15) {
+        nextErrors.buyerPhone = f.errPhoneRequired || f.errorSubmit
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+        nextErrors.buyerEmail = f.errEmailRequired || f.errorSubmit
       }
     }
 
-    if (effectiveCash <= 0 || isOverPaidError) {
-      setOfferError(
-        `${oT.errOfferExceedsPaid} (${requiredCash.toLocaleString('en-US')} ${cur})`
-      )
+    if (!agreedToCommission) {
+      nextErrors.agreedToCommission = f.errCommissionRequired || f.errorSubmit
+    }
+
+    if (!agreedToTerms) {
+      nextErrors.agreedToTerms = f.errTermsRequired || f.errorSubmit
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setFieldErrors(nextErrors)
+      setOfferError(f.errFixFieldsBanner || f.errorSubmit)
+      const firstErrorKey = Object.keys(nextErrors)[0] as OfferFieldErrorKey
+      document
+        .getElementById(`offer-field-${firstErrorKey}`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       return
     }
 
-    if (isSanityIncompleteError) {
-      setOfferError(oT.errOfferSanityIncomplete)
-      return
-    }
-
-    if (!agreedToCommission || !agreedToTerms) {
-      setOfferError(f.errorSubmit)
-      return
-    }
-
+    setFieldErrors({})
     setSubmittingOffer(true)
 
     try {
@@ -679,14 +682,18 @@ export function UnitInterestForm({
           </div>
         </div>
       ) : (
-        <form onSubmit={handleInterestSubmit} className="mt-6 space-y-5">
+        <form onSubmit={handleInterestSubmit} noValidate className="mt-6 space-y-5">
           {offerError && (
-            <div className="rounded-xl bg-red-50 p-3 text-center text-xs font-bold text-red-600">
-              {offerError}
+            <div
+              role="alert"
+              className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3.5 py-3 text-start text-xs font-bold text-red-700"
+            >
+              <AlertCircle className="mt-0.5 size-4 shrink-0 text-red-600" />
+              <span>{offerError}</span>
             </div>
           )}
 
-          {/* قسم قيمة العرض: عرض نظيف ومباشر حسب حالة التفاوض */}
+          {/* قسم قيمة العرض */}
           {!allowNegotiation ? (
             <div className="rounded-2xl border border-emerald-200/90 bg-[#eaf8f2]/65 p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -710,7 +717,10 @@ export function UnitInterestForm({
               </p>
             </div>
           ) : (
-            <div className="rounded-2xl border border-gray-200/90 bg-[#f8faf9] p-4">
+            <div
+              id="offer-field-offeredCash"
+              className="rounded-2xl border border-gray-200/90 bg-[#f8faf9] p-4"
+            >
               <label className="mb-3 block text-xs font-extrabold text-[#0a1122]">
                 {oT.selectOfferTypeLabel || f.selectCashOfferLabel}
               </label>
@@ -718,7 +728,10 @@ export function UnitInterestForm({
               <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                 <button
                   type="button"
-                  onClick={() => setOfferMode('full')}
+                  onClick={() => {
+                    setOfferMode('full')
+                    clearFieldError('offeredCash')
+                  }}
                   className={`flex flex-col justify-between rounded-xl border p-3.5 text-start transition ${
                     offerMode === 'full'
                       ? 'border-2 border-[#007a5a] bg-[#eaf8f2] text-[#007a5a]'
@@ -742,7 +755,10 @@ export function UnitInterestForm({
 
                 <button
                   type="button"
-                  onClick={() => setOfferMode('negotiate')}
+                  onClick={() => {
+                    setOfferMode('negotiate')
+                    clearFieldError('offeredCash')
+                  }}
                   className={`flex flex-col justify-between rounded-xl border p-3.5 text-start transition ${
                     offerMode === 'negotiate'
                       ? 'border-2 border-amber-500 bg-amber-50 text-amber-950'
@@ -773,7 +789,6 @@ export function UnitInterestForm({
                       type="text"
                       inputMode="numeric"
                       dir="ltr"
-                      required
                       placeholder={f.negotiatePlaceholder}
                       value={offeredCashStr}
                       onChange={(e) => {
@@ -785,15 +800,27 @@ export function UnitInterestForm({
                         setOfferedCashStr(
                           digits ? num.toLocaleString('en-US') : ''
                         )
+                        clearFieldError('offeredCash')
                       }}
-                      className="h-12 w-full rounded-xl border border-gray-300 bg-white pr-4 pl-10 text-left text-base font-black text-[#0a1122] tabular-nums placeholder:text-xs placeholder:font-semibold placeholder:text-gray-400 focus:border-[#007a5a] focus:outline-none"
+                      className={`h-12 w-full rounded-xl border bg-white pr-4 pl-10 text-left text-base font-black text-[#0a1122] tabular-nums placeholder:text-xs placeholder:font-semibold placeholder:text-gray-400 focus:outline-none ${
+                        fieldErrors.offeredCash ||
+                        isOverPaidError ||
+                        isSanityIncompleteError
+                          ? 'border-2 border-red-500 bg-red-50/20'
+                          : 'border-gray-300 focus:border-[#007a5a]'
+                      }`}
                     />
                     <span className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-sm font-extrabold text-gray-400">
                       {cur}
                     </span>
                   </div>
 
-                  {isOverPaidError ? (
+                  {fieldErrors.offeredCash ? (
+                    <p className="mt-2 flex items-start gap-1.5 text-[11px] font-bold text-red-600">
+                      <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
+                      <span>{fieldErrors.offeredCash}</span>
+                    </p>
+                  ) : isOverPaidError ? (
                     <div className="mt-2.5 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-2.5 text-[11px] font-bold text-red-700">
                       <AlertTriangle className="mt-0.5 size-4 shrink-0" />
                       <span>
@@ -825,24 +852,35 @@ export function UnitInterestForm({
 
           {!currentUserId && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
+              <div id="offer-field-buyerName">
                 <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-                  {f.nameLabel} *
+                  {f.nameLabel} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={buyerName}
-                  onChange={(e) => setBuyerName(e.target.value)}
+                  onChange={(e) => {
+                    setBuyerName(e.target.value)
+                    clearFieldError('buyerName')
+                  }}
                   placeholder={f.namePlaceholder}
-                  required
                   maxLength={120}
-                  className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-xs text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:text-sm"
+                  className={`h-11 w-full rounded-xl border bg-white px-4 text-xs text-[var(--brand-navy,#0a1122)] focus:outline-none sm:text-sm ${
+                    fieldErrors.buyerName
+                      ? 'border-2 border-red-500 bg-red-50/20'
+                      : 'border-gray-200 focus:border-[var(--brand-primary,#007a5a)]'
+                  }`}
                 />
+                {fieldErrors.buyerName && (
+                  <p className="mt-1.5 text-start text-[11px] font-bold text-red-600">
+                    {fieldErrors.buyerName}
+                  </p>
+                )}
               </div>
 
-              <div>
+              <div id="offer-field-buyerPhone">
                 <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-                  {f.whatsappLabel} *
+                  {f.whatsappLabel} <span className="text-red-500">*</span>
                 </label>
                 <div dir="ltr" className="flex items-center gap-2">
                   <CountrySelector
@@ -855,31 +893,51 @@ export function UnitInterestForm({
                     inputMode="tel"
                     dir="ltr"
                     value={buyerPhone}
-                    onChange={(e) =>
+                    onChange={(e) => {
                       setBuyerPhone(toEnglishDigits(e.target.value))
-                    }
+                      clearFieldError('buyerPhone')
+                    }}
                     placeholder="5xx xx xx xx"
-                    required
                     maxLength={20}
-                    className="h-11 flex-1 rounded-xl border border-gray-200 bg-white px-4 text-left text-xs font-medium text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:text-sm"
+                    className={`h-11 flex-1 rounded-xl border bg-white px-4 text-left text-xs font-medium text-[var(--brand-navy,#0a1122)] focus:outline-none sm:text-sm ${
+                      fieldErrors.buyerPhone
+                        ? 'border-2 border-red-500 bg-red-50/20'
+                        : 'border-gray-200 focus:border-[var(--brand-primary,#007a5a)]'
+                    }`}
                   />
                 </div>
+                {fieldErrors.buyerPhone && (
+                  <p className="mt-1.5 text-start text-[11px] font-bold text-red-600">
+                    {fieldErrors.buyerPhone}
+                  </p>
+                )}
               </div>
 
-              <div className="sm:col-span-2">
+              <div id="offer-field-buyerEmail" className="sm:col-span-2">
                 <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-                  {emailFieldLabel} *
+                  {emailFieldLabel} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="email"
                   dir="ltr"
                   value={buyerEmail}
-                  onChange={(e) => setBuyerEmail(e.target.value)}
+                  onChange={(e) => {
+                    setBuyerEmail(e.target.value)
+                    clearFieldError('buyerEmail')
+                  }}
                   placeholder="name@example.com"
-                  required
                   maxLength={140}
-                  className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-left text-xs font-medium text-[var(--brand-navy,#0a1122)] focus:border-[var(--brand-primary,#007a5a)] focus:outline-none sm:text-sm"
+                  className={`h-11 w-full rounded-xl border bg-white px-4 text-left text-xs font-medium text-[var(--brand-navy,#0a1122)] focus:outline-none sm:text-sm ${
+                    fieldErrors.buyerEmail
+                      ? 'border-2 border-red-500 bg-red-50/20'
+                      : 'border-gray-200 focus:border-[var(--brand-primary,#007a5a)]'
+                  }`}
                 />
+                {fieldErrors.buyerEmail && (
+                  <p className="mt-1.5 text-start text-[11px] font-bold text-red-600">
+                    {fieldErrors.buyerEmail}
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -915,7 +973,7 @@ export function UnitInterestForm({
 
             <div>
               <label className="mb-2 block text-xs font-bold text-[var(--brand-navy,#0a1122)]">
-                {oT.paymentMethodLabel || f.paymentMethodLabel}
+                {f.paymentMethodLabel || oT.paymentMethodLabel}
               </label>
               <div className="grid grid-cols-2 gap-2">
                 {(
@@ -959,46 +1017,85 @@ export function UnitInterestForm({
           </div>
 
           <div className="space-y-2.5 rounded-xl border border-gray-200 bg-gray-50/70 p-3.5">
-            <label className="flex cursor-pointer items-start gap-2.5 text-xs leading-relaxed text-gray-700">
-              <input
-                type="checkbox"
-                checked={agreedToCommission}
-                onChange={(e) => setAgreedToCommission(e.target.checked)}
-                required
-                className="mt-0.5 size-4 shrink-0 rounded accent-[var(--brand-primary,#007a5a)]"
-              />
-              <span>{f.commissionAgree}</span>
-            </label>
-
-            <div className="border-t border-gray-200/80 pt-2.5">
-              <label className="flex cursor-pointer items-start gap-2.5 text-xs leading-relaxed text-gray-700">
+            <div id="offer-field-agreedToCommission">
+              <label
+                className={`flex cursor-pointer items-start gap-2.5 rounded-lg p-1 text-xs leading-relaxed transition ${
+                  fieldErrors.agreedToCommission
+                    ? 'bg-red-50/60 text-red-900'
+                    : 'text-gray-700'
+                }`}
+              >
                 <input
                   type="checkbox"
-                  checked={agreedToTerms}
-                  onChange={(e) => setAgreedToTerms(e.target.checked)}
-                  required
+                  checked={agreedToCommission}
+                  onChange={(e) => {
+                    setAgreedToCommission(e.target.checked)
+                    clearFieldError('agreedToCommission')
+                  }}
                   className="mt-0.5 size-4 shrink-0 rounded accent-[var(--brand-primary,#007a5a)]"
                 />
                 <span>
-                  {legalCopy.prefix}{' '}
+                  {commissionAgreeText}{' '}
+                  <span className="text-red-500">*</span>
+                </span>
+              </label>
+              {fieldErrors.agreedToCommission && (
+                <p className="mt-1 ps-7 text-start text-[11px] font-bold text-red-600">
+                  {fieldErrors.agreedToCommission}
+                </p>
+              )}
+            </div>
+
+            <div
+              id="offer-field-agreedToTerms"
+              className="border-t border-gray-200/80 pt-2.5"
+            >
+              <label
+                className={`flex cursor-pointer items-start gap-2.5 rounded-lg p-1 text-xs leading-relaxed transition ${
+                  fieldErrors.agreedToTerms
+                    ? 'bg-red-50/60 text-red-900'
+                    : 'text-gray-700'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={agreedToTerms}
+                  onChange={(e) => {
+                    setAgreedToTerms(e.target.checked)
+                    clearFieldError('agreedToTerms')
+                  }}
+                  className="mt-0.5 size-4 shrink-0 rounded accent-[var(--brand-primary,#007a5a)]"
+                />
+                <span>
+                  {f.termsAgreePrefix}{' '}
                   <Link
                     href="/terms"
                     target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
                     className="font-bold text-[#007a5a] underline underline-offset-2 hover:text-[#006248]"
                   >
-                    {legalCopy.terms}
+                    {f.termsLinkText}
                   </Link>{' '}
-                  {legalCopy.and}{' '}
+                  {f.termsAndWord}{' '}
                   <Link
                     href="/privacy"
                     target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
                     className="font-bold text-[#007a5a] underline underline-offset-2 hover:text-[#006248]"
                   >
-                    {legalCopy.privacy}
+                    {f.privacyLinkText}
                   </Link>{' '}
-                  {legalCopy.suffix}
+                  {f.termsAgreeSuffix}{' '}
+                  <span className="text-red-500">*</span>
                 </span>
               </label>
+              {fieldErrors.agreedToTerms && (
+                <p className="mt-1 ps-7 text-start text-[11px] font-bold text-red-600">
+                  {fieldErrors.agreedToTerms}
+                </p>
+              )}
             </div>
           </div>
 
@@ -1006,12 +1103,7 @@ export function UnitInterestForm({
 
           <button
             type="submit"
-            disabled={
-              submittingOffer ||
-              effectiveCash <= 0 ||
-              isOverPaidError ||
-              isSanityIncompleteError
-            }
+            disabled={submittingOffer}
             className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--brand-primary,#007a5a)] text-sm font-bold text-white shadow-sm transition active:scale-[0.98] hover:bg-[var(--brand-primary-hover,#006248)] disabled:opacity-50"
           >
             {submittingOffer ? (

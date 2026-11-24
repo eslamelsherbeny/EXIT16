@@ -1,11 +1,16 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto'
 
 function getSessionSecret(): string {
-  return (
-    process.env.SESSION_SECRET ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    'aqar-exit-enterprise-secret-key-2026'
-  )
+  const secret =
+    process.env.SESSION_SECRET?.trim() ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
+
+  if (secret) return secret
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('CRITICAL: SESSION_SECRET is not configured in production')
+  }
+  return 'dualdealz-local-dev-only-secret-change-in-prod'
 }
 
 export function getPasswordFingerprint(

@@ -81,7 +81,21 @@ export async function POST(req: Request) {
       ) {
         return NextResponse.json({ ok: true })
       }
+// التحقق الصارم من مطابقة المبلغ والعملة مع الطلب المسجل في قاعدة البيانات
+      const paidAmountCents = Number(payload.actual_amount ?? payload.amount ?? 0)
+      const expectedAmountCents = Math.round(Number(reqRow.amount_gel || 0) * 100)
+      const paidCurrency = String(payload.currency || "GEL").toUpperCase()
 
+      if (
+        paidCurrency !== "GEL" ||
+        !Number.isFinite(paidAmountCents) ||
+        paidAmountCents < expectedAmountCents
+      ) {
+        return NextResponse.json(
+          { error: "AMOUNT_OR_CURRENCY_MISMATCH" },
+          { status: 400 }
+        )
+      }
       const paidAtIso = new Date().toISOString()
 
       await supabase

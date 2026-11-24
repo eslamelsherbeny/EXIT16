@@ -1,5 +1,6 @@
 'use server'
 
+import { createHmac } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import {
   ACTIVE_COUNTRY_CODE,
@@ -9,6 +10,7 @@ import {
   generateOrderRef,
   getFormsDict,
   getPhoneVariants,
+  getSecret,
   getSupabase,
   getVerifiedSellerSession,
   hashPassword,
@@ -41,6 +43,22 @@ export type BuyRequestPayload = {
   contactMessengers?: string[]
 }
 
+function isSuspendedStatus(status?: string | null): boolean {
+  return String(status || 'active').trim().toLowerCase() === 'suspended'
+}
+
+// مقبض مؤقت موقّع (15 دقيقة) لطلب استعادة كلمة المرور بدون كشف UUID أو بيانات صاحب الحساب
+function createSignedRecoveryHandle(userId: string): string {
+  const expiresAt = Date.now() + 15 * 60 * 1000
+  const payload = `${userId}:${expiresAt}`
+  const sig = createHmac('sha256', getSecret())
+    .update(`rec_handle:${payload}`)
+    .digest('hex')
+    .slice(0, 32)
+  const encoded = Buffer.from(`${payload}:${sig}`, 'utf8').toString('base64url')
+  return `rh.${encoded}`
+}
+
 export async function processBuyerStep3Action(payload: {
   mode: 'session' | 'login' | 'register'
   country?: string
@@ -68,21 +86,69 @@ export async function processBuyerStep3Action(payload: {
     const targetCountry = ACTIVE_COUNTRY_CODE
     const buyerResidenceCountry = (payload.userCountry || ACTIVE_COUNTRY_CODE)
       .trim()
+      .slice(0, 5)
       .toUpperCase()
 
     const activeMessengers =
       Array.isArray(payload.contactMessengers) &&
       payload.contactMessengers.length > 0
         ? payload.contactMessengers
+            .map((m) => String(m || '').trim().slice(0, 20))
+            .filter(Boolean)
+            .slice(0, 5)
         : ['whatsapp']
 
-    async function syncBuyerUserMessengers(userId: string, newPhone?: string) {
+    const cleanUnitTypes = Array.isArray(payload.unit_types)
+      ? payload.unit_types
+          .map((t) => String(t || '').trim().slice(0, 60))
+          .filter(Boolean)
+          .slice(0, 20)
+      : []
+
+    const cleanPreferredAreas = Array.isArray(payload.preferred_areas)
+      ? payload.preferred_areas
+          .map((a) => String(a || '').trim().slice(0, 120))
+          .filter(Boolean)
+          .slice(0, 25)
+      : []
+
+    const safeAvailableCash = Math.max(
+      0,
+      Number(payload.available_cash) || 0
+    )
+    const safeMaxInstallment = Math.max(
+      0,
+      Number(payload.max_installment) || 0
+    )
+    const safeBudget = Math.max(
+      safeAvailableCash,
+      Number(payload.budget) || 0
+    )
+    const safeMinRooms = Math.max(
+      0,
+      Math.min(20, Math.round(Number(payload.min_rooms) || 0))
+    )
+
+    async function syncBuyerUserMessengers(
+      userId: string,
+      currentPhone?: string | null,
+      newPhone?: string
+    ) {
       try {
         const updates: Record<string, any> = {
           contact_messengers: activeMessengers,
         }
-        if (newPhone && newPhone.trim().length >= 8) {
-          updates.phone = formatPrimaryPhone(newPhone)
+        if (!currentPhone && newPhone && newPhone.trim().length >= 8) {
+          const formatted = formatPrimaryPhone(newPhone)
+          const { data: phoneConflict } = await supabase
+            .from('users')
+            .select('id')
+            .eq('phone', formatted)
+            .neq('id', userId)
+            .limit(1)
+          if (!phoneConflict || phoneConflict.length === 0) {
+            updates.phone = formatted
+          }
         }
         await supabase.from('users').update(updates).eq('id', userId)
       } catch {}
@@ -90,9 +156,14 @@ export async function processBuyerStep3Action(payload: {
 
     async function insertBuyRequestRecord(
       userId: string,
-      contact: { name: string; phone: string; email: string }
+      contact: {
+        name: string
+        phone: string
+        email: string
+        currentPhone?: string | null
+      }
     ) {
-      await syncBuyerUserMessengers(userId, contact.phone)
+      await syncBuyerUserMessengers(userId, contact.currentPhone, contact.phone)
 
       const buyRow: Record<string, any> = {
         user_id: userId,
@@ -100,17 +171,18 @@ export async function processBuyerStep3Action(payload: {
         country_code: targetCountry,
         currency_code: 'USD',
         target_category: 'exit',
-        available_cash: Number(payload.available_cash) || 0,
-        max_installment: Number(payload.max_installment) || 0,
-        payment_plan: payload.payment_plan || msg.defaultMonthly,
-        budget:
-          Number(payload.budget) || Number(payload.available_cash) || 0,
-        unit_types: payload.unit_types || [],
-        min_rooms: Number(payload.min_rooms) || 0,
-        delivery_status: payload.delivery_status || msg.defaultReady,
-        preferred_areas: payload.preferred_areas || [],
-        name: contact.name || msg.buyerFallback,
-        phone: contact.phone || '',
+        available_cash: safeAvailableCash,
+        max_installment: safeMaxInstallment,
+        payment_plan:
+          String(payload.payment_plan || msg.defaultMonthly).slice(0, 60),
+        budget: safeBudget,
+        unit_types: cleanUnitTypes,
+        min_rooms: safeMinRooms,
+        delivery_status:
+          String(payload.delivery_status || msg.defaultReady).slice(0, 60),
+        preferred_areas: cleanPreferredAreas,
+        name: (contact.name || msg.buyerFallback).slice(0, 120),
+        phone: (contact.phone || '').slice(0, 30),
         email: contact.email || null,
       }
 
@@ -136,7 +208,7 @@ export async function processBuyerStep3Action(payload: {
 
       const reqId = inserted?.id ? String(inserted.id) : ''
       const cashFormatted = Number(
-        payload.available_cash || payload.budget || 0
+        safeAvailableCash || safeBudget || 0
       ).toLocaleString('en-US')
       const comma = dir === 'rtl' ? '،' : ','
       const listSep = dir === 'rtl' ? '، ' : ', '
@@ -147,7 +219,7 @@ export async function processBuyerStep3Action(payload: {
             user_id: null,
             role: 'admin',
             title: `${msg.newBuyRequestAdminTitle} (${targetCountry}): ${contact.name || msg.buyerFallback}`,
-            message: `$${cashFormatted} · ${(payload.preferred_areas || []).slice(0, 2).join(listSep)}`,
+            message: `$${cashFormatted} · ${cleanPreferredAreas.slice(0, 2).join(listSep)}`,
             type: 'lead',
             link: `/admin/leads${reqId ? `?leadId=${reqId}` : ''}`,
             is_read: false,
@@ -166,8 +238,9 @@ export async function processBuyerStep3Action(payload: {
 
       if (contact.email) {
         const orderRef = generateOrderRef(reqId)
-        const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000
-        const verifyToken = createMagicToken(userId, reqId, expiresAt)
+        const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000
+        // تمرير '' للـ unitId لأن هذا طلب شراء وليس وحدة بيع في sell_requests
+        const verifyToken = createMagicToken(userId, '', expiresAt)
         const verifyAndOpenBuyerLink = `${siteUrl}/api/verify-contact?type=email&token=${encodeURIComponent(verifyToken)}&next=${encodeURIComponent('/account?view=buyer')}`
 
         sendNotificationEmail({
@@ -203,6 +276,7 @@ export async function processBuyerStep3Action(payload: {
         name: payload.name || currentUser.name || msg.buyerFallback,
         phone: resolvedPhone,
         email: currentUser.email || '',
+        currentPhone: currentUser.phone,
       })
 
       revalidatePath('/account', 'page')
@@ -220,8 +294,8 @@ export async function processBuyerStep3Action(payload: {
     }
 
     if (payload.mode === 'login') {
-      const rawIdentifier = (payload.loginIdentifier || '').trim()
-      const password = payload.password || ''
+      const rawIdentifier = (payload.loginIdentifier || '').trim().slice(0, 160)
+      const password = String(payload.password || '').slice(0, 128)
 
       if (!rawIdentifier || !password) {
         return {
@@ -234,14 +308,14 @@ export async function processBuyerStep3Action(payload: {
       if (rawIdentifier.includes('@')) {
         const { data } = await supabase
           .from('users')
-          .select('id, name, email, phone, password_hash')
+          .select('id, name, email, phone, password_hash, status')
           .ilike('email', normalizeEmail(rawIdentifier))
         candidates = data || []
       } else {
         const variants = getPhoneVariants(rawIdentifier)
         const { data } = await supabase
           .from('users')
-          .select('id, name, email, phone, password_hash')
+          .select('id, name, email, phone, password_hash, status')
           .in('phone', variants)
         candidates = data || []
       }
@@ -263,11 +337,19 @@ export async function processBuyerStep3Action(payload: {
         }
       }
 
+      if (isSuspendedStatus(matched.status)) {
+        return {
+          status: 'error',
+          error: msg.unauthorized || msg.wrongPassword,
+        }
+      }
+
       await setUserSession(matched.id, matched.password_hash)
       const reqId = await insertBuyRequestRecord(matched.id, {
         name: matched.name || msg.buyerFallback,
         phone: matched.phone || '',
         email: matched.email || '',
+        currentPhone: matched.phone,
       })
 
       revalidatePath('/account', 'page')
@@ -284,13 +366,21 @@ export async function processBuyerStep3Action(payload: {
       }
     }
 
-    const cleanName = (payload.name || '').trim()
+    const cleanName = (payload.name || '').trim().slice(0, 120)
     const cleanEmail = normalizeEmail(payload.email || '')
     const formattedPhone = formatPrimaryPhone(payload.phone || '')
     const phoneVariants = getPhoneVariants(payload.phone || '')
-    const password = payload.password || ''
+    const phoneDigitsLen = formattedPhone.replace(/\D/g, '').length
+    const password = String(payload.password || '').slice(0, 128)
 
-    if (!cleanName || !cleanEmail || !formattedPhone || password.length < 8) {
+    if (
+      cleanName.length < 2 ||
+      !cleanEmail ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail) ||
+      !formattedPhone ||
+      phoneDigitsLen < 7 ||
+      password.length < 8
+    ) {
       return {
         status: 'error',
         error: msg.fillAll,
@@ -300,12 +390,12 @@ export async function processBuyerStep3Action(payload: {
     const [{ data: emailMatches }, { data: phoneMatches }] = await Promise.all([
       supabase
         .from('users')
-        .select('id, name, phone, email, password_hash')
+        .select('id, name, phone, email, password_hash, status')
         .ilike('email', cleanEmail)
         .limit(1),
       supabase
         .from('users')
-        .select('id, name, phone, email, password_hash')
+        .select('id, name, phone, email, password_hash, status')
         .in('phone', phoneVariants)
         .limit(1),
     ])
@@ -314,12 +404,19 @@ export async function processBuyerStep3Action(payload: {
     const phoneUser = phoneMatches?.[0] || null
 
     if (emailUser) {
+      if (isSuspendedStatus(emailUser.status)) {
+        return {
+          status: 'error',
+          error: msg.unauthorized || msg.wrongPassword,
+        }
+      }
       if (verifyPassword(password, emailUser.password_hash)) {
         await setUserSession(emailUser.id, emailUser.password_hash)
         const reqId = await insertBuyRequestRecord(emailUser.id, {
           name: emailUser.name || cleanName,
           phone: emailUser.phone || formattedPhone,
           email: emailUser.email,
+          currentPhone: emailUser.phone,
         })
         revalidatePath('/account', 'page')
         revalidatePath('/admin', 'layout')
@@ -334,22 +431,29 @@ export async function processBuyerStep3Action(payload: {
         }
       }
 
+      // منع تسريب UUID أو اسم صاحب الحساب — نرجع فقط الإيميل الذي أدخله المستخدم ومقبض استعادة موقّع
       return {
         status: 'email_exists_need_password',
-        userId: emailUser.id,
-        orderRef: 'AE-VERIFY',
-        userEmail: emailUser.email,
-        userName: emailUser.name,
+        userId: createSignedRecoveryHandle(emailUser.id),
+        orderRef: 'DD-VERIFY',
+        userEmail: cleanEmail,
       }
     }
 
     if (phoneUser && !emailUser) {
+      if (isSuspendedStatus(phoneUser.status)) {
+        return {
+          status: 'error',
+          error: msg.unauthorized || msg.wrongPassword,
+        }
+      }
       if (verifyPassword(password, phoneUser.password_hash)) {
         await setUserSession(phoneUser.id, phoneUser.password_hash)
         const reqId = await insertBuyRequestRecord(phoneUser.id, {
           name: phoneUser.name || cleanName,
           phone: phoneUser.phone,
           email: phoneUser.email,
+          currentPhone: phoneUser.phone,
         })
         revalidatePath('/account', 'page')
         revalidatePath('/admin', 'layout')
@@ -364,12 +468,11 @@ export async function processBuyerStep3Action(payload: {
         }
       }
 
+      // منع تسريب بريد أو رقم أو UUID صاحب الحساب عند تعارض رقم الموبايل
       return {
         status: 'phone_exists_different_email',
-        userId: phoneUser.id,
-        orderRef: 'AE-VERIFY',
-        userEmail: phoneUser.email,
-        userPhone: phoneUser.phone,
+        userId: createSignedRecoveryHandle(phoneUser.id),
+        orderRef: 'DD-VERIFY',
       }
     }
 
@@ -415,6 +518,7 @@ export async function processBuyerStep3Action(payload: {
       name: cleanName,
       phone: formattedPhone,
       email: cleanEmail,
+      currentPhone: formattedPhone,
     })
 
     revalidatePath('/account', 'page')
@@ -469,7 +573,7 @@ export async function submitBuyRequest(
       email: text(input, 'email'),
       password: text(input, 'password'),
     })
-    if (res.status === 'ok' || res.orderRef) {
+    if (res.status === 'ok') {
       return { success: true, orderRef: res.orderRef }
     }
     return { success: false, error: res.error || msg.unexpected }

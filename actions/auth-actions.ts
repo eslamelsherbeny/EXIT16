@@ -1,7 +1,7 @@
 "use server"
 
 import { cookies } from "next/headers"
-import { randomBytes } from "node:crypto"
+import { randomBytes, randomInt, timingSafeEqual } from "node:crypto"
 import { revalidatePath } from "next/cache"
 import {
   extractUserIdFromCookie,
@@ -25,8 +25,73 @@ import {
   verifyTurnstileOnServer,
 } from "@/lib/admin-auth-helpers"
 
-function generateOTP() {
-  return Math.floor(100000 + Math.random() * 900000).toString()
+const OTP_MAX_ATTEMPTS = 5
+const otpFailedAttemptsMap = new Map<
+  string,
+  { count: number; resetAt: number }
+>()
+
+function generateSecureOTP(): string {
+  return String(randomInt(100000, 1000000))
+}
+
+function safeEqualString(a: string, b: string): boolean {
+  const bufA = Buffer.from(a, "utf8")
+  const bufB = Buffer.from(b, "utf8")
+  if (bufA.length !== bufB.length) return false
+  return timingSafeEqual(bufA, bufB)
+}
+
+function isSuspendedStatus(status?: string | null): boolean {
+  return String(status || "active").trim().toLowerCase() === "suspended"
+}
+
+function isOtpLockedOut(key: string): boolean {
+  const rec = otpFailedAttemptsMap.get(key)
+  if (!rec) return false
+  if (Date.now() > rec.resetAt) {
+    otpFailedAttemptsMap.delete(key)
+    return false
+  }
+  return rec.count >= OTP_MAX_ATTEMPTS
+}
+
+function recordOtpFailure(key: string): number {
+  const now = Date.now()
+  const rec = otpFailedAttemptsMap.get(key)
+  if (!rec || now > rec.resetAt) {
+    otpFailedAttemptsMap.set(key, { count: 1, resetAt: now + 15 * 60 * 1000 })
+    return 1
+  }
+  rec.count += 1
+  return rec.count
+}
+
+function clearOtpFailures(key: string) {
+  otpFailedAttemptsMap.delete(key)
+}
+
+async function getVerifiedAuthSessionUser(supabase: any) {
+  const cookieStore = await cookies()
+  const rawSession = cookieStore.get("user_session")?.value
+  const sessionUserId = extractUserIdFromCookie(rawSession)
+
+  if (!rawSession || !sessionUserId) return null
+
+  const { data: user } = await supabase
+    .from("users")
+    .select(
+      "id, name, email, phone, role, status, password_hash, is_verified, phone_verified, otp_code, otp_expiry"
+    )
+    .eq("id", sessionUserId)
+    .maybeSingle()
+
+  if (!user || isSuspendedStatus(user.status)) return null
+
+  const check = parseAndVerifySessionCookie(rawSession, user.password_hash)
+  if (!check.valid) return null
+
+  return user
 }
 
 export type AuthResult = {
@@ -112,10 +177,7 @@ export async function loginAction(formData: FormData): Promise<AuthResult> {
     }
   }
 
-  const cleanStatus = String(matchedUser.status || "active")
-    .trim()
-    .toLowerCase()
-  if (cleanStatus === "suspended") {
+  if (isSuspendedStatus(matchedUser.status)) {
     return {
       success: false,
       error: msg.suspended,
@@ -126,7 +188,7 @@ export async function loginAction(formData: FormData): Promise<AuthResult> {
     .replace(/[\r\n\s]+/g, "")
     .toLowerCase()
   const isStaff =
-  cleanRole === "owner" ||
+    cleanRole === "owner" ||
     cleanRole === "admin" ||
     cleanRole === "moderator" ||
     cleanRole === "sales"
@@ -153,7 +215,10 @@ export async function loginAction(formData: FormData): Promise<AuthResult> {
   }
 
   const isSafeInternalUrl =
-    nextUrl && nextUrl.startsWith("/") && !nextUrl.startsWith("//")
+    Boolean(nextUrl) &&
+    nextUrl.startsWith("/") &&
+    !nextUrl.startsWith("//") &&
+    !nextUrl.startsWith("/\\")
   const targetRedirect = isSafeInternalUrl ? nextUrl : "/account"
 
   revalidatePath("/", "layout")
@@ -188,8 +253,18 @@ export async function registerAction(formData: FormData): Promise<AuthResult> {
 
   const formattedPhone = formatPrimaryPhone(rawPhone)
   const phoneVariants = getPhoneVariants(rawPhone)
+  const phoneDigitsLen = formattedPhone.replace(/\D/g, "").length
 
-  if (!name || !email || !formattedPhone || !password || password.length < 8) {
+  if (
+    !name ||
+    name.length < 2 ||
+    !email ||
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
+    !formattedPhone ||
+    phoneDigitsLen < 7 ||
+    !password ||
+    password.length < 8
+  ) {
     return {
       success: false,
       error: msg.fillAllRegister,
@@ -219,6 +294,9 @@ export async function registerAction(formData: FormData): Promise<AuthResult> {
 
   const hash = hashPassword(password)
   const verifyToken = randomBytes(24).toString("hex")
+  const verifyExpiry = new Date(
+    Date.now() + 7 * 24 * 60 * 60 * 1000
+  ).toISOString()
 
   const { data: newUser, error } = await supabase
     .from("users")
@@ -246,6 +324,7 @@ export async function registerAction(formData: FormData): Promise<AuthResult> {
       .from("users")
       .update({
         otp_code: verifyToken,
+        otp_expiry: verifyExpiry,
         is_verified: false,
         status: "active",
         country,
@@ -294,14 +373,14 @@ export async function forgotPasswordAction(
 
   const email = normalizeEmail(String(formData.get("email") || ""))
 
-  if (!email) {
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return { success: false, error: msg.enterEmail }
   }
 
   const supabase = await getSupabase()
   const { data: users } = await supabase
     .from("users")
-    .select("id, name, email, otp_code")
+    .select("id, name, email, status, otp_code, otp_expiry")
     .ilike("email", email)
     .order("created_at", { ascending: false })
     .limit(1)
@@ -311,9 +390,23 @@ export async function forgotPasswordAction(
     return { success: false, error: msg.emailNotFound }
   }
 
-  const otp = generateOTP()
+  if (isSuspendedStatus(user.status)) {
+    return { success: false, error: msg.suspended }
+  }
+
+  // حماية من إغراق البريد (Cooldown لمدة 60 ثانية بين كل كود والآخر)
+  if (user.otp_expiry) {
+    const remainingMs = new Date(user.otp_expiry).getTime() - Date.now()
+    if (remainingMs > 14 * 60 * 1000 && remainingMs <= 15 * 60 * 1000) {
+      return { success: true }
+    }
+  }
+
+  const otp = generateSecureOTP()
   const expiresAt = Date.now() + 15 * 60 * 1000
   const expiryIso = new Date(expiresAt).toISOString()
+
+  clearOtpFailures(`reset:${email}`)
 
   const cookieStore = await cookies()
   const signedToken = signOtpToken(email, otp, expiresAt)
@@ -364,16 +457,21 @@ export async function verifyOtpAction(
 ): Promise<AuthResult> {
   const { t: msg } = await getAuthActionsDict()
   const cleanEmail = normalizeEmail(email)
-  const cleanOtp = sanitizeText(otp, 10)
+  const cleanOtp = sanitizeText(otp, 10).replace(/\D/g, "")
 
-  if (!cleanEmail || !cleanOtp) {
+  if (!cleanEmail || cleanOtp.length !== 6) {
     return { success: false, error: msg.enterValidOtp }
+  }
+
+  const attemptKey = `reset:${cleanEmail}`
+  if (isOtpLockedOut(attemptKey)) {
+    return { success: false, error: msg.otpExpired }
   }
 
   const supabase = await getSupabase()
   const { data: users } = await supabase
     .from("users")
-    .select("*")
+    .select("id, status, otp_code, otp_expiry")
     .ilike("email", cleanEmail)
     .order("created_at", { ascending: false })
     .limit(1)
@@ -384,6 +482,10 @@ export async function verifyOtpAction(
       success: false,
       error: msg.emailNotFound,
     }
+  }
+
+  if (isSuspendedStatus(user.status)) {
+    return { success: false, error: msg.suspended }
   }
 
   const cookieStore = await cookies()
@@ -397,20 +499,43 @@ export async function verifyOtpAction(
     }
   }
 
-  if (cookieCheck.valid) return { success: true }
+  if (cookieCheck.valid) {
+    clearOtpFailures(attemptKey)
+    return { success: true }
+  }
 
   const storedOtpClean = String(user.otp_code || "")
     .replace("PHONE_OK|", "")
     .trim()
 
-  if (storedOtpClean && storedOtpClean === cleanOtp) {
-    if (user.otp_expiry && new Date(user.otp_expiry) < new Date()) {
+  if (
+    storedOtpClean.length === 6 &&
+    safeEqualString(storedOtpClean, cleanOtp)
+  ) {
+    if (!user.otp_expiry || new Date(user.otp_expiry) < new Date()) {
       return {
         success: false,
         error: msg.otpExpired,
       }
     }
+    clearOtpFailures(attemptKey)
     return { success: true }
+  }
+
+  const fails = recordOtpFailure(attemptKey)
+  if (fails >= OTP_MAX_ATTEMPTS) {
+    const hadPhoneOk = String(user.otp_code || "").includes("PHONE_OK")
+    try {
+      await supabase
+        .from("users")
+        .update({
+          otp_code: hadPhoneOk ? "PHONE_OK" : null,
+          otp_expiry: null,
+        })
+        .eq("id", user.id)
+    } catch {}
+    cookieStore.delete("reset_otp_session")
+    return { success: false, error: msg.otpExpired }
   }
 
   return { success: false, error: msg.invalidOtp }
@@ -423,7 +548,7 @@ export async function resetPasswordAction(
 ): Promise<AuthResult> {
   const { t: msg } = await getAuthActionsDict()
   const cleanEmail = normalizeEmail(email)
-  const cleanOtp = sanitizeText(otp, 10)
+  const cleanOtp = sanitizeText(otp, 10).replace(/\D/g, "")
   const cleanPass = String(newPassword || "").slice(0, 128)
 
   if (!cleanPass || cleanPass.length < 8) {
@@ -437,38 +562,48 @@ export async function resetPasswordAction(
   if (!otpVerification.success) return otpVerification
 
   const supabase = await getSupabase()
-  const newHash = hashPassword(cleanPass)
-
-  const { data: updatedRows, error } = await supabase
+  const { data: users } = await supabase
     .from("users")
-    .update({ password_hash: newHash })
+    .select("id, status, otp_code")
     .ilike("email", cleanEmail)
-    .select("id, otp_code")
+    .order("created_at", { ascending: false })
+    .limit(1)
 
-  if (error || !updatedRows || updatedRows.length === 0) {
+  const targetUser = users?.[0]
+  if (!targetUser || isSuspendedStatus(targetUser.status)) {
     return {
       success: false,
       error: msg.updatePassFailed,
     }
   }
 
-  const targetUser = updatedRows[0]
+  const newHash = hashPassword(cleanPass)
   const hadPhoneOk = String(targetUser.otp_code || "").includes("PHONE_OK")
 
-  try {
-    await supabase
-      .from("users")
-      .update({
-        otp_code: hadPhoneOk ? "PHONE_OK" : null,
-        otp_expiry: null,
-        is_verified: true,
-      })
-      .eq("id", targetUser.id)
+  const { error } = await supabase
+    .from("users")
+    .update({
+      password_hash: newHash,
+      otp_code: hadPhoneOk ? "PHONE_OK" : null,
+      otp_expiry: null,
+      is_verified: true,
+    })
+    .eq("id", targetUser.id)
 
+  if (error) {
+    return {
+      success: false,
+      error: msg.updatePassFailed,
+    }
+  }
+
+  try {
     await upsertUserVerificationMeta(supabase, targetUser.id, {
       emailVerified: true,
     })
   } catch {}
+
+  clearOtpFailures(`reset:${cleanEmail}`)
 
   const cookieStore = await cookies()
   cookieStore.delete("reset_otp_session")
@@ -485,20 +620,22 @@ export async function verifyAccountAction(
   const { t: msg } = await getAuthActionsDict()
   const cleanEmail = normalizeEmail(email)
   const cleanToken = sanitizeText(token, 100)
-  if (!cleanEmail || !cleanToken) {
+  if (!cleanEmail || !cleanToken || cleanToken.length < 6) {
     return { success: false, error: msg.invalidLink }
   }
 
   const supabase = await getSupabase()
   const { data: users } = await supabase
     .from("users")
-    .select("id, otp_code, is_verified")
+    .select("id, status, otp_code, otp_expiry, is_verified")
     .ilike("email", cleanEmail)
     .order("created_at", { ascending: false })
     .limit(1)
 
   const user = users?.[0]
-  if (!user) return { success: false, error: msg.accountNotFound }
+  if (!user || isSuspendedStatus(user.status)) {
+    return { success: false, error: msg.accountNotFound }
+  }
 
   if (user.is_verified) {
     return { success: true }
@@ -508,8 +645,12 @@ export async function verifyAccountAction(
     .replace("PHONE_OK|", "")
     .trim()
 
-  if (!rawStored || rawStored !== cleanToken) {
+  if (!rawStored || !safeEqualString(rawStored, cleanToken)) {
     return { success: false, error: msg.invalidLink }
+  }
+
+  if (user.otp_expiry && new Date(user.otp_expiry) < new Date()) {
+    return { success: false, error: msg.otpExpired }
   }
 
   const hadPhoneOk = String(user.otp_code || "").includes("PHONE_OK")
@@ -518,6 +659,7 @@ export async function verifyAccountAction(
     .update({
       is_verified: true,
       otp_code: hadPhoneOk ? "PHONE_OK" : null,
+      otp_expiry: null,
       status: "active",
     })
     .eq("id", user.id)
@@ -533,7 +675,9 @@ export async function verifyAccountAction(
   return { success: true }
 }
 
-export async function sendInlineEmailOtpAction(targetEmail?: string): Promise<{
+export async function sendInlineEmailOtpAction(
+  _targetEmail?: string
+): Promise<{
   success: boolean
   maskedEmail?: string
   error?: string
@@ -541,21 +685,17 @@ export async function sendInlineEmailOtpAction(targetEmail?: string): Promise<{
   const { t: msg, dir } = await getAuthActionsDict()
   try {
     const supabase = await getSupabase()
-    const cookieStore = await cookies()
-    const rawSession = cookieStore.get("user_session")?.value
-    const sessionUserId = extractUserIdFromCookie(rawSession)
+    // إغلاق ثغرة الاستيلاء على الحسابات: إلزام وجود جلسة موقّعة وإرسال الكود لإيميل صاحب الجلسة فقط
+    const user = await getVerifiedAuthSessionUser(supabase)
 
-    let user: any = null
-    if (sessionUserId) {
-      const { data } = await supabase
-        .from("users")
-        .select("id, name, email, otp_code, is_verified")
-        .eq("id", sessionUserId)
-        .maybeSingle()
-      user = data
+    if (!user) {
+      return {
+        success: false,
+        error: msg.accountNotFound,
+      }
     }
 
-    const emailToUse = normalizeEmail(targetEmail || user?.email || "")
+    const emailToUse = normalizeEmail(user.email || "")
     if (!emailToUse) {
       return {
         success: false,
@@ -563,19 +703,21 @@ export async function sendInlineEmailOtpAction(targetEmail?: string): Promise<{
       }
     }
 
-    if (!user) {
-      const { data } = await supabase
-        .from("users")
-        .select("id, name, email, otp_code, is_verified")
-        .ilike("email", emailToUse)
-        .limit(1)
-      user = data?.[0]
+    // حماية من تكرار الإرسال السريع (Cooldown لمدة 60 ثانية)
+    if (user.otp_expiry) {
+      const remainingMs = new Date(user.otp_expiry).getTime() - Date.now()
+      if (remainingMs > 14 * 60 * 1000 && remainingMs <= 15 * 60 * 1000) {
+        return { success: true }
+      }
     }
 
-    const otp = generateOTP()
+    const otp = generateSecureOTP()
     const expiresAt = Date.now() + 15 * 60 * 1000
     const expiryIso = new Date(expiresAt).toISOString()
 
+    clearOtpFailures(`inline:${user.id}`)
+
+    const cookieStore = await cookies()
     const signedToken = signOtpToken(emailToUse, otp, expiresAt)
     const isProd = process.env.NODE_ENV === "production"
 
@@ -587,24 +729,22 @@ export async function sendInlineEmailOtpAction(targetEmail?: string): Promise<{
       httpOnly: true,
     })
 
-    if (user?.id) {
-      const hadPhoneOk = String(user.otp_code || "").includes("PHONE_OK")
-      try {
-        await supabase
-          .from("users")
-          .update({
-            otp_code: hadPhoneOk ? `PHONE_OK|${otp}` : otp,
-            otp_expiry: expiryIso,
-          })
-          .eq("id", user.id)
-      } catch {}
-    }
+    const hadPhoneOk = String(user.otp_code || "").includes("PHONE_OK")
+    try {
+      await supabase
+        .from("users")
+        .update({
+          otp_code: hadPhoneOk ? `PHONE_OK|${otp}` : otp,
+          otp_expiry: expiryIso,
+        })
+        .eq("id", user.id)
+    } catch {}
 
     const verifyLink = `${DEFAULT_SITE_URL}/login?verified=1&email=${encodeURIComponent(emailToUse)}&token=${otp}`
     const subject = `${otp} — ${msg.otpEmailSubject}`
 
     const html = `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.8; color: #0a1122; max-width: 540px; margin: 0 auto;">
-      <h2 style="color: #0a1122;">${msg.otpEmailGreeting} ${user?.name || ""} 👋</h2>
+      <h2 style="color: #0a1122;">${msg.otpEmailGreeting} ${user.name || ""} 👋</h2>
       <p>${msg.otpEmailBody}</p>
       <div style="background: #eaf8f2; border: 2px solid #007a5a; padding: 16px; border-radius: 14px; text-align: center; margin: 20px 0;">
         <h1 style="color: #007a5a; letter-spacing: 8px; margin: 0; font-size: 32px; font-family: monospace;">${otp}</h1>
@@ -644,15 +784,15 @@ export async function sendInlineEmailOtpAction(targetEmail?: string): Promise<{
 
 export async function verifyInlineEmailOtpAction(
   otp: string,
-  targetEmail?: string
+  _targetEmail?: string
 ): Promise<{
   success: boolean
   error?: string
 }> {
   const { t: msg } = await getAuthActionsDict()
   try {
-    const cleanOtp = sanitizeText(otp, 10).replace(/\s+/g, "")
-    if (!cleanOtp || cleanOtp.length < 4) {
+    const cleanOtp = sanitizeText(otp, 10).replace(/\D/g, "")
+    if (cleanOtp.length !== 6) {
       return {
         success: false,
         error: msg.enterValidOtp,
@@ -660,29 +800,8 @@ export async function verifyInlineEmailOtpAction(
     }
 
     const supabase = await getSupabase()
-    const cookieStore = await cookies()
-    const rawSession = cookieStore.get("user_session")?.value
-    const sessionUserId = extractUserIdFromCookie(rawSession)
-
-    let user: any = null
-    if (sessionUserId) {
-      const { data } = await supabase
-        .from("users")
-        .select("*")
-        .eq("id", sessionUserId)
-        .maybeSingle()
-      user = data
-    }
-
-    const emailToUse = normalizeEmail(targetEmail || user?.email || "")
-    if (!user && emailToUse) {
-      const { data } = await supabase
-        .from("users")
-        .select("*")
-        .ilike("email", emailToUse)
-        .limit(1)
-      user = data?.[0]
-    }
+    // إلزام وجود جلسة موقّعة وتوثيق صاحب الجلسة فقط
+    const user = await getVerifiedAuthSessionUser(supabase)
 
     if (!user) {
       return {
@@ -691,25 +810,67 @@ export async function verifyInlineEmailOtpAction(
       }
     }
 
-    const checkRes = await verifyOtpAction(user.email || emailToUse, cleanOtp)
-    if (!checkRes.success) {
+    const attemptKey = `inline:${user.id}`
+    if (isOtpLockedOut(attemptKey)) {
+      return { success: false, error: msg.otpExpired }
+    }
+
+    const emailToUse = normalizeEmail(user.email || "")
+    const cookieStore = await cookies()
+    const otpCookie = cookieStore.get("reset_otp_session")?.value
+    const cookieCheck = verifySignedOtpToken(emailToUse, cleanOtp, otpCookie)
+
+    let isValid = cookieCheck.valid
+
+    if (!isValid) {
+      const storedOtpClean = String(user.otp_code || "")
+        .replace("PHONE_OK|", "")
+        .trim()
+      if (
+        storedOtpClean.length === 6 &&
+        safeEqualString(storedOtpClean, cleanOtp) &&
+        user.otp_expiry &&
+        new Date(user.otp_expiry) >= new Date()
+      ) {
+        isValid = true
+      }
+    }
+
+    if (!isValid) {
+      const fails = recordOtpFailure(attemptKey)
+      if (fails >= OTP_MAX_ATTEMPTS) {
+        const hadPhoneOk = String(user.otp_code || "").includes("PHONE_OK")
+        await supabase
+          .from("users")
+          .update({
+            otp_code: hadPhoneOk ? "PHONE_OK" : null,
+            otp_expiry: null,
+          })
+          .eq("id", user.id)
+        cookieStore.delete("reset_otp_session")
+        return { success: false, error: msg.otpExpired }
+      }
       return {
         success: false,
         error: msg.invalidOtp,
       }
     }
 
+    clearOtpFailures(attemptKey)
+
     const hadPhoneOk =
       Boolean(user.phone_verified) ||
       String(user.otp_code || "").includes("PHONE_OK")
 
-    const updatePayload: Record<string, any> = {
-      is_verified: true,
-      otp_code: hadPhoneOk ? "PHONE_OK" : null,
-      otp_expiry: null,
-    }
+    await supabase
+      .from("users")
+      .update({
+        is_verified: true,
+        otp_code: hadPhoneOk ? "PHONE_OK" : null,
+        otp_expiry: null,
+      })
+      .eq("id", user.id)
 
-    await supabase.from("users").update(updatePayload).eq("id", user.id)
     await upsertUserVerificationMeta(supabase, user.id, {
       emailVerified: true,
     })
@@ -737,34 +898,18 @@ export async function markUserPhoneVerifiedAction(payload?: {
 }): Promise<{ success: boolean }> {
   try {
     const supabase = await getSupabase()
-    const cookieStore = await cookies()
-    const rawSession = cookieStore.get("user_session")?.value
-    const sessionUserId = extractUserIdFromCookie(rawSession)
-
-    if (!rawSession || !sessionUserId) return { success: false }
-
-    const { data: caller } = await supabase
-      .from("users")
-      .select("id, role, status, password_hash")
-      .eq("id", sessionUserId)
-      .maybeSingle()
+    const caller = await getVerifiedAuthSessionUser(supabase)
 
     if (!caller) return { success: false }
 
-    const validSession = parseAndVerifySessionCookie(
-      rawSession,
-      caller.password_hash
-    ).valid
     const callerRole = String(caller.role || "user")
       .trim()
       .toLowerCase()
-  const isStaff =
-  validSession &&
-  caller.status !== "suspended" &&
-  (callerRole === "owner" ||
-    callerRole === "admin" ||
-    callerRole === "moderator" ||
-    callerRole === "sales")
+    const isStaff =
+      callerRole === "owner" ||
+      callerRole === "admin" ||
+      callerRole === "moderator" ||
+      callerRole === "sales"
 
     if (!isStaff) {
       return { success: false }
@@ -849,43 +994,9 @@ export async function getUserVerificationStatusAction(): Promise<{
 }> {
   try {
     const supabase = await getSupabase()
-    const cookieStore = await cookies()
-    const rawSession = cookieStore.get("user_session")?.value
-    const sessionUserId = extractUserIdFromCookie(rawSession)
-
-    if (!rawSession || !sessionUserId) {
-      return {
-        isLoggedIn: false,
-        userId: "",
-        email: "",
-        phone: "",
-        emailVerified: false,
-        phoneVerified: false,
-      }
-    }
-
-    const { data: user } = await supabase
-      .from("users")
-      .select("*")
-      .eq("id", sessionUserId)
-      .maybeSingle()
+    const user = await getVerifiedAuthSessionUser(supabase)
 
     if (!user) {
-      return {
-        isLoggedIn: false,
-        userId: "",
-        email: "",
-        phone: "",
-        emailVerified: false,
-        phoneVerified: false,
-      }
-    }
-
-    const validSession = parseAndVerifySessionCookie(
-      rawSession,
-      user.password_hash
-    ).valid
-    if (!validSession || user.status === "suspended") {
       return {
         isLoggedIn: false,
         userId: "",
@@ -958,20 +1069,19 @@ export async function getSessionUserAction() {
     }
 
     const check = parseAndVerifySessionCookie(rawSession, user.password_hash)
-    const status = String(user.status || "active").trim().toLowerCase()
 
-    if (!check.valid || status === "suspended") {
+    if (!check.valid || isSuspendedStatus(user.status)) {
       return { isLoggedIn: false, isAdmin: false, name: null, role: null }
     }
 
     const role = String(user.role || "user")
       .replace(/[\r\n\s]+/g, "")
       .toLowerCase()
-   const isAdmin =
-  role === "owner" ||
-  role === "admin" ||
-  role === "moderator" ||
-  role === "sales"
+    const isAdmin =
+      role === "owner" ||
+      role === "admin" ||
+      role === "moderator" ||
+      role === "sales"
 
     return {
       isLoggedIn: true,

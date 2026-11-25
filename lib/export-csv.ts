@@ -22,6 +22,10 @@ export const EXPORT_LABELS: Record<LocaleCode, ExportLabelsConfig> = {
   ka: kaDict.admin.exportLabels,
 }
 
+const VALID_LOCALES = new Set<LocaleCode>(['ar', 'en', 'ru', 'ka'])
+const FORMULA_TRIGGER_REGEX = /^[=+\-@\t\r]/
+const PURE_PHONE_REGEX = /^\+[0-9][0-9\s()-]{5,24}$/
+
 function escapeHtml(raw: string | number | boolean | null | undefined): string {
   if (raw === null || raw === undefined) return '—'
   const str = String(raw).trim()
@@ -31,6 +35,24 @@ function escapeHtml(raw: string | number | boolean | null | undefined): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+// حماية ضد ثغرة Excel Formula Injection (CSV / XLS Injection)
+function sanitizeExcelCellValue(
+  raw: string | number | boolean | null | undefined,
+  isPhone = false
+): string {
+  if (raw === null || raw === undefined) return '—'
+  const str = String(raw).trim()
+  if (!str) return '—'
+
+  if (isPhone && PURE_PHONE_REGEX.test(str)) {
+    return escapeHtml(str)
+  }
+
+  const neutralized = FORMULA_TRIGGER_REGEX.test(str) ? `'${str}` : str
+  return escapeHtml(neutralized)
 }
 
 export function downloadExcelCsv<T>({
@@ -48,8 +70,9 @@ export function downloadExcelCsv<T>({
 }) {
   if (typeof window === 'undefined' || !data || data.length === 0) return
 
-  const L = EXPORT_LABELS[locale] || EXPORT_LABELS.en
-  const isRtl = locale === 'ar'
+  const safeLocale: LocaleCode = VALID_LOCALES.has(locale) ? locale : 'en'
+  const L = EXPORT_LABELS[safeLocale] || EXPORT_LABELS.en
+  const isRtl = safeLocale === 'ar'
   const dirAttr = isRtl ? 'rtl' : 'ltr'
   const alignAttr = isRtl ? 'right' : 'left'
   const colSpanCount = Math.max(2, columns.length)
@@ -65,7 +88,7 @@ export function downloadExcelCsv<T>({
   const headerCellsHtml = columns
     .map(
       (col) =>
-        `<th style="background-color:#105C50; color:#ffffff; font-weight:bold; font-size:12pt; padding:12px 14px; border:1px solid #0a3d35; text-align:center; vertical-align:middle; white-space:nowrap;">${escapeHtml(col.header)}</th>`
+        `<th style="background-color:#105C50; color:#ffffff; font-weight:bold; font-size:12pt; padding:12px 14px; border:1px solid #0a3d35; text-align:center; vertical-align:middle; white-space:nowrap;">${sanitizeExcelCellValue(col.header)}</th>`
     )
     .join('')
 
@@ -75,14 +98,14 @@ export function downloadExcelCsv<T>({
       const cells = columns
         .map((col, colIdx) => {
           const rawVal = col.accessor(row, rowIdx)
-          const cleanVal = escapeHtml(rawVal)
 
           if (col.isPhone) {
-            return `<td dir="ltr" style="background-color:${rowBg}; color:#0a1122; font-family:Consolas,monospace; font-weight:bold; font-size:11pt; padding:10px 12px; border:1px solid #cbd5e1; text-align:center; vertical-align:middle; mso-number-format:'\\@';">${cleanVal}</td>`
+            const cleanPhone = sanitizeExcelCellValue(rawVal, true)
+            return `<td dir="ltr" style="background-color:${rowBg}; color:#0a1122; font-family:Consolas,monospace; font-weight:bold; font-size:11pt; padding:10px 12px; border:1px solid #cbd5e1; text-align:center; vertical-align:middle; mso-number-format:'\\@';">${cleanPhone}</td>`
           }
 
           if (colIdx === 0) {
-            return `<td style="background-color:${rowBg}; color:#475569; font-weight:bold; font-size:11pt; padding:10px 12px; border:1px solid #cbd5e1; text-align:center; vertical-align:middle;">${cleanVal}</td>`
+            return `<td style="background-color:${rowBg}; color:#475569; font-weight:bold; font-size:11pt; padding:10px 12px; border:1px solid #cbd5e1; text-align:center; vertical-align:middle;">${sanitizeExcelCellValue(rawVal)}</td>`
           }
 
           const isNumericCurrency =
@@ -91,7 +114,7 @@ export function downloadExcelCsv<T>({
             return `<td dir="ltr" style="background-color:${rowBg}; color:#105C50; font-weight:bold; font-size:11pt; padding:10px 12px; border:1px solid #cbd5e1; text-align:center; vertical-align:middle;">${Number(rawVal).toLocaleString('en-US')}</td>`
           }
 
-          return `<td style="background-color:${rowBg}; color:#0f172a; font-size:11pt; padding:10px 12px; border:1px solid #cbd5e1; text-align:${alignAttr}; vertical-align:middle;">${cleanVal}</td>`
+          return `<td style="background-color:${rowBg}; color:#0f172a; font-size:11pt; padding:10px 12px; border:1px solid #cbd5e1; text-align:${alignAttr}; vertical-align:middle; mso-number-format:'\\@';">${sanitizeExcelCellValue(rawVal)}</td>`
         })
         .join('')
 
@@ -107,7 +130,7 @@ export function downloadExcelCsv<T>({
   <x:ExcelWorkbook>
     <x:ExcelWorksheets>
       <x:ExcelWorksheet>
-        <x:Name>AqarExit Report</x:Name>
+        <x:Name>DualDealz Report</x:Name>
         <x:WorksheetOptions>
           <x:DisplayGridlines/>
           ${isRtl ? '<x:DisplayRightToLeft/>' : ''}
@@ -182,8 +205,9 @@ export function downloadOfficialPdfReport<T>({
 }) {
   if (typeof window === 'undefined' || !data || data.length === 0) return
 
-  const L = EXPORT_LABELS[locale] || EXPORT_LABELS.en
-  const isRtl = locale === 'ar'
+  const safeLocale: LocaleCode = VALID_LOCALES.has(locale) ? locale : 'en'
+  const L = EXPORT_LABELS[safeLocale] || EXPORT_LABELS.en
+  const isRtl = safeLocale === 'ar'
   const dirAttr = isRtl ? 'rtl' : 'ltr'
   const resolvedTitle = reportTitle || L.propertiesReportTitle
   const isSingleDossier = data.length === 1
@@ -285,7 +309,7 @@ export function downloadOfficialPdfReport<T>({
   }
 
   const pdfDocumentHtml = `<!DOCTYPE html>
-<html lang="${locale}" dir="${dirAttr}">
+<html lang="${safeLocale}" dir="${dirAttr}">
 <head>
   <meta charset="utf-8" />
   <title>${escapeHtml(filenamePrefix)}_${new Date().toISOString().slice(0, 10)}</title>

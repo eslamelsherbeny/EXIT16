@@ -407,10 +407,13 @@ export function PhotosSection({
           </p>
           <input
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/webp"
             multiple
             className="sr-only"
-            onChange={(e) => onUploadPhotos(e.target.files)}
+            onChange={(e) => {
+              onUploadPhotos(e.target.files)
+              e.target.value = ''
+            }}
           />
         </label>
       ) : (
@@ -454,10 +457,13 @@ export function PhotosSection({
               </span>
               <input
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 multiple
                 className="sr-only"
-                onChange={(e) => onUploadPhotos(e.target.files)}
+                onChange={(e) => {
+                  onUploadPhotos(e.target.files)
+                  e.target.value = ''
+                }}
               />
             </label>
           )}
@@ -470,10 +476,13 @@ export function PhotosSection({
           <span>{pT.uploadFromPhoneLabel}</span>
           <input
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/webp"
             multiple
             className="sr-only"
-            onChange={(e) => onUploadPhotos(e.target.files)}
+            onChange={(e) => {
+              onUploadPhotos(e.target.files)
+              e.target.value = ''
+            }}
           />
         </label>
       </div>
@@ -1414,6 +1423,8 @@ export function PricingSection({
               const entry = unitDocs[sec.key]
               const hasDoc = Boolean(entry?.url)
               const isUploadingThis = uploadingDocKey === sec.key
+              const isImgDoc = hasDoc && isImageFileUrl(entry.url, entry.name)
+
               return (
                 <div
                   key={sec.key}
@@ -1434,15 +1445,25 @@ export function PricingSection({
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    {hasDoc && isImageFileUrl(entry.url, entry.name) && (
-                      <button
-                        type="button"
-                        onClick={() => onPreviewDoc(entry.url, sec.title)}
-                        className="rounded-lg bg-slate-100 p-1.5 text-slate-600 hover:bg-slate-200"
-                      >
-                        <Eye className="size-3.5" />
-                      </button>
-                    )}
+                    {hasDoc &&
+                      (isImgDoc ? (
+                        <button
+                          type="button"
+                          onClick={() => onPreviewDoc(entry.url, sec.title)}
+                          className="rounded-lg bg-slate-100 p-1.5 text-slate-600 hover:bg-slate-200"
+                        >
+                          <Eye className="size-3.5" />
+                        </button>
+                      ) : (
+                        <a
+                          href={entry.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="rounded-lg bg-slate-100 p-1.5 text-slate-600 hover:bg-slate-200"
+                        >
+                          <Eye className="size-3.5" />
+                        </a>
+                      ))}
                     <label className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-lg bg-[#007a5a] px-2.5 text-[11px] font-bold text-white hover:bg-[#006248]">
                       {isUploadingThis ? (
                         <Loader2 className="size-3 animate-spin" />
@@ -1452,11 +1473,12 @@ export function PricingSection({
                       <span>{hasDoc ? prT.changeBtn : prT.uploadBtn}</span>
                       <input
                         type="file"
-                        accept="image/*,.pdf"
+                        accept="image/jpeg,image/png,image/webp,.pdf"
                         className="sr-only"
-                        onChange={(e) =>
+                        onChange={(e) => {
                           onUploadDoc(sec.key, e.target.files)
-                        }
+                          e.target.value = ''
+                        }}
                       />
                     </label>
                     {hasDoc && (

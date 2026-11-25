@@ -1,8 +1,12 @@
 import type { MetadataRoute } from 'next'
 import { createClient } from '@supabase/supabase-js'
 
+export const revalidate = 3600
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://dualdealz.com'
+  const baseUrl = (
+    process.env.NEXT_PUBLIC_SITE_URL || 'https://dualdealz.com'
+  ).replace(/\/$/, '')
 
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: `${baseUrl}`, lastModified: new Date(), changeFrequency: 'daily', priority: 1.0 },
@@ -18,17 +22,19 @@ const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://dualdealz.com'
   try {
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.SUPABASE_SERVICE_ROLE_KEY ||
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
     const { data: units } = await supabase
       .from('sell_requests')
-      .select('id, updated_at, created_at')
+      .select('id, created_at')
       .in('status', ['active', 'approved', 'published', 'offer_received'])
+      .order('created_at', { ascending: false })
       .limit(1000)
 
     const unitRoutes: MetadataRoute.Sitemap = (units || []).map((u) => ({
       url: `${baseUrl}/opportunities/${u.id}`,
-      lastModified: new Date(u.updated_at || u.created_at || Date.now()),
+      lastModified: new Date(u.created_at || Date.now()),
       changeFrequency: 'daily',
       priority: 0.85,
     }))

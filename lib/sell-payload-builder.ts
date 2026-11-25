@@ -14,6 +14,30 @@ export const REQUIRED_DOC_KEYS = [
 ] as const
 
 const ALLOWED_DOC_KEY_SET = new Set<string>(REQUIRED_DOC_KEYS)
+const SAFE_PRIVATE_DOC_PATH_REGEX =
+  /^documents\/[a-zA-Z0-9_-]{4,64}\/[a-zA-Z0-9._-]{4,120}$/
+
+function sanitizePrivateDocumentProxyUrl(rawUrl: unknown): string | null {
+  const clean = String(rawUrl || '').trim()
+  if (!clean.startsWith('/api/storage/document?')) return null
+
+  try {
+    const parsed = new URL(clean, 'https://dualdealz.com')
+    if (parsed.pathname !== '/api/storage/document') return null
+    const docPath = String(parsed.searchParams.get('path') || '').trim()
+    if (
+      !docPath ||
+      docPath.includes('..') ||
+      docPath.includes('\\') ||
+      !SAFE_PRIVATE_DOC_PATH_REGEX.test(docPath)
+    ) {
+      return null
+    }
+    return `/api/storage/document?path=${encodeURIComponent(docPath)}`
+  } catch {
+    return null
+  }
+}
 
 function sanitizeSafeHttpUrl(
   rawUrl: unknown,
@@ -51,6 +75,13 @@ function sanitizeSafeHttpUrl(
   } catch {
     return null
   }
+}
+
+function sanitizeSafeDocumentUrl(rawUrl: unknown): string | null {
+  return (
+    sanitizePrivateDocumentProxyUrl(rawUrl) ||
+    sanitizeSafeHttpUrl(rawUrl, { requireSupabaseStorage: true })
+  )
 }
 
 export function generateOfficialUnitCode(): string {
@@ -218,9 +249,7 @@ export function buildUnitPayloadWithMetaBackup(
           if (!ALLOWED_DOC_KEY_SET.has(normalizedKey)) continue
           if (!entry || typeof entry !== 'object') continue
 
-          const safeDocUrl = sanitizeSafeHttpUrl((entry as any).url, {
-            requireSupabaseStorage: true,
-          })
+          const safeDocUrl = sanitizeSafeDocumentUrl((entry as any).url)
           if (!safeDocUrl) continue
 
           const prevEntry = parsedDocuments[normalizedKey]
@@ -321,8 +350,12 @@ export function buildUnitPayloadWithMetaBackup(
   const yearBuiltVal = safeInt(formData.get('year_built'))
 
   const areaVal =
-    (text(formData, 'area') || text(formData, 'location') || existingMeta.area || '')
-      .slice(0, 140) || null
+    (
+      text(formData, 'area') ||
+      text(formData, 'location') ||
+      existingMeta.area ||
+      ''
+    ).slice(0, 140) || null
   const locationDisplayVal =
     (
       text(formData, 'location_display') ||

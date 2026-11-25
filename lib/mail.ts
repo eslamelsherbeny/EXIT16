@@ -1,13 +1,32 @@
 import { Resend } from 'resend'
 
-function getFromHeader(senderName?: string) {
-  const rawFrom = process.env.EMAIL_FROM?.trim() || 'DualDealz <noreply@dualdealz.com>'
-  if (!senderName) return rawFrom
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-  // استخراج الإيميل فقط لو EMAIL_FROM مكتوب بصيغة "Name <email>"
+function sanitizeHeaderLine(val: unknown, maxLen = 200): string {
+  return String(val || '')
+    .replace(/[\r\n]+/g, ' ')
+    .trim()
+    .slice(0, maxLen)
+}
+
+function getFromHeader(senderName?: string) {
+  const rawFrom =
+    process.env.EMAIL_FROM?.trim() || 'DualDealz <noreply@dualdealz.com>'
   const match = rawFrom.match(/<([^>]+)>/)
-  const emailAddress = match ? match[1].trim() : rawFrom
-  return `${senderName} <${emailAddress}>`
+  const emailAddress = (match ? match[1] : rawFrom)
+    .replace(/[\r\n<>"]/g, '')
+    .trim()
+
+  const cleanSenderName = sanitizeHeaderLine(senderName, 80).replace(
+    /[<>"]/g,
+    ''
+  )
+
+  if (!cleanSenderName) {
+    return `DualDealz <${emailAddress}>`
+  }
+
+  return `${cleanSenderName} <${emailAddress}>`
 }
 
 export async function sendEmail({
@@ -22,9 +41,10 @@ export async function sendEmail({
   senderName?: string
 }) {
   const apiKey = process.env.RESEND_API_KEY?.trim()
-  const cleanTo = String(to || '').trim()
+  const cleanTo = sanitizeHeaderLine(to, 160).toLowerCase()
+  const cleanSubject = sanitizeHeaderLine(subject, 240)
 
-  if (!apiKey || !cleanTo || !cleanTo.includes('@')) {
+  if (!apiKey || !cleanTo || !EMAIL_REGEX.test(cleanTo) || !cleanSubject) {
     console.error('Resend skipped: missing RESEND_API_KEY or invalid recipient')
     return false
   }
@@ -34,7 +54,7 @@ export async function sendEmail({
     const { error } = await resend.emails.send({
       from: getFromHeader(senderName),
       to: cleanTo,
-      subject,
+      subject: cleanSubject,
       html,
     })
 

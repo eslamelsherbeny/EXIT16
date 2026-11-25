@@ -31,6 +31,9 @@ const ALLOWED_DOC_KEYS = new Set([
 const UUID_REGEX =
   /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
 
+const SAFE_PRIVATE_DOC_PATH_REGEX =
+  /^documents\/[a-zA-Z0-9_-]{4,64}\/[a-zA-Z0-9._-]{4,120}$/
+
 async function getAccDict() {
   const { dict, dir, siteSettings } = await getServerI18n()
   const t = (dict as Record<string, any>)?.serverActions?.account || {}
@@ -56,19 +59,39 @@ function normalizeDigits(str: string): string {
     .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 1776))
 }
 
-function isAllowedStorageDocumentUrl(rawUrl: string): boolean {
+function sanitizeAllowedDocumentUrl(rawUrl: string): string | null {
   const clean = String(rawUrl || '').trim()
-  if (!clean || clean.length > 2000) return false
+  if (!clean || clean.length > 2000) return null
+
+  if (clean.startsWith('/api/storage/document?')) {
+    try {
+      const parsed = new URL(clean, 'https://dualdealz.com')
+      if (parsed.pathname !== '/api/storage/document') return null
+      const docPath = String(parsed.searchParams.get('path') || '').trim()
+      if (
+        !docPath ||
+        docPath.includes('..') ||
+        docPath.includes('\\') ||
+        !SAFE_PRIVATE_DOC_PATH_REGEX.test(docPath)
+      ) {
+        return null
+      }
+      return `/api/storage/document?path=${encodeURIComponent(docPath)}`
+    } catch {
+      return null
+    }
+  }
+
   try {
     const parsed = new URL(clean)
     if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
-      return false
+      return null
     }
     if (
       process.env.NODE_ENV === 'production' &&
       parsed.protocol !== 'https:'
     ) {
-      return false
+      return null
     }
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()
     if (supabaseUrl) {
@@ -77,12 +100,12 @@ function isAllowedStorageDocumentUrl(rawUrl: string): boolean {
         parsed.origin !== expectedOrigin ||
         !parsed.pathname.includes('/storage/v1/object/')
       ) {
-        return false
+        return null
       }
     }
-    return true
+    return parsed.toString()
   } catch {
-    return false
+    return null
   }
 }
 
@@ -603,7 +626,10 @@ export async function updatePersonalInfoAction(payload: {
     if (!session) return { success: false, error: msg.sessionExpired }
     const { supabase, user } = session
 
-    const cleanName = (payload.name || '').replace(/[<>]/g, '').trim().slice(0, 120)
+    const cleanName = (payload.name || '')
+      .replace(/[<>]/g, '')
+      .trim()
+      .slice(0, 120)
     const formattedPhone = formatPrimaryPhone(payload.phone)
 
     if (!cleanName || !formattedPhone || formattedPhone.length < 9) {
@@ -1083,8 +1109,12 @@ export async function saveUnitDocumentAction(payload: {
     const unit = await verifyUnitOwnership(supabase, payload.unitId, user)
     if (!unit) return { success: false, error: msg.unitNotFound }
 
-    const cleanFileUrl = String(payload.fileUrl || '').trim()
-    if (cleanFileUrl && !isAllowedStorageDocumentUrl(cleanFileUrl)) {
+    const rawFileUrl = String(payload.fileUrl || '').trim()
+    const safeFileUrl = rawFileUrl
+      ? sanitizeAllowedDocumentUrl(rawFileUrl)
+      : ''
+
+    if (rawFileUrl && !safeFileUrl) {
       return { success: false, error: msg.docSaveFailed }
     }
 
@@ -1096,7 +1126,7 @@ export async function saveUnitDocumentAction(payload: {
     const normalizedKey =
       payload.docKey === 'national_id' ? 'passport' : payload.docKey
 
-    if (!cleanFileUrl) {
+    if (!safeFileUrl) {
       delete currentDocs[normalizedKey]
       if (normalizedKey === 'passport') delete currentDocs.national_id
     } else {
@@ -1105,7 +1135,7 @@ export async function saveUnitDocumentAction(payload: {
         .trim()
         .slice(0, 180)
       currentDocs[normalizedKey] = {
-        url: cleanFileUrl,
+        url: safeFileUrl,
         name: safeFileName,
         uploaded_at: new Date().toLocaleDateString('en-GB'),
         status: 'pending_review',
@@ -1161,7 +1191,7 @@ export async function saveUnitDocumentAction(payload: {
         .eq('id', payload.unitId)
     }
 
-    if (cleanFileUrl) {
+    if (safeFileUrl) {
       try {
         await supabase.from('notifications').insert({
           user_id: null,

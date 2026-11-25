@@ -32,6 +32,9 @@ export type RealNearbyPlaceItem = {
   lng: number
 }
 
+const UUID_REGEX =
+  /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
+
 const KA_TO_LATIN_MAP: Record<string, string> = {
   ა: 'a', ბ: 'b', გ: 'g', დ: 'd', ე: 'e', ვ: 'v', ზ: 'z', თ: 't', ი: 'i',
   კ: 'k', ლ: 'l', მ: 'm', ნ: 'n', ო: 'o', პ: 'p', ჟ: 'zh', რ: 'r', ს: 's',
@@ -231,34 +234,31 @@ export async function geocodeGeorgiaBuildingAction(params: {
   cadastralCode?: string
   naprAddress?: string
 } | null> {
-  const {
-    streetEn,
-    streetKa = '',
-    baseStreetEn = '',
-    houseNumber = '',
-    city = 'Tbilisi',
-  } = params
+  const cleanStreetEn = String(params?.streetEn || '').trim().slice(0, 180)
+  const cleanStreetKa = String(params?.streetKa || '').trim().slice(0, 180)
+  const cleanBaseStreetEn = String(params?.baseStreetEn || '').trim().slice(0, 180)
+  const cleanHouse = String(params?.houseNumber || '').trim().slice(0, 40)
+  const cleanCity = String(params?.city || 'Tbilisi').trim().slice(0, 80) || 'Tbilisi'
 
-  const cleanHouse = houseNumber.trim()
-  const cleanCity = city.trim() || 'Tbilisi'
+  if (!cleanStreetEn && !cleanStreetKa) return null
 
   const HEADERS = {
-    'User-Agent': 'AqarExitGeorgiaRealEstate/2.0 (https://aqarexit.com)',
+    'User-Agent': 'DualDealzGeorgiaRealEstate/2.0 (https://dualdealz.com)',
     'Accept-Language': 'en,ka;q=0.9',
   }
 
   const queries: string[] = []
   if (cleanHouse) {
-    if (streetKa) queries.push(`${streetKa} ${cleanHouse}, ${cleanCity}`)
-    queries.push(`${streetEn} ${cleanHouse}, ${cleanCity}`)
-    if (baseStreetEn && baseStreetEn !== streetEn) {
-      queries.push(`${baseStreetEn} ${cleanHouse}, ${cleanCity}`)
+    if (cleanStreetKa) queries.push(`${cleanStreetKa} ${cleanHouse}, ${cleanCity}`)
+    if (cleanStreetEn) queries.push(`${cleanStreetEn} ${cleanHouse}, ${cleanCity}`)
+    if (cleanBaseStreetEn && cleanBaseStreetEn !== cleanStreetEn) {
+      queries.push(`${cleanBaseStreetEn} ${cleanHouse}, ${cleanCity}`)
     }
   } else {
-    if (streetKa) queries.push(`${streetKa}, ${cleanCity}`)
-    queries.push(`${streetEn}, ${cleanCity}`)
-    if (baseStreetEn && baseStreetEn !== streetEn) {
-      queries.push(`${baseStreetEn}, ${cleanCity}`)
+    if (cleanStreetKa) queries.push(`${cleanStreetKa}, ${cleanCity}`)
+    if (cleanStreetEn) queries.push(`${cleanStreetEn}, ${cleanCity}`)
+    if (cleanBaseStreetEn && cleanBaseStreetEn !== cleanStreetEn) {
+      queries.push(`${cleanBaseStreetEn}, ${cleanCity}`)
     }
   }
 
@@ -299,7 +299,7 @@ export async function geocodeGeorgiaBuildingAction(params: {
             houseNumber: resolvedHouse,
             cadastralCode: realOsmCadastre || undefined,
             naprAddress: realOsmCadastre
-              ? formatNaprOfficialAddress(cleanCity, streetEn, resolvedHouse)
+              ? formatNaprOfficialAddress(cleanCity, cleanStreetEn, resolvedHouse)
               : undefined,
           }
         }
@@ -355,7 +355,12 @@ export async function reverseGeocodeGeorgiaPinAction(params: {
   cadastralCode: string
   naprAddress: string
 } | null> {
-  const { lat, lng, locale, fallbackCity } = params
+  const lat = Number(params?.lat)
+  const lng = Number(params?.lng)
+  const locale = String(params?.locale || 'en')
+  const fallbackCity = params?.fallbackCity
+    ? String(params.fallbackCity).slice(0, 80)
+    : null
 
   if (!isPointInGeorgiaBounds(lat, lng)) {
     return {
@@ -375,7 +380,7 @@ export async function reverseGeocodeGeorgiaPinAction(params: {
   const roundedLng = Number(lng).toFixed(5)
 
   const HEADERS = {
-    'User-Agent': 'AqarExitGeorgiaRealEstate/2.0 (https://aqarexit.com)',
+    'User-Agent': 'DualDealzGeorgiaRealEstate/2.0 (https://dualdealz.com)',
     'Accept-Language': `${reqLang},en;q=0.9,ka;q=0.8`,
   }
 
@@ -491,7 +496,20 @@ export async function fetchRealNearbyPlacesAndWeatherAction(params: {
   temp: number
   aqi: number
 }> {
-  const { lat, lng, locale, unitId } = params
+  const lat = Number(params?.lat)
+  const lng = Number(params?.lng)
+  const locale = String(params?.locale || 'en')
+  const unitId = params?.unitId ? String(params.unitId).trim() : undefined
+
+  // رفض أي إحداثيات غير صالحة أو خارج حدود جورجيا
+  if (!isPointInGeorgiaBounds(lat, lng)) {
+    return {
+      places: [],
+      temp: 18,
+      aqi: 22,
+    }
+  }
+
   const rLat = Number(lat.toFixed(4))
   const rLng = Number(lng.toFixed(4))
 
@@ -527,7 +545,7 @@ export async function fetchRealNearbyPlacesAndWeatherAction(params: {
           `${endpoint}?data=${encodeURIComponent(overpassQuery)}`,
           {
             headers: {
-              'User-Agent': 'AqarExitGeorgiaRealEstate/2.0',
+              'User-Agent': 'DualDealzGeorgiaRealEstate/2.0',
             },
             signal: controller.signal,
             next: { revalidate: 86400 },
@@ -746,8 +764,10 @@ export async function fetchRealNearbyPlacesAndWeatherAction(params: {
 
   places.sort((a, b) => a.distanceMeters - b.distanceMeters)
 
+  // منع تسميم الكاش: لا نحدّث إلا إذا كان unitId صحيحاً وتطابقت الإحداثيات فعلياً مع موقع الوحدة المسجّل
   if (
     unitId &&
+    UUID_REGEX.test(unitId) &&
     places.length >= 10 &&
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
     process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -760,15 +780,29 @@ export async function fetchRealNearbyPlacesAndWeatherAction(params: {
         )
         const { data: row } = await adminSb
           .from('sell_requests')
-          .select('documents')
+          .select('id, documents')
           .eq('id', unitId)
           .maybeSingle()
 
+        if (!row) return
+
         const existingDocs =
-          row?.documents && typeof row.documents === 'object'
+          row.documents && typeof row.documents === 'object'
             ? row.documents
             : {}
         const existingMeta = existingDocs.__unit_meta || {}
+        const coordsKey = `${rLat}_${rLng}`
+
+        if (existingMeta.cached_nearby_coords === coordsKey) return
+
+        const savedLat = Number(existingMeta.lat)
+        const savedLng = Number(existingMeta.lng)
+        if (
+          !isPointInGeorgiaBounds(savedLat, savedLng) ||
+          haversineMetersServer(savedLat, savedLng, rLat, rLng) > 250
+        ) {
+          return
+        }
 
         await adminSb
           .from('sell_requests')
@@ -778,7 +812,7 @@ export async function fetchRealNearbyPlacesAndWeatherAction(params: {
               __unit_meta: {
                 ...existingMeta,
                 cached_nearby_places_v5: places.slice(0, 200),
-                cached_nearby_coords: `${rLat}_${rLng}`,
+                cached_nearby_coords: coordsKey,
               },
             },
           })

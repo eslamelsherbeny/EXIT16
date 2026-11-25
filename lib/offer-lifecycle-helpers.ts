@@ -1,10 +1,9 @@
-
 import { sendEmail } from '@/lib/mail'
 
 export const AUTO_PUBLISH_MATCH_THRESHOLD = 80
 export const MAX_ACTIVE_BUYER_OFFERS = 3
 export const DEFAULT_SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL || 'https://exit-16.vercel.app'
+  process.env.NEXT_PUBLIC_SITE_URL || 'https://dualdealz.com'
 
 export const REOPENED_PROMPT_TAG = '__REOPENED_PROMPT__'
 export const PRIORITY_RETURNED_TAG = '__PRIORITY_FROM_BACKUP__'
@@ -12,6 +11,33 @@ export const ADMIN_SYNCED_PRICE_TAG = '__ADMIN_SYNCED_PRICE__'
 export const BUYER_HIDDEN_TAG = '__BUYER_HIDDEN__'
 export const SELLER_DELAYED_UNAVAILABLE_TAG = '__SELLER_UNAVAILABLE_NOW__'
 export const BUYER_PAUSED_FOR_DEAL_TAG = '__PAUSED_FOR_ACTIVE_DEAL__'
+
+function escapeEmailHtmlText(raw: string): string {
+  return String(raw || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+// يسمح فقط بوسم <strong> المستخدم في قوالب الإيميل الداخلية ويمنع أي وسوم خطيرة
+function sanitizeEmailBodyLine(raw: string): string {
+  const escaped = escapeEmailHtmlText(raw)
+  return escaped
+    .replace(/&lt;strong&gt;/gi, '<strong>')
+    .replace(/&lt;\/strong&gt;/gi, '</strong>')
+}
+
+function sanitizeCtaUrl(rawUrl: string): string {
+  try {
+    const parsed = new URL(String(rawUrl || '').trim())
+    if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+      return parsed.toString()
+    }
+  } catch {}
+  return DEFAULT_SITE_URL
+}
 
 export async function sendOfferTransactionalEmail({
   to,
@@ -35,17 +61,26 @@ export async function sendOfferTransactionalEmail({
     return false
   }
 
+  const safeDir = dir === 'ltr' ? 'ltr' : 'rtl'
+  const safeHeading = escapeEmailHtmlText(heading)
+  const safeCtaText = escapeEmailHtmlText(ctaText)
+  const safeCtaUrl = escapeEmailHtmlText(sanitizeCtaUrl(ctaUrl))
+  const safeLinesHtml = (bodyLines || [])
+    .filter((line) => Boolean(String(line || '').trim()))
+    .map((line) => `<p style="margin: 10px 0;">${sanitizeEmailBodyLine(line)}</p>`)
+    .join('')
+
   const htmlBody = `
-    <div dir="${dir}" style="font-family: Arial, sans-serif; max-width: 580px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 16px; overflow: hidden; background: #ffffff; color: #0a1122;">
+    <div dir="${safeDir}" style="font-family: Arial, sans-serif; max-width: 580px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 16px; overflow: hidden; background: #ffffff; color: #0a1122;">
       <div style="background: #0a1122; padding: 18px 24px; color: #ffffff; font-weight: bold; font-size: 16px;">
         DualDealz
       </div>
       <div style="padding: 24px; line-height: 1.8; font-size: 14px;">
-        <h2 style="margin-top: 0; color: #007a5a; font-size: 18px;">${heading}</h2>
-        ${bodyLines.map((line) => `<p style="margin: 10px 0;">${line}</p>`).join('')}
+        <h2 style="margin-top: 0; color: #007a5a; font-size: 18px;">${safeHeading}</h2>
+        ${safeLinesHtml}
         <div style="margin-top: 24px; text-align: center;">
-          <a href="${ctaUrl}" style="display: inline-block; background: #007a5a; color: #ffffff; text-decoration: none; font-weight: bold; padding: 12px 28px; border-radius: 10px; font-size: 14px;">
-            ${ctaText}
+          <a href="${safeCtaUrl}" style="display: inline-block; background: #007a5a; color: #ffffff; text-decoration: none; font-weight: bold; padding: 12px 28px; border-radius: 10px; font-size: 14px;">
+            ${safeCtaText}
           </a>
         </div>
       </div>

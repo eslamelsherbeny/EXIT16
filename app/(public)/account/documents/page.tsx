@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { createSignedUploadUrlAction } from '@/actions/storage-actions'
 import {
   deleteUnitDocumentAction,
   getAuthorizedUnitDocumentsAction,
@@ -103,26 +104,42 @@ function AccountDocumentsContent() {
     setErrorMsg('')
 
     try {
-      const supabase = createClient()
-      const cleanName = file.name.replace(/[^a-zA-Z0-9.-]/g, '-')
-      const path = `documents/${unitId}/${docKey}-${Date.now()}-${cleanName}`
+      const signed = await createSignedUploadUrlAction({
+        kind: 'unit_document',
+        fileName: file.name,
+        contentType: file.type,
+        fileSize: file.size,
+        unitId,
+        docKey,
+      })
 
+      if (
+        !signed.success ||
+        !signed.bucket ||
+        !signed.path ||
+        !signed.token ||
+        !signed.fileUrl
+      ) {
+        setErrorMsg(signed.error || t.saveDocError)
+        return
+      }
+
+      const supabase = createClient()
       const { error: uploadErr } = await supabase.storage
-        .from('unit-images')
-        .upload(path, file, { contentType: file.type, upsert: true })
+        .from(signed.bucket)
+        .uploadToSignedUrl(signed.path, signed.token, file, {
+          contentType: signed.contentType || file.type,
+        })
 
       if (uploadErr) {
         setErrorMsg(uploadErr.message)
         return
       }
 
-      const publicUrl = supabase.storage.from('unit-images').getPublicUrl(path)
-        .data.publicUrl
-
       const res = await saveUnitDocumentAction({
         unitId,
         docKey,
-        fileUrl: publicUrl,
+        fileUrl: signed.fileUrl,
         fileName: file.name,
       })
 
@@ -302,12 +319,14 @@ function AccountDocumentsContent() {
                         )}
                         <input
                           type="file"
-                          accept="image/*,.pdf"
+                          accept="image/jpeg,image/png,image/webp,.pdf"
                           className="sr-only"
                           disabled={isUploading || isDeleting}
-                          onChange={(e) =>
-                            handleFileUpload(sec.key, e.target.files)
-                          }
+                          onChange={(e) => {
+                            const files = e.target.files
+                            void handleFileUpload(sec.key, files)
+                            e.target.value = ''
+                          }}
                         />
                       </label>
 

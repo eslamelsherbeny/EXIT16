@@ -111,7 +111,8 @@ export async function getOfferSupabase() {
   const cookieStore = await cookies()
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} },
     }
@@ -127,7 +128,7 @@ export async function getVerifiedClientSession() {
   const supabase = await getOfferSupabase()
   const { data: user } = await supabase
     .from('users')
-    .select('id, name, email, phone, role, status, password_hash')
+    .select('id, name, email, phone, role, status, is_verified, password_hash')
     .eq('id', userId)
     .maybeSingle()
 
@@ -192,6 +193,7 @@ export function isUnitOwnedByUser(unit: any, user: any): boolean {
   }
 
   const byEmail =
+    Boolean(user.is_verified) &&
     user.email &&
     unit.email &&
     String(user.email).trim().toLowerCase() ===

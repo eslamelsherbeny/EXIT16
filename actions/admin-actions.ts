@@ -55,9 +55,93 @@ const ALLOWED_MANUAL_LEAD_STATUSES = new Set([
   "matched",
   "archived",
 ])
+const ALLOWED_PROPERTY_STATUSES = new Set([
+  "pending",
+  "under_review",
+  "active",
+  "offer_received",
+  "transferring",
+  "sold",
+  "rejected",
+  "paused_by_seller",
+  "paused_by_admin",
+  "deleted_by_seller",
+])
+const ALLOWED_UPLOAD_EXTS = new Set(["jpg", "jpeg", "png", "webp", "pdf"])
+const ALLOWED_UPLOAD_MIMES = new Set([
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+  "application/pdf",
+])
+const EXT_TO_SAFE_MIME: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  pdf: "application/pdf",
+}
+const MAX_DOC_UPLOAD_BYTES = 10 * 1024 * 1024 // 10 MB
+
+const SAFE_PRIVATE_DOC_PATH_REGEX =
+  /^documents\/[a-zA-Z0-9_-]{4,64}\/[a-zA-Z0-9._-]{4,120}$/
 
 const REOPENED_PROMPT_TAG = "__REOPENED_PROMPT__"
 const PENDING_ADMIN_TAG = "__PENDING_ADMIN_VERIFICATION__"
+
+function sanitizeSafeHttpUrl(rawUrl: unknown): string | null {
+  const clean = String(rawUrl || "").trim()
+  if (!clean || clean.length > 2000) return null
+  try {
+    const parsed = new URL(clean)
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+      return null
+    }
+    if (
+      process.env.NODE_ENV === "production" &&
+      parsed.protocol !== "https:"
+    ) {
+      return null
+    }
+    return parsed.toString()
+  } catch {
+    return null
+  }
+}
+
+function sanitizeAdminDirectDocUrl(rawUrl: unknown): string | null {
+  const clean = String(rawUrl || "").trim()
+  if (!clean) return null
+
+  if (clean.startsWith("/api/storage/document?")) {
+    try {
+      const parsed = new URL(clean, "https://dualdealz.com")
+      if (parsed.pathname !== "/api/storage/document") return null
+      const docPath = String(parsed.searchParams.get("path") || "").trim()
+      if (
+        !docPath ||
+        docPath.includes("..") ||
+        docPath.includes("\\") ||
+        !SAFE_PRIVATE_DOC_PATH_REGEX.test(docPath)
+      ) {
+        return null
+      }
+      return `/api/storage/document?path=${encodeURIComponent(docPath)}`
+    } catch {
+      return null
+    }
+  }
+
+  return sanitizeSafeHttpUrl(clean)
+}
+
+function sanitizeTrackingId(val: unknown): string {
+  return String(val || "")
+    .trim()
+    .replace(/[^A-Za-z0-9_-]/g, "")
+    .slice(0, 40)
+}
 
 function resolveRawOfferStatus(offer: any): string {
   const diffs = Array.isArray(offer?.diff_reasons) ? offer.diff_reasons : []
@@ -175,6 +259,11 @@ export async function updatePropertyStatusAction(
     const cleanReason =
       reason !== undefined ? sanitizeText(reason, 600) : undefined
 
+    const cleanStatus = sanitizeText(status, 40).toLowerCase()
+    if (!ALLOWED_PROPERTY_STATUSES.has(cleanStatus)) {
+      return { success: false, error: msg.updatePropertyFailed }
+    }
+
     const { data: prop } = await supabase
       .from("sell_requests")
       .select(
@@ -187,7 +276,6 @@ export async function updatePropertyStatusAction(
       return { success: false, error: msg.updatePropertyFailed }
     }
 
-    const cleanStatus = sanitizeText(status, 40).toLowerCase()
     const currentUnitStatus = String(prop?.status || "").trim().toLowerCase()
     const unitCode = getUnifiedUnitCode(prop.id, prop.code)
 
@@ -747,11 +835,18 @@ export async function adminUploadUnitDocumentAction(formData: FormData) {
         ? rawDocKey
         : "contract"
 
-    const directUrl = sanitizeText(formData.get("fileUrl") || "", 1000)
+    const rawDirectUrl = String(formData.get("fileUrl") || "").trim()
+    const directUrl = rawDirectUrl
+      ? sanitizeAdminDirectDocUrl(rawDirectUrl)
+      : null
     const file = formData.get("file") as File | null
 
     if (!propertyId) {
       return { success: false, error: msg.updatePropertyFailed }
+    }
+
+    if (rawDirectUrl && !directUrl) {
+      return { success: false, error: msg.missingFileOrUrlError }
     }
 
     const { data: prop } = await supabase
@@ -764,84 +859,78 @@ export async function adminUploadUnitDocumentAction(formData: FormData) {
       return { success: false, error: msg.updatePropertyFailed }
     }
 
-    let finalUrl = directUrl
+    let finalUrl = directUrl || ""
     let finalFileName = sanitizeText(
       formData.get("fileName") || `${docKey}.pdf`,
       180
     )
 
     if (!finalUrl && file && file.size > 0) {
-      if (file.size > 12 * 1024 * 1024) {
+      if (file.size > MAX_DOC_UPLOAD_BYTES) {
         return {
           success: false,
           error: msg.fileTooLargeError,
         }
       }
 
-      finalFileName = file.name || finalFileName
-      const ext = (file.name.split(".").pop() || "bin")
+      finalFileName = sanitizeText(file.name || finalFileName, 180)
+      const ext = (file.name.split(".").pop() || "")
         .toLowerCase()
         .replace(/[^a-z0-9]/g, "")
-      const storagePath = `admin-uploads/${propertyId}/${docKey}-${Date.now()}.${ext || "bin"}`
-      const arrayBuffer = await file.arrayBuffer()
-      const fileBytes = new Uint8Array(arrayBuffer)
+      const mime = String(file.type || "").toLowerCase().trim()
 
-      const candidateBuckets = new Set<string>()
-      const existingUrls: string[] = []
-      if (prop.documents && typeof prop.documents === "object") {
-        Object.values(prop.documents).forEach((v: any) => {
-          if (v && typeof v === "object" && typeof v.url === "string") {
-            existingUrls.push(v.url)
-          }
-        })
-      }
-      if (Array.isArray(prop.images)) {
-        prop.images.forEach((img: any) => {
-          if (typeof img === "string") existingUrls.push(img)
-        })
-      }
-
-      for (const u of existingUrls) {
-        const m = u.match(/\/storage\/v1\/object\/(?:public|sign)\/([^/]+)\//)
-        if (m?.[1]) candidateBuckets.add(m[1])
-      }
-      ;[
-        "documents",
-        "property-documents",
-        "unit-documents",
-        "properties",
-        "uploads",
-        "property-images",
-        "images",
-      ].forEach((b) => candidateBuckets.add(b))
-
-      let uploadSucceeded = false
-      for (const bucket of candidateBuckets) {
-        const { error: upErr } = await supabase.storage
-          .from(bucket)
-          .upload(storagePath, fileBytes, {
-            contentType: file.type || "application/octet-stream",
-            upsert: true,
-          })
-
-        if (!upErr) {
-          const { data: pubData } = supabase.storage
-            .from(bucket)
-            .getPublicUrl(storagePath)
-          if (pubData?.publicUrl) {
-            finalUrl = pubData.publicUrl
-            uploadSucceeded = true
-            break
-          }
-        }
-      }
-
-      if (!uploadSucceeded) {
+      // قصر الملفات المرفوعة على الصور و PDF فقط لمنع Stored XSS (HTML / SVG)
+      if (
+        !ALLOWED_UPLOAD_EXTS.has(ext) ||
+        (mime && !ALLOWED_UPLOAD_MIMES.has(mime))
+      ) {
         return {
           success: false,
           error: msg.storageUploadError,
         }
       }
+
+      const safeContentType = EXT_TO_SAFE_MIME[ext] || "application/octet-stream"
+      const safeFolderId = String(prop.id).replace(/[^a-zA-Z0-9_-]/g, "")
+      const storagePath = `documents/${safeFolderId}/${docKey}-${Date.now()}.${ext}`
+      const arrayBuffer = await file.arrayBuffer()
+      const fileBytes = new Uint8Array(arrayBuffer)
+
+      // ضمان وجود الـ Bucket الخاص بالمستندات (Private) ورفع المستندات فيه فقط
+      try {
+        const { data: existingBucket } = await supabase.storage.getBucket(
+          "unit-documents"
+        )
+        if (!existingBucket) {
+          await supabase.storage.createBucket("unit-documents", {
+            public: false,
+            fileSizeLimit: MAX_DOC_UPLOAD_BYTES,
+            allowedMimeTypes: [
+              "image/jpeg",
+              "image/jpg",
+              "image/png",
+              "image/webp",
+              "application/pdf",
+            ],
+          })
+        }
+      } catch {}
+
+      const { error: upErr } = await supabase.storage
+        .from("unit-documents")
+        .upload(storagePath, fileBytes, {
+          contentType: safeContentType,
+          upsert: true,
+        })
+
+      if (upErr) {
+        return {
+          success: false,
+          error: msg.storageUploadError,
+        }
+      }
+
+      finalUrl = `/api/storage/document?path=${encodeURIComponent(storagePath)}`
     }
 
     if (!finalUrl) {
@@ -1416,7 +1505,13 @@ export async function createAdminOrUserAction(formData: FormData) {
     ).toLowerCase()
     const role = ALLOWED_USER_ROLES.has(rawRole) ? rawRole : "sales"
 
-    if (!name || !email || !rawPhone || password.length < 8) {
+    if (
+      !name ||
+      !email ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
+      !rawPhone ||
+      password.length < 8
+    ) {
       return {
         success: false,
         error: msg.fillAllUserFields,
@@ -1551,7 +1646,13 @@ export async function updateAdminProfileDataAction(formData: FormData) {
     const rawPhone = sanitizeText(formData.get("phone"), 30)
     const currentPassword = String(formData.get("currentPassword") || "").trim()
 
-    if (!name || !email || !rawPhone || !currentPassword) {
+    if (
+      !name ||
+      !email ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
+      !rawPhone ||
+      !currentPassword
+    ) {
       return {
         success: false,
         error: msg.completeProfileFields,
@@ -1580,6 +1681,9 @@ export async function updateAdminProfileDataAction(formData: FormData) {
 
       const verifyToken = randomBytes(24).toString("hex")
       updateData.otp_code = verifyToken
+      updateData.otp_expiry = new Date(
+        Date.now() + 7 * 24 * 60 * 60 * 1000
+      ).toISOString()
 
       const verifyLink = `${DEFAULT_SITE_URL}/login?verified=1&email=${encodeURIComponent(email)}&token=${verifyToken}`
       const comma = dir === "rtl" ? "،" : ","
@@ -1703,6 +1807,9 @@ export async function saveSiteSettingsAction(formData: FormData) {
     const ge14 = String(superVipNum * 5)
     const ge30 = String(superVipNum * 10)
 
+    const safeBoostPaymentUrl =
+      sanitizeSafeHttpUrl(formData.get("boostPaymentUrl")) || ""
+
     const settingsPayload: GlobalSiteSettings & Record<string, any> = {
       siteName: sanitizeText(formData.get("siteName") || "DualDealz", 80),
       whatsappNumber: sanitizeText(
@@ -1725,10 +1832,7 @@ export async function saveSiteSettingsAction(formData: FormData) {
         formData.get("developerPenaltyMax") || "15",
         10
       ),
-      boostPaymentUrl: sanitizeText(
-        formData.get("boostPaymentUrl") || "",
-        300
-      ),
+      boostPaymentUrl: safeBoostPaymentUrl,
       bankIbanGe: sanitizeText(
         formData.get("bankIbanGe") || "GE00TB0000000000000000",
         60
@@ -1739,9 +1843,9 @@ export async function saveSiteSettingsAction(formData: FormData) {
       ),
       vipPlusDailyGel: String(vipPlusNum),
       superVipDailyGel: String(superVipNum),
-      fbPixelId: sanitizeText(formData.get("fbPixelId") || "", 80),
-      gaMeasurementId: sanitizeText(formData.get("gaMeasurementId") || "", 80),
-      gtmId: sanitizeText(formData.get("gtmId") || "", 80),
+      fbPixelId: sanitizeTrackingId(formData.get("fbPixelId")),
+      gaMeasurementId: sanitizeTrackingId(formData.get("gaMeasurementId")),
+      gtmId: sanitizeTrackingId(formData.get("gtmId")),
       promo7Price: ge7,
       promo14Price: ge14,
       promo30Price: ge30,
@@ -1861,7 +1965,10 @@ export async function managePropertyPromotionAction(
         }
       }
 
-      const addDays = Math.max(1, Number(days || prop.featured_days) || 7)
+      const addDays = Math.max(
+        1,
+        Math.min(365, Math.round(Number(days || prop.featured_days) || 7))
+      )
       const nowMs = Date.now()
       const nowIso = new Date(nowMs).toISOString()
 
@@ -2105,6 +2212,7 @@ export async function rejectBoostRequestByAdminAction(
   const { t: msg } = await getAdminActionsDict()
   try {
     const { supabase } = await requireAdminAuth(["admin", "moderator"])
+    const cleanReason = reason ? sanitizeText(reason, 600) : null
 
     const { data: reqRow } = await supabase
       .from("boost_requests")
@@ -2118,7 +2226,7 @@ export async function rejectBoostRequestByAdminAction(
       .from("boost_requests")
       .update({
         status: "rejected",
-        admin_note: reason || null,
+        admin_note: cleanReason,
         rejected_at: rejectedAtIso,
       })
       .eq("id", boostRequestId)
@@ -2147,7 +2255,7 @@ export async function rejectBoostRequestByAdminAction(
         boost_last_rejected: {
           order_ref: reqRow.order_ref || null,
           rejected_at: rejectedAtIso,
-          reason: reason || null,
+          reason: cleanReason,
           paid_via: reqRow.payment_method || null,
         },
       }
@@ -2174,7 +2282,7 @@ export async function rejectBoostRequestByAdminAction(
           role: "client",
           title: `${msg.boostRejectedNotifTitle || msg.notifRejectedTitle} (${reqRow.package_tier})`,
           message:
-            reason ||
+            cleanReason ||
             msg.boostRejectedDefaultReason ||
             msg.notifRejectedMsg,
           type: "status_update",

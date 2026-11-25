@@ -6,19 +6,30 @@ import {
 } from '@/lib/form-action-helpers'
 import { verifyMagicTokenAction } from '@/actions/submit-forms'
 
+const UUID_REGEX =
+  /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
+
+function safeUuidParam(raw: string | null): string {
+  const clean = String(raw || '').trim()
+  return UUID_REGEX.test(clean) ? clean : ''
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl
   const type = searchParams.get('type') || 'phone'
   const token = searchParams.get('token') || ''
-  const targetUserId = searchParams.get('u') || searchParams.get('userId') || ''
-  const unitId = searchParams.get('unitId') || ''
-  const offerId = searchParams.get('offerId') || ''
-  const leadId = searchParams.get('leadId') || ''
+  const targetUserId = safeUuidParam(
+    searchParams.get('u') || searchParams.get('userId')
+  )
+  const unitId = safeUuidParam(searchParams.get('unitId'))
+  const offerId = safeUuidParam(searchParams.get('offerId'))
+  const leadId = safeUuidParam(searchParams.get('leadId'))
   const nextUrl = searchParams.get('next') || '/account'
 
   const safeNext =
     nextUrl.startsWith('/') &&
     !nextUrl.startsWith('//') &&
+    !nextUrl.startsWith('/\\') &&
     !nextUrl.startsWith('/admin')
       ? nextUrl
       : '/account'

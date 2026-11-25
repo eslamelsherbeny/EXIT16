@@ -31,6 +31,7 @@ import {
   deleteUnitDocumentAction,
   saveUnitDocumentAction,
 } from '@/actions/account-actions'
+import { createSignedUploadUrlAction } from '@/actions/storage-actions'
 import { createClient } from '@/lib/supabase/client'
 import { getLocalizedGeorgiaAreaName } from '@/components/shared/georgia-areas'
 import { useTranslation, type LocaleCode } from '@/lib/i18n'
@@ -842,22 +843,45 @@ export function SellerFlow() {
   const handleUploadPhotos = async (files: FileList | null) => {
     if (!files?.length) return
     setUploading(true)
+    setError('')
     try {
       const supabase = createClient()
       const uploaded: string[] = []
       for (const file of Array.from(files).slice(0, 22 - images.length)) {
-        const path = `units/${crypto.randomUUID()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '-')}`
+        const signed = await createSignedUploadUrlAction({
+          kind: 'unit_photo',
+          fileName: file.name,
+          contentType: file.type,
+          fileSize: file.size,
+          unitId: unitId || undefined,
+        })
+
+        if (
+          !signed.success ||
+          !signed.bucket ||
+          !signed.path ||
+          !signed.token ||
+          !signed.fileUrl
+        ) {
+          if (signed.error) setError(signed.error)
+          continue
+        }
+
         const result = await supabase.storage
-          .from('unit-images')
-          .upload(path, file, { contentType: file.type, upsert: false })
+          .from(signed.bucket)
+          .uploadToSignedUrl(signed.path, signed.token, file, {
+            contentType: signed.contentType || file.type,
+          })
+
         if (!result.error) {
-          uploaded.push(
-            supabase.storage.from('unit-images').getPublicUrl(path).data
-              .publicUrl
-          )
+          uploaded.push(signed.fileUrl)
+        } else {
+          setError(result.error.message)
         }
       }
-      setImages((prev) => [...prev, ...uploaded])
+      if (uploaded.length > 0) {
+        setImages((prev) => [...prev, ...uploaded])
+      }
     } finally {
       setUploading(false)
     }
@@ -870,22 +894,42 @@ export function SellerFlow() {
     const file = files?.[0]
     if (!file) return
     setUploadingDocKey(docKey)
+    setError('')
     try {
+      const signed = await createSignedUploadUrlAction({
+        kind: 'unit_document',
+        fileName: file.name,
+        contentType: file.type,
+        fileSize: file.size,
+        unitId: unitId || undefined,
+        docKey,
+      })
+
+      if (
+        !signed.success ||
+        !signed.bucket ||
+        !signed.path ||
+        !signed.token ||
+        !signed.fileUrl
+      ) {
+        setError(signed.error || s.validation.saveFailed)
+        return
+      }
+
       const supabase = createClient()
-      const cleanName = file.name.replace(/[^a-zA-Z0-9.-]/g, '-')
-      const folderId = unitId || 'draft'
-      const path = `documents/${folderId}/${docKey}-${Date.now()}-${cleanName}`
       const { error: uploadErr } = await supabase.storage
-        .from('unit-images')
-        .upload(path, file, { contentType: file.type, upsert: true })
+        .from(signed.bucket)
+        .uploadToSignedUrl(signed.path, signed.token, file, {
+          contentType: signed.contentType || file.type,
+        })
+
       if (uploadErr) {
         setError(uploadErr.message)
         return
       }
-      const publicUrl = supabase.storage.from('unit-images').getPublicUrl(path)
-        .data.publicUrl
+
       const newEntry: UploadedDocEntry = {
-        url: publicUrl,
+        url: signed.fileUrl,
         name: file.name,
         uploaded_at: new Date().toLocaleDateString('en-GB'),
         status: 'pending_review',
@@ -895,7 +939,7 @@ export function SellerFlow() {
         await saveUnitDocumentAction({
           unitId,
           docKey,
-          fileUrl: publicUrl,
+          fileUrl: signed.fileUrl,
           fileName: file.name,
         })
       }

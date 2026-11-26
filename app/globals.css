@@ -166,11 +166,10 @@
 }
 
 /* ==========================================================================
-   أنيميشن الهيرو السينمائي الهادئ (Ken Burns + Ambient Glow + VS Pulse)
+   أنيميشن الهيرو (صورة الخلفية ثابتة بدون زوم + Ambient Glow + VS Pulse)
    ========================================================================== */
 .hero-ken-burns {
-  animation: heroKenBurns 24s ease-in-out infinite alternate;
-  will-change: transform;
+  animation: none;
 }
 
 .hero-ambient-glow {
@@ -180,15 +179,6 @@
 
 .hero-vs-pulse {
   animation: heroVsGlow 3.6s ease-in-out infinite;
-}
-
-@keyframes heroKenBurns {
-  0% {
-    transform: scale(1.02) translate3d(0, 0, 0);
-  }
-  100% {
-    transform: scale(1.1) translate3d(-1.2%, -0.8%, 0);
-  }
 }
 
 @keyframes heroAmbientPulse {
@@ -402,7 +392,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .dual-logo-sheen,
-  .hero-ken-burns,
   .hero-ambient-glow,
   .hero-vs-pulse {
     animation: none;

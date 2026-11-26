@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useState, useTransition } from 'react'
+import { Suspense, useEffect, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Loader2 } from 'lucide-react'
@@ -14,29 +14,60 @@ import { useTranslation } from '@/lib/i18n'
 function VerifyOtpContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const email = (searchParams.get('email') || '').trim().toLowerCase()
+  const queryEmail = (searchParams.get('email') || '').trim().toLowerCase()
 
   const { t: dict, dir } = useTranslation()
   const t = dict.authPages.verifyOtp
 
+  const [email, setEmail] = useState(queryEmail)
   const [error, setError] = useState('')
   const [resentMessage, setResentMessage] = useState('')
   const [pending, startTransition] = useTransition()
   const [resending, startResendTransition] = useTransition()
+
+  useEffect(() => {
+    try {
+      if (queryEmail) {
+        sessionStorage.setItem('dd_reset_email', queryEmail)
+        setEmail(queryEmail)
+        window.history.replaceState({}, '', '/reset-password/verify')
+      } else {
+        const storedEmail = (
+          sessionStorage.getItem('dd_reset_email') || ''
+        )
+          .trim()
+          .toLowerCase()
+        if (storedEmail) setEmail(storedEmail)
+      }
+    } catch {}
+  }, [queryEmail])
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError('')
     setResentMessage('')
     const formData = new FormData(e.currentTarget)
-    const otp = ((formData.get('otp') as string) || '').trim()
+    const rawOtp = ((formData.get('otp') as string) || '').trim()
+    const otp = rawOtp
+      .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 1632))
+      .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 1776))
+      .replace(/\D/g, '')
+
+    if (!email) {
+      setError(t.invalidOtpError)
+      return
+    }
 
     startTransition(async () => {
       const result = await verifyOtpAction(email, otp)
       if (result.success) {
-        router.push(
-          `/reset-password/new?email=${encodeURIComponent(email)}&otp=${encodeURIComponent(otp)}`
-        )
+        try {
+          sessionStorage.setItem(
+            'dd_reset_payload',
+            JSON.stringify({ email, otp })
+          )
+        } catch {}
+        router.push('/reset-password/new')
       } else {
         setError(result.error || t.invalidOtpError)
       }
@@ -49,6 +80,7 @@ function VerifyOtpContent() {
     setResentMessage('')
     const fd = new FormData()
     fd.set('email', email)
+    fd.set('is_resend', '1')
 
     startResendTransition(async () => {
       const result = await forgotPasswordAction(fd)

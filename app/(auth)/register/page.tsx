@@ -10,8 +10,13 @@ import {
   TurnstileBox,
 } from '@/components/layouts/auth-layout'
 import { CountrySelector } from '@/components/shared/country-selector'
-import { toEnglishDigits } from '@/components/features/seller/seller-shared'
 import { registerAction } from '@/actions/auth-actions'
+import {
+  getPhoneInputMaxLength,
+  getPhonePlaceholder,
+  sanitizePhoneInputForCountry,
+  validatePhoneForCountry,
+} from '@/lib/phone-validation'
 import { useTranslation } from '@/lib/i18n'
 
 export default function RegisterPage() {
@@ -21,6 +26,7 @@ export default function RegisterPage() {
   const c = dict.authPages.common as Record<string, any>
 
   const [error, setError] = useState('')
+  const [phoneError, setPhoneError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [pending, startTransition] = useTransition()
@@ -31,12 +37,35 @@ export default function RegisterPage() {
 
   useEffect(() => {
     setError('')
+    setPhoneError('')
   }, [locale])
+
+  const dynamicPlaceholder = getPhonePlaceholder(countryIso, phoneCode)
+  const dynamicMaxLength = getPhoneInputMaxLength(
+    phoneNumber,
+    countryIso,
+    phoneCode
+  )
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError('')
+    setPhoneError('')
+
     const formData = new FormData(e.currentTarget)
+
+    const phoneCheck = validatePhoneForCountry({
+      rawPhone: phoneNumber,
+      dialCode: phoneCode,
+      countryIso,
+      locale,
+    })
+
+    if (!phoneCheck.valid) {
+      setPhoneError(phoneCheck.error || t.genericError)
+      setError(phoneCheck.error || t.genericError)
+      return
+    }
 
     const turnstileToken = String(
       formData.get('cf_turnstile_response') || ''
@@ -47,11 +76,7 @@ export default function RegisterPage() {
       return
     }
 
-    const cleanPhone = toEnglishDigits(phoneNumber)
-      .replace(/^0+/, '')
-      .replace(/\D/g, '')
-      .trim()
-    formData.set('phone', `+${phoneCode.replace('+', '')}${cleanPhone}`)
+    formData.set('phone', phoneCheck.e164)
     formData.set('country', countryIso || 'GE')
 
     const password = formData.get('password') as string
@@ -125,8 +150,13 @@ export default function RegisterPage() {
                 <CountrySelector
                   value={phoneCode}
                   onChange={(code, iso) => {
+                    const nextIso = iso || ''
                     setPhoneCode(code)
-                    if (iso) setCountryIso(iso)
+                    setCountryIso(nextIso)
+                    setPhoneError('')
+                    setPhoneNumber((prev) =>
+                      sanitizePhoneInputForCountry(prev, nextIso, code)
+                    )
                   }}
                 />
                 <input
@@ -134,16 +164,32 @@ export default function RegisterPage() {
                   type="tel"
                   inputMode="tel"
                   dir="ltr"
-                  maxLength={20}
+                  maxLength={dynamicMaxLength}
                   value={phoneNumber}
-                  onChange={(e) =>
-                    setPhoneNumber(toEnglishDigits(e.target.value))
-                  }
+                  onChange={(e) => {
+                    setPhoneError('')
+                    setPhoneNumber(
+                      sanitizePhoneInputForCountry(
+                        e.target.value,
+                        countryIso,
+                        phoneCode
+                      )
+                    )
+                  }}
                   required
-                  className="h-12 min-w-0 flex-1 rounded-xl border border-input bg-background px-3.5 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary,#007a5a)]"
-                  placeholder="5xx xx xx xx"
+                  className={`h-12 min-w-0 flex-1 rounded-xl border bg-background px-3.5 text-left text-sm font-medium focus:outline-none focus:ring-2 ${
+                    phoneError
+                      ? 'border-red-500 focus:ring-red-500'
+                      : 'border-input focus:ring-[var(--brand-primary,#007a5a)]'
+                  }`}
+                  placeholder={dynamicPlaceholder}
                 />
               </div>
+              {phoneError && (
+                <p className="mt-1.5 text-start text-[11px] font-bold text-red-600">
+                  {phoneError}
+                </p>
+              )}
             </div>
 
             <div>

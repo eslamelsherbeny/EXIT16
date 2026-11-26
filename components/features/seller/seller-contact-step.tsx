@@ -23,73 +23,46 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { TurnstileBox } from '@/components/layouts/auth-layout'
 import { CountrySelector } from '@/components/shared/country-selector'
+import {
+  getPhoneInputMaxLength,
+  getPhonePlaceholder,
+  PHONE_COUNTRY_RULES,
+  sanitizePhoneInputForCountry,
+  validatePhoneForCountry,
+} from '@/lib/phone-validation'
 import { useTranslation, type LocaleCode } from '@/lib/i18n'
 import { getSellerFormTranslations } from './seller-i18n'
 import { Field, toEnglishDigits } from './seller-shared'
 
-export function getPhonePlaceholderByCode(countryCode?: string): string {
-  const clean = String(countryCode || '995').replace(/\D/g, '')
-  switch (clean) {
-    case '20':
-      return '10X XXX XXXX'
-    case '995':
-      return '5XX XX XX XX'
-    case '966':
-      return '5X XXX XXXX'
-    case '971':
-      return '5X XXX XXXX'
-    case '965':
-      return '5XXX XXXX'
-    case '974':
-      return '3XXX XXXX'
-    case '973':
-      return '3XXX XXXX'
-    case '968':
-      return '9XXX XXXX'
-    case '962':
-      return '7X XXX XXXX'
-    case '7':
-      return '9XX XXX XX XX'
-    case '90':
-      return '5XX XXX XX XX'
-    case '44':
-      return '7XXX XXXXXX'
-    case '1':
-      return '201 555 0123'
-    default:
-      return 'XXXXXXXXX'
-  }
+export function getPhonePlaceholderByCode(
+  countryCode?: string,
+  countryIso?: string
+): string {
+  return getPhonePlaceholder(countryIso, countryCode)
 }
 
 export function splitStoredPhoneToCodeAndLocal(rawPhone?: string | null): {
   code: string
   local: string
+  iso: string
 } {
   const digits = toEnglishDigits(String(rawPhone || '')).replace(/[^0-9+]/g, '')
-  if (!digits) return { code: '995', local: '' }
+  if (!digits) return { code: '995', local: '', iso: 'GE' }
 
   const withoutPlus = digits.replace(/^\+/, '')
-  const knownCodes = [
-    '995',
-    '966',
-    '971',
-    '965',
-    '974',
-    '973',
-    '968',
-    '962',
-    '20',
-    '90',
-    '44',
-    '7',
-    '1',
-  ]
+  const sortedRules = Object.values(PHONE_COUNTRY_RULES).sort(
+    (a, b) => b.dialCode.length - a.dialCode.length
+  )
 
-  for (const c of knownCodes) {
-    if (withoutPlus.startsWith(c) && withoutPlus.length > c.length + 6) {
+  for (const rule of sortedRules) {
+    if (
+      withoutPlus.startsWith(rule.dialCode) &&
+      withoutPlus.length >= rule.dialCode.length + rule.minLength - 1
+    ) {
       return {
-        code: c,
-        local: withoutPlus.slice(c.length).replace(/^0+/, ''),
+        code: rule.dialCode,
+        local: withoutPlus.slice(rule.dialCode.length).replace(/^0+/, ''),
+        iso: rule.iso,
       }
     }
   }
@@ -97,6 +70,7 @@ export function splitStoredPhoneToCodeAndLocal(rawPhone?: string | null): {
   return {
     code: '995',
     local: withoutPlus.replace(/^0+/, ''),
+    iso: 'GE',
   }
 }
 
@@ -190,7 +164,17 @@ export function ContactSection({
   const [showExistingPass, setShowExistingPass] = useState(false)
   const [recoveryLinkSent, setRecoveryLinkSent] = useState(false)
 
-  const dynamicPhonePlaceholder = getPhonePlaceholderByCode(form.countryCode)
+  const activeDialCode = form.countryCode || '995'
+  const activeCountryIso = form.userCountry || ''
+  const dynamicPhonePlaceholder = getPhonePlaceholder(
+    activeCountryIso,
+    activeDialCode
+  )
+  const dynamicPhoneMaxLength = getPhoneInputMaxLength(
+    form.phone ?? '',
+    activeCountryIso,
+    activeDialCode
+  )
 
   const mergedErrors: Record<string, string> = {
     ...fieldErrors,
@@ -207,6 +191,7 @@ export function ContactSection({
     if (u.phone) {
       const parsed = splitStoredPhoneToCodeAndLocal(u.phone)
       update('countryCode', parsed.code)
+      update('userCountry', parsed.iso)
       update('phone', parsed.local)
     }
   }
@@ -228,6 +213,25 @@ export function ContactSection({
     setLocalErrors({})
     setStepError('')
   }, [locale, authMode])
+
+  const handleCountrySelect = (code: string, iso?: string) => {
+    const nextIso = iso || ''
+    update('countryCode', code)
+    if (nextIso) update('userCountry', nextIso)
+    setLocalErrors((prev) => ({ ...prev, phone: '' }))
+    const cleaned = sanitizePhoneInputForCountry(form.phone ?? '', nextIso, code)
+    if (cleaned !== (form.phone ?? '')) {
+      update('phone', cleaned)
+    }
+  }
+
+  const handlePhoneChange = (rawVal: string) => {
+    setLocalErrors((prev) => ({ ...prev, phone: '' }))
+    update(
+      'phone',
+      sanitizePhoneInputForCountry(rawVal, activeCountryIso, activeDialCode)
+    )
+  }
 
   const renderMessengersPicker = () => (
     <div>
@@ -266,15 +270,23 @@ export function ContactSection({
     setAccountVerifiedMsg('')
     const nextErrors: Record<string, string> = {}
 
-    const cleanPhoneDigits = toEnglishDigits(form.phone ?? '').replace(
-      /[\s-]/g,
-      ''
-    )
+    let validatedE164Phone = ''
 
     if (authMode === 'register') {
       if (!form.name?.trim()) nextErrors.name = v.required
-      if (!/^[0-9]{7,15}$/.test(cleanPhoneDigits))
-        nextErrors.phone = v.invalidPhone
+
+      const phoneCheck = validatePhoneForCountry({
+        rawPhone: form.phone ?? '',
+        dialCode: activeDialCode,
+        countryIso: activeCountryIso,
+        locale,
+      })
+      if (!phoneCheck.valid) {
+        nextErrors.phone = phoneCheck.error || v.invalidPhone
+      } else {
+        validatedE164Phone = phoneCheck.e164
+      }
+
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email ?? ''))
         nextErrors.email = v.invalidEmail
       if ((form.password?.length ?? 0) < 8)
@@ -298,12 +310,7 @@ export function ContactSection({
     setIsLoading(true)
 
     try {
-      const activePhoneCode = (form.countryCode || '995').replace('+', '')
-      const fullPhone = cleanPhoneDigits.startsWith('+')
-        ? cleanPhoneDigits
-        : cleanPhoneDigits
-          ? `+${activePhoneCode}${cleanPhoneDigits.replace(/^0+/, '')}`
-          : ''
+      const fullPhone = validatedE164Phone
 
       const activeMessengers =
         selected.messengers && selected.messengers.length > 0
@@ -631,22 +638,18 @@ export function ContactSection({
                 </Label>
                 <div dir="ltr" className="flex items-center gap-2">
                   <CountrySelector
-                    value={form.countryCode ?? '995'}
-                    onChange={(code, iso) => {
-                      update('countryCode', code)
-                      if (iso) update('userCountry', iso)
-                    }}
+                    value={activeDialCode}
+                    onChange={handleCountrySelect}
                   />
                   <Input
                     id="phone"
                     dir="ltr"
                     type="tel"
                     inputMode="tel"
+                    maxLength={dynamicPhoneMaxLength}
                     placeholder={dynamicPhonePlaceholder}
                     value={form.phone ?? ''}
-                    onChange={(e) =>
-                      update('phone', toEnglishDigits(e.target.value))
-                    }
+                    onChange={(e) => handlePhoneChange(e.target.value)}
                     className={`h-12 flex-1 rounded-xl px-3 text-left font-bold placeholder:text-[11px] placeholder:font-normal placeholder:text-slate-300 ${
                       mergedErrors.phone
                         ? 'border-2 border-red-500 bg-red-50/20'
@@ -708,22 +711,18 @@ export function ContactSection({
                 </Label>
                 <div dir="ltr" className="flex items-center gap-2">
                   <CountrySelector
-                    value={form.countryCode ?? '995'}
-                    onChange={(code, iso) => {
-                      update('countryCode', code)
-                      if (iso) update('userCountry', iso)
-                    }}
+                    value={activeDialCode}
+                    onChange={handleCountrySelect}
                   />
                   <Input
                     id="phone-reg"
                     dir="ltr"
                     type="tel"
                     inputMode="tel"
+                    maxLength={dynamicPhoneMaxLength}
                     placeholder={dynamicPhonePlaceholder}
                     value={form.phone ?? ''}
-                    onChange={(e) =>
-                      update('phone', toEnglishDigits(e.target.value))
-                    }
+                    onChange={(e) => handlePhoneChange(e.target.value)}
                     className={`h-12 flex-1 rounded-xl bg-white px-3 text-left font-bold placeholder:text-[11px] placeholder:font-normal placeholder:text-slate-300 ${
                       mergedErrors.phone
                         ? 'border-2 border-red-500 bg-red-50/20'

@@ -6,7 +6,8 @@ function verifyFlittWebhookSignature(
   payload: Record<string, any>,
   secretKey: string
 ): boolean {
-  const receivedSig = String(payload.signature || "").trim()
+  const receivedSig =
+    typeof payload.signature === "string" ? payload.signature.trim() : ""
   if (!receivedSig || !secretKey) return false
 
   const ignoredKeys = new Set(["signature", "response_signature_string"])
@@ -81,9 +82,14 @@ export async function POST(req: Request) {
       ) {
         return NextResponse.json({ ok: true })
       }
-// التحقق الصارم من مطابقة المبلغ والعملة مع الطلب المسجل في قاعدة البيانات
-      const paidAmountCents = Number(payload.actual_amount ?? payload.amount ?? 0)
-      const expectedAmountCents = Math.round(Number(reqRow.amount_gel || 0) * 100)
+
+      // التحقق الصارم من مطابقة المبلغ والعملة مع الطلب المسجل في قاعدة البيانات
+      const paidAmountCents = Number(
+        payload.actual_amount ?? payload.amount ?? 0
+      )
+      const expectedAmountCents = Math.round(
+        Number(reqRow.amount_gel || 0) * 100
+      )
       const paidCurrency = String(payload.currency || "GEL").toUpperCase()
 
       if (
@@ -96,6 +102,7 @@ export async function POST(req: Request) {
           { status: 400 }
         )
       }
+
       const paidAtIso = new Date().toISOString()
 
       await supabase
@@ -178,7 +185,10 @@ export async function POST(req: Request) {
           is_read: false,
         })
       } catch {}
-    } else if (orderStatus === "declined" || orderStatus === "expired") {
+    } else if (
+      (orderStatus === "declined" || orderStatus === "expired") &&
+      reqRow.status !== "approved"
+    ) {
       await supabase
         .from("boost_requests")
         .update({ status: "rejected" })

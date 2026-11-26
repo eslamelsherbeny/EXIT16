@@ -30,7 +30,29 @@ import { formatRelativePublishTime } from '@/components/features/home/home-prope
 import { TurnstileBox } from '@/components/layouts/auth-layout'
 import { CountrySelector } from '@/components/shared/country-selector'
 import { toEnglishDigits } from '@/components/features/seller/seller-shared'
+import {
+  getPhoneInputMaxLength,
+  getPhonePlaceholder,
+  sanitizePhoneInputForCountry,
+  validatePhoneForCountry,
+} from '@/lib/phone-validation'
 import { useTranslation } from '@/lib/i18n'
+
+const FALLBACK_GALLERY_IMAGE =
+  'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=85'
+
+function getSafeGalleryImageUrl(rawUrl?: string | null): string {
+  const clean = String(rawUrl || '').trim()
+  if (!clean) return FALLBACK_GALLERY_IMAGE
+  if (clean.startsWith('/') && !clean.startsWith('//')) return clean
+  try {
+    const parsed = new URL(clean)
+    if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+      return parsed.toString()
+    }
+  } catch {}
+  return FALLBACK_GALLERY_IMAGE
+}
 
 export function UnitGalleryWithLightbox({
   gallery,
@@ -57,10 +79,13 @@ export function UnitGalleryWithLightbox({
 
   const safeGallery =
     Array.isArray(gallery) && gallery.length > 0
-      ? gallery
+      ? gallery.map((item) => ({
+          url: getSafeGalleryImageUrl(item?.url),
+          caption: String(item?.caption || ''),
+        }))
       : [
           {
-            url: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=85',
+            url: FALLBACK_GALLERY_IMAGE,
             caption: '',
           },
         ]
@@ -442,9 +467,11 @@ export function UnitInterestForm({
     ? params.id[0]
     : (params?.id as string) || ''
 
-  const { t: dict, siteSettings } = useTranslation()
+  const { t: dict, locale, siteSettings } = useTranslation()
   const f = dict.unitDetailsPage.interestForm as Record<string, string>
   const oT = dict.accountPages.offers as Record<string, any>
+  const authCommon = (dict.authPages?.common as Record<string, any>) || {}
+  const phoneMessages = (dict.common as Record<string, any>)?.phoneValidation
   const cur = '$'
   const commPct = String(siteSettings?.buyerCommission || '1.25')
   const supportWhatsApp = String(
@@ -460,6 +487,7 @@ export function UnitInterestForm({
   const [buyerEmail, setBuyerEmail] = useState('')
   const [buyerPhone, setBuyerPhone] = useState('')
   const [countryCode, setCountryCode] = useState('995')
+  const [countryIso, setCountryIso] = useState('GE')
   const [buyerNotes, setBuyerNotes] = useState('')
   const [readiness, setReadiness] = useState<'48h' | '1_week' | '2_weeks'>(
     '48h'
@@ -481,6 +509,13 @@ export function UnitInterestForm({
     accountCreated?: boolean
   } | null>(null)
   const [offerError, setOfferError] = useState('')
+
+  const dynamicPhonePlaceholder = getPhonePlaceholder(countryIso, countryCode)
+  const dynamicPhoneMaxLength = getPhoneInputMaxLength(
+    buyerPhone,
+    countryIso,
+    countryCode
+  )
 
   const isNegotiatingCustom = allowNegotiation && offerMode === 'negotiate'
   const typedNumericCash =
@@ -517,12 +552,14 @@ export function UnitInterestForm({
     e.preventDefault()
     setOfferError('')
 
+    const formData = new FormData(e.currentTarget)
+    const turnstileToken = String(
+      formData.get('cf_turnstile_response') || ''
+    ).trim()
+
     const nextErrors: Partial<Record<OfferFieldErrorKey, string>> = {}
-    const cleanDigits = toEnglishDigits(buyerPhone)
-      .replace(/^0+/, '')
-      .replace(/\D/g, '')
-      .trim()
     const cleanEmail = buyerEmail.trim().toLowerCase()
+    let validatedGuestPhone = ''
 
     if (isNegotiatingCustom) {
       if (typedNumericCash <= 0) {
@@ -540,8 +577,18 @@ export function UnitInterestForm({
       if (buyerName.trim().length < 2) {
         nextErrors.buyerName = f.errNameRequired || f.errorSubmit
       }
-      if (cleanDigits.length < 7 || cleanDigits.length > 15) {
-        nextErrors.buyerPhone = f.errPhoneRequired || f.errorSubmit
+      const phoneCheck = validatePhoneForCountry({
+        rawPhone: buyerPhone,
+        dialCode: countryCode,
+        countryIso,
+        locale,
+        messages: phoneMessages,
+      })
+      if (!phoneCheck.valid) {
+        nextErrors.buyerPhone =
+          phoneCheck.error || f.errPhoneRequired || f.errorSubmit
+      } else {
+        validatedGuestPhone = phoneCheck.e164
       }
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
         nextErrors.buyerEmail = f.errEmailRequired || f.errorSubmit
@@ -566,23 +613,29 @@ export function UnitInterestForm({
       return
     }
 
+    if (!turnstileToken) {
+      setOfferError(
+        authCommon.turnstileWaitMessage ||
+          authCommon.turnstileText ||
+          f.errorSubmit
+      )
+      return
+    }
+
     setFieldErrors({})
     setSubmittingOffer(true)
 
     try {
-      const cleanPhone = cleanDigits
-        ? `+${countryCode.replace('+', '')}${cleanDigits}`
-        : ''
-
       const res = await submitBuyerOfferAction({
         propertyId: rawPropertyId,
         offeredCash: effectiveCash,
         paymentReadiness: readiness,
         paymentMethod,
         guestName: buyerName.trim(),
-        guestPhone: cleanPhone,
+        guestPhone: validatedGuestPhone,
         guestEmail: cleanEmail,
         buyerNotes: buyerNotes.trim(),
+        turnstileToken,
       })
 
       if (!res.success) {
@@ -665,7 +718,7 @@ export function UnitInterestForm({
               <a
                 href={`https://wa.me/${supportWhatsApp}?text=${encodeURIComponent(whatsappConfirmMsg)}`}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] px-6 text-xs font-extrabold text-white shadow-md transition hover:opacity-95 sm:w-auto sm:text-sm"
               >
                 <MessageCircle className="size-4 shrink-0" />
@@ -693,7 +746,6 @@ export function UnitInterestForm({
             </div>
           )}
 
-          {/* قسم قيمة العرض */}
           {!allowNegotiation ? (
             <div className="rounded-2xl border border-emerald-200/90 bg-[#eaf8f2]/65 p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -885,7 +937,15 @@ export function UnitInterestForm({
                 <div dir="ltr" className="flex items-center gap-2">
                   <CountrySelector
                     value={countryCode}
-                    onChange={(code) => setCountryCode(code)}
+                    onChange={(code, iso) => {
+                      const nextIso = iso || ''
+                      setCountryCode(code)
+                      setCountryIso(nextIso)
+                      clearFieldError('buyerPhone')
+                      setBuyerPhone((prev) =>
+                        sanitizePhoneInputForCountry(prev, nextIso, code)
+                      )
+                    }}
                     heightClass="h-11"
                   />
                   <input
@@ -894,11 +954,17 @@ export function UnitInterestForm({
                     dir="ltr"
                     value={buyerPhone}
                     onChange={(e) => {
-                      setBuyerPhone(toEnglishDigits(e.target.value))
+                      setBuyerPhone(
+                        sanitizePhoneInputForCountry(
+                          e.target.value,
+                          countryIso,
+                          countryCode
+                        )
+                      )
                       clearFieldError('buyerPhone')
                     }}
-                    placeholder="5xx xx xx xx"
-                    maxLength={20}
+                    placeholder={dynamicPhonePlaceholder}
+                    maxLength={dynamicPhoneMaxLength}
                     className={`h-11 flex-1 rounded-xl border bg-white px-4 text-left text-xs font-medium text-[var(--brand-navy,#0a1122)] focus:outline-none sm:text-sm ${
                       fieldErrors.buyerPhone
                         ? 'border-2 border-red-500 bg-red-50/20'

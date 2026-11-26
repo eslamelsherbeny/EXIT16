@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useState, useTransition } from 'react'
+import { Suspense, useEffect, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
@@ -11,23 +11,53 @@ import { useTranslation } from '@/lib/i18n'
 function NewPasswordContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const email = (searchParams.get('email') || '').trim().toLowerCase()
-  const otp = (searchParams.get('otp') || '').trim()
+  const queryEmail = (searchParams.get('email') || '').trim().toLowerCase()
+  const queryOtp = (searchParams.get('otp') || '').trim()
 
   const { t: dict, dir } = useTranslation()
   const t = dict.authPages.newPassword
   const regT = dict.authPages.register
   const c = dict.authPages.common
 
+  const [email, setEmail] = useState(queryEmail)
+  const [otp, setOtp] = useState(queryOtp)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [pending, startTransition] = useTransition()
 
+  useEffect(() => {
+    try {
+      if (queryEmail && queryOtp) {
+        setEmail(queryEmail)
+        setOtp(queryOtp)
+        sessionStorage.setItem(
+          'dd_reset_payload',
+          JSON.stringify({ email: queryEmail, otp: queryOtp })
+        )
+        window.history.replaceState({}, '', '/reset-password/new')
+        return
+      }
+
+      const raw = sessionStorage.getItem('dd_reset_payload')
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (parsed?.email) setEmail(String(parsed.email).trim().toLowerCase())
+        if (parsed?.otp) setOtp(String(parsed.otp).trim())
+      }
+    } catch {}
+  }, [queryEmail, queryOtp])
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError('')
+
+    if (!email || !otp) {
+      setError(t.genericError)
+      return
+    }
+
     const formData = new FormData(e.currentTarget)
     const password = formData.get('password') as string
     const confirmPassword = formData.get('confirmPassword') as string
@@ -40,8 +70,12 @@ function NewPasswordContent() {
     startTransition(async () => {
       const result = await resetPasswordAction(email, otp, password)
       if (result.success) {
+        try {
+          sessionStorage.removeItem('dd_reset_payload')
+          sessionStorage.removeItem('dd_reset_email')
+        } catch {}
         setSuccess(true)
-        setTimeout(() => router.push('/login'), 2000)
+        setTimeout(() => router.replace('/login'), 2000)
       } else {
         setError(result.error || t.genericError)
       }
@@ -89,6 +123,7 @@ function NewPasswordContent() {
                       dir="ltr"
                       required
                       minLength={8}
+                      maxLength={128}
                       className={`h-12 w-full rounded-xl border border-input bg-background pr-11 pl-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary,#007a5a)] ${
                         showPassword ? 'tracking-normal' : 'tracking-widest'
                       }`}
@@ -126,6 +161,7 @@ function NewPasswordContent() {
                       dir="ltr"
                       required
                       minLength={8}
+                      maxLength={128}
                       className={`h-12 w-full rounded-xl border border-input bg-background pr-11 pl-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary,#007a5a)] ${
                         showConfirmPassword
                           ? 'tracking-normal'

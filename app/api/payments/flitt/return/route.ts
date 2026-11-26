@@ -1,9 +1,16 @@
 import { NextResponse } from "next/server"
 
+const UUID_REGEX =
+  /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
+const SAFE_REF_REGEX = /^[a-zA-Z0-9_-]{4,64}$/
+
 function buildAccountRedirect(req: Request) {
   const url = new URL(req.url)
-  const unitId = url.searchParams.get("unitId") || ""
-  const ref = url.searchParams.get("ref") || ""
+  const rawUnitId = (url.searchParams.get("unitId") || "").trim()
+  const rawRef = (url.searchParams.get("ref") || "").trim()
+
+  const unitId = UUID_REGEX.test(rawUnitId) ? rawUnitId : ""
+  const ref = SAFE_REF_REGEX.test(rawRef) ? rawRef : ""
 
   const siteUrl = (
     process.env.NEXT_PUBLIC_SITE_URL || "https://dualdealz.com"

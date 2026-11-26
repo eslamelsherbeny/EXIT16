@@ -1,7 +1,7 @@
 "use server"
 
 import { cookies } from "next/headers"
-import { randomBytes, randomInt, timingSafeEqual } from "node:crypto"
+import { createHmac, randomBytes, randomInt, timingSafeEqual } from "node:crypto"
 import { revalidatePath } from "next/cache"
 import {
   extractUserIdFromCookie,
@@ -13,6 +13,7 @@ import {
   formatPrimaryPhone,
   getAuthActionsDict,
   getPhoneVariants,
+  getSessionSecret,
   getSupabase,
   hashPassword,
   normalizeEmail,
@@ -26,7 +27,14 @@ import {
 } from "@/lib/admin-auth-helpers"
 
 const OTP_MAX_ATTEMPTS = 5
+const LOGIN_MAX_ATTEMPTS = 10
+const RESET_TICKET_COOKIE = "reset_flow_ticket"
+
 const otpFailedAttemptsMap = new Map<
+  string,
+  { count: number; resetAt: number }
+>()
+const loginFailedAttemptsMap = new Map<
   string,
   { count: number; resetAt: number }
 >()
@@ -40,6 +48,15 @@ function safeEqualString(a: string, b: string): boolean {
   const bufB = Buffer.from(b, "utf8")
   if (bufA.length !== bufB.length) return false
   return timingSafeEqual(bufA, bufB)
+}
+
+function escapeEmailHtml(val: unknown): string {
+  return String(val || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
 }
 
 function isSuspendedStatus(status?: string | null): boolean {
@@ -69,6 +86,52 @@ function recordOtpFailure(key: string): number {
 
 function clearOtpFailures(key: string) {
   otpFailedAttemptsMap.delete(key)
+}
+
+function isLoginLockedOut(key: string): boolean {
+  const rec = loginFailedAttemptsMap.get(key)
+  if (!rec) return false
+  if (Date.now() > rec.resetAt) {
+    loginFailedAttemptsMap.delete(key)
+    return false
+  }
+  return rec.count >= LOGIN_MAX_ATTEMPTS
+}
+
+function recordLoginFailure(key: string) {
+  const now = Date.now()
+  const rec = loginFailedAttemptsMap.get(key)
+  if (!rec || now > rec.resetAt) {
+    loginFailedAttemptsMap.set(key, { count: 1, resetAt: now + 15 * 60 * 1000 })
+    return
+  }
+  rec.count += 1
+}
+
+function clearLoginFailures(key: string) {
+  loginFailedAttemptsMap.delete(key)
+}
+
+// تذكرة موقّعة مؤقتة (20 دقيقة) تُمنح فقط بعد اجتياز Cloudflare Turnstile للسماح بزر "إعادة إرسال الكود" بأمان
+function signResetFlowTicket(email: string, expiresAt: number): string {
+  const cleanEmail = normalizeEmail(email)
+  const sig = createHmac("sha256", getSessionSecret())
+    .update(`reset_ticket:${cleanEmail}:${expiresAt}`)
+    .digest("hex")
+    .slice(0, 32)
+  return `${expiresAt}.${sig}`
+}
+
+function verifyResetFlowTicket(
+  email: string,
+  cookieVal?: string
+): boolean {
+  if (!cookieVal || !cookieVal.includes(".")) return false
+  const [expStr, sig] = cookieVal.split(".")
+  const exp = Number(expStr)
+  if (!exp || Number.isNaN(exp) || Date.now() > exp || !sig) return false
+  const expectedSig = signResetFlowTicket(email, exp).split(".")[1]
+  return safeEqualString(sig, expectedSig)
 }
 
 async function getVerifiedAuthSessionUser(supabase: any) {
@@ -125,6 +188,14 @@ export async function loginAction(formData: FormData): Promise<AuthResult> {
     }
   }
 
+  const loginAttemptKey = `login:${rawInput.toLowerCase()}`
+  if (isLoginLockedOut(loginAttemptKey)) {
+    return {
+      success: false,
+      error: msg.turnstile || msg.wrongPassword,
+    }
+  }
+
   const supabase = await getSupabase()
   let candidates: any[] = []
 
@@ -160,6 +231,7 @@ export async function loginAction(formData: FormData): Promise<AuthResult> {
   }
 
   if (candidates.length === 0) {
+    recordLoginFailure(loginAttemptKey)
     return {
       success: false,
       error: msg.notRegistered,
@@ -171,6 +243,7 @@ export async function loginAction(formData: FormData): Promise<AuthResult> {
   )
 
   if (!matchedUser) {
+    recordLoginFailure(loginAttemptKey)
     return {
       success: false,
       error: msg.wrongPassword,
@@ -200,6 +273,7 @@ export async function loginAction(formData: FormData): Promise<AuthResult> {
     }
   }
 
+  clearLoginFailures(loginAttemptKey)
   await setUserSessionCookie(matchedUser.id, matchedUser.password_hash)
 
   if (matchedUser.email) {
@@ -208,7 +282,7 @@ export async function loginAction(formData: FormData): Promise<AuthResult> {
       senderName: msg.emailSenderName,
       subject: msg.loginEmailSubject,
       html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.6;">
-              <h2 style="color: #101A2B;">${msg.loginEmailGreeting} ${matchedUser.name || msg.dearUser} 👋</h2>
+              <h2 style="color: #101A2B;">${msg.loginEmailGreeting} ${escapeEmailHtml(matchedUser.name || msg.dearUser)} 👋</h2>
               <p>${msg.loginEmailBody}</p>
              </div>`,
     }).catch(() => {})
@@ -341,7 +415,7 @@ export async function registerAction(formData: FormData): Promise<AuthResult> {
     senderName: msg.emailSenderName,
     subject: msg.welcomeEmailSubject,
     html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.7; color: #0a1122;">
-            <h2 style="color: #101A2B;">${msg.welcomeEmailGreeting} ${name} 🏠</h2>
+            <h2 style="color: #101A2B;">${msg.welcomeEmailGreeting} ${escapeEmailHtml(name)} 🏠</h2>
             <p>${msg.welcomeEmailBody}</p>
             <div style="margin: 22px 0;">
               <a href="${verifyLink}" style="display: inline-block; background-color: #007a5a; color: #ffffff; padding: 12px 26px; text-decoration: none; border-radius: 10px; font-weight: bold;">
@@ -363,18 +437,27 @@ export async function forgotPasswordAction(
   formData: FormData
 ): Promise<AuthResult> {
   const { t: msg, dir } = await getAuthActionsDict()
-  const turnstileToken = formData.get("cf_turnstile_response") as string | null
-  if (turnstileToken !== null) {
-    const isHuman = await verifyTurnstileOnServer(turnstileToken)
-    if (!isHuman) {
-      return { success: false, error: msg.turnstile }
-    }
-  }
-
   const email = normalizeEmail(String(formData.get("email") || ""))
 
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return { success: false, error: msg.enterEmail }
+  }
+
+  const cookieStore = await cookies()
+  const turnstileToken = formData.get("cf_turnstile_response") as string | null
+  const isResend = formData.get("is_resend") === "1"
+
+  // إلزام Turnstile دائماً، ولا يُسمح بإعادة الإرسال بدونه إلا بتذكرة موقّعة من نفس المتصفح بعد اجتيازه سابقاً
+  if (isResend && turnstileToken === null) {
+    const existingTicket = cookieStore.get(RESET_TICKET_COOKIE)?.value
+    if (!verifyResetFlowTicket(email, existingTicket)) {
+      return { success: false, error: msg.turnstile }
+    }
+  } else {
+    const isHuman = await verifyTurnstileOnServer(turnstileToken)
+    if (!isHuman) {
+      return { success: false, error: msg.turnstile }
+    }
   }
 
   const supabase = await getSupabase()
@@ -394,6 +477,16 @@ export async function forgotPasswordAction(
     return { success: false, error: msg.suspended }
   }
 
+  const isProd = process.env.NODE_ENV === "production"
+  const ticketExp = Date.now() + 20 * 60 * 1000
+  cookieStore.set(RESET_TICKET_COOKIE, signResetFlowTicket(email, ticketExp), {
+    path: "/",
+    maxAge: 20 * 60,
+    sameSite: "lax",
+    secure: isProd,
+    httpOnly: true,
+  })
+
   // حماية من إغراق البريد (Cooldown لمدة 60 ثانية بين كل كود والآخر)
   if (user.otp_expiry) {
     const remainingMs = new Date(user.otp_expiry).getTime() - Date.now()
@@ -408,9 +501,7 @@ export async function forgotPasswordAction(
 
   clearOtpFailures(`reset:${email}`)
 
-  const cookieStore = await cookies()
   const signedToken = signOtpToken(email, otp, expiresAt)
-  const isProd = process.env.NODE_ENV === "production"
 
   cookieStore.set("reset_otp_session", signedToken, {
     path: "/",
@@ -436,7 +527,7 @@ export async function forgotPasswordAction(
     senderName: msg.emailSenderName,
     subject: `${otp} — ${msg.otpEmailSubject}`,
     html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.6;">
-            <h2 style="color: #101A2B;">${msg.otpEmailGreeting} ${user.name || msg.dearUser}</h2>
+            <h2 style="color: #101A2B;">${msg.otpEmailGreeting} ${escapeEmailHtml(user.name || msg.dearUser)}</h2>
             <p>${msg.otpEmailBody}</p>
             <div style="background: #f4f6f8; padding: 15px; border-radius: 12px; text-align: center; margin: 20px 0;">
               <h1 style="color: #105C50; letter-spacing: 6px; margin: 0; font-size: 32px;">${otp}</h1>
@@ -607,6 +698,7 @@ export async function resetPasswordAction(
 
   const cookieStore = await cookies()
   cookieStore.delete("reset_otp_session")
+  cookieStore.delete(RESET_TICKET_COOKIE)
   cookieStore.delete("user_session")
   cookieStore.delete("session_hint")
 
@@ -622,6 +714,11 @@ export async function verifyAccountAction(
   const cleanToken = sanitizeText(token, 100)
   if (!cleanEmail || !cleanToken || cleanToken.length < 6) {
     return { success: false, error: msg.invalidLink }
+  }
+
+  const attemptKey = `verify:${cleanEmail}`
+  if (isOtpLockedOut(attemptKey)) {
+    return { success: false, error: msg.otpExpired }
   }
 
   const supabase = await getSupabase()
@@ -646,12 +743,27 @@ export async function verifyAccountAction(
     .trim()
 
   if (!rawStored || !safeEqualString(rawStored, cleanToken)) {
+    const fails = recordOtpFailure(attemptKey)
+    if (fails >= OTP_MAX_ATTEMPTS && rawStored.length === 6) {
+      const hadPhoneOk = String(user.otp_code || "").includes("PHONE_OK")
+      try {
+        await supabase
+          .from("users")
+          .update({
+            otp_code: hadPhoneOk ? "PHONE_OK" : null,
+            otp_expiry: null,
+          })
+          .eq("id", user.id)
+      } catch {}
+    }
     return { success: false, error: msg.invalidLink }
   }
 
   if (user.otp_expiry && new Date(user.otp_expiry) < new Date()) {
     return { success: false, error: msg.otpExpired }
   }
+
+  clearOtpFailures(attemptKey)
 
   const hadPhoneOk = String(user.otp_code || "").includes("PHONE_OK")
   await supabase
@@ -685,7 +797,6 @@ export async function sendInlineEmailOtpAction(
   const { t: msg, dir } = await getAuthActionsDict()
   try {
     const supabase = await getSupabase()
-    // إغلاق ثغرة الاستيلاء على الحسابات: إلزام وجود جلسة موقّعة وإرسال الكود لإيميل صاحب الجلسة فقط
     const user = await getVerifiedAuthSessionUser(supabase)
 
     if (!user) {
@@ -703,7 +814,6 @@ export async function sendInlineEmailOtpAction(
       }
     }
 
-    // حماية من تكرار الإرسال السريع (Cooldown لمدة 60 ثانية)
     if (user.otp_expiry) {
       const remainingMs = new Date(user.otp_expiry).getTime() - Date.now()
       if (remainingMs > 14 * 60 * 1000 && remainingMs <= 15 * 60 * 1000) {
@@ -744,7 +854,7 @@ export async function sendInlineEmailOtpAction(
     const subject = `${otp} — ${msg.otpEmailSubject}`
 
     const html = `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.8; color: #0a1122; max-width: 540px; margin: 0 auto;">
-      <h2 style="color: #0a1122;">${msg.otpEmailGreeting} ${user.name || ""} 👋</h2>
+      <h2 style="color: #0a1122;">${msg.otpEmailGreeting} ${escapeEmailHtml(user.name || "")} 👋</h2>
       <p>${msg.otpEmailBody}</p>
       <div style="background: #eaf8f2; border: 2px solid #007a5a; padding: 16px; border-radius: 14px; text-align: center; margin: 20px 0;">
         <h1 style="color: #007a5a; letter-spacing: 8px; margin: 0; font-size: 32px; font-family: monospace;">${otp}</h1>
@@ -800,7 +910,6 @@ export async function verifyInlineEmailOtpAction(
     }
 
     const supabase = await getSupabase()
-    // إلزام وجود جلسة موقّعة وتوثيق صاحب الجلسة فقط
     const user = await getVerifiedAuthSessionUser(supabase)
 
     if (!user) {

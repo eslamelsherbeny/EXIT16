@@ -133,10 +133,19 @@ export default function OpportunitiesPage() {
       const pageParam = Number(urlParams.get('page'))
 
       if (pageParam && pageParam > 0) setCurrentPage(pageParam)
-      if (labelParam) setActiveCategoryLabel(labelParam)
+      if (labelParam) {
+        // منع استغلال معامل label لحقن نصوص مضللة أو روابط في عنوان الصفحة (Content Spoofing)
+        const cleanLabel = labelParam
+          .replace(/https?:\/\/\S+/gi, '')
+          .replace(/[<>]/g, '')
+          .trim()
+          .slice(0, 50)
+        if (cleanLabel) setActiveCategoryLabel(cleanLabel)
+      }
       if (qParam) {
-        setSearch(qParam)
-        updateSivrceFilter('q', qParam)
+        const cleanQ = qParam.replace(/[<>]/g, '').trim().slice(0, 120)
+        setSearch(cleanQ)
+        updateSivrceFilter('q', cleanQ)
       }
       if (areaParam) {
         setAreaQuery(areaParam)

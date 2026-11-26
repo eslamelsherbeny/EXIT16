@@ -350,7 +350,7 @@ export function Search3DMapView({
                   : '2px solid #2563eb'
           }
 
-          pinBtn.innerText = shortPrice
+          pinBtn.textContent = shortPrice
 
           pinBtn.onmouseenter = () => {
             if (!isCurrentlySelected) {
@@ -424,7 +424,12 @@ export function Search3DMapView({
           innerBadge.className =
             'flex items-center gap-1 rounded-full border-2 border-white px-2.5 py-0.5 text-[10px] font-extrabold text-white shadow-md'
           innerBadge.style.backgroundColor = badgeColor
-          innerBadge.innerHTML = `<span class="max-w-[130px] truncate">${poi.name}</span>`
+
+          // استخدام textContent بدلاً من innerHTML لمنع ثغرة DOM XSS
+          const labelSpan = document.createElement('span')
+          labelSpan.className = 'max-w-[130px] truncate'
+          labelSpan.textContent = String(poi.name || '')
+          innerBadge.appendChild(labelSpan)
 
           poiWrapper.appendChild(innerBadge)
 

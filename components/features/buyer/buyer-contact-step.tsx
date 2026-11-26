@@ -26,10 +26,13 @@ import { CountrySelector } from '@/components/shared/country-selector'
 import {
   Field,
   RequiredLabel,
-  toEnglishDigits,
   type PlatformCountryCode,
 } from '@/components/features/seller/seller-shared'
-import { getPhonePlaceholderByCode } from '@/components/features/seller/seller-contact-step'
+import {
+  getPhoneInputMaxLength,
+  getPhonePlaceholder,
+  sanitizePhoneInputForCountry,
+} from '@/lib/phone-validation'
 import { useTranslation } from '@/lib/i18n'
 
 export type BuyerFormState = BuyRequestPayload & {
@@ -104,7 +107,15 @@ export function BuyerContactStep({
   const [stepError, setStepError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
-  const dynamicPlaceholder = getPhonePlaceholderByCode(countryCode)
+  const dynamicPlaceholder = getPhonePlaceholder(
+    data.residenceCountry,
+    countryCode
+  )
+  const dynamicMaxLength = getPhoneInputMaxLength(
+    data.phone || '',
+    data.residenceCountry,
+    countryCode
+  )
   const selectedMessengers = data.contactMessengers || ['whatsapp', 'viber']
 
   const toggleMessenger = (appId: string) => {
@@ -466,17 +477,35 @@ export function BuyerContactStep({
               <CountrySelector
                 value={countryCode}
                 onChange={(code, iso) => {
+                  const nextIso = iso || ''
                   setCountryCode(code)
-                  if (iso) update('residenceCountry', iso)
+                  if (nextIso) update('residenceCountry', nextIso)
+                  update(
+                    'phone',
+                    sanitizePhoneInputForCountry(
+                      data.phone || '',
+                      nextIso,
+                      code
+                    )
+                  )
                 }}
               />
               <Input
                 value={data.phone}
                 onChange={(event) =>
-                  update('phone', toEnglishDigits(event.target.value))
+                  update(
+                    'phone',
+                    sanitizePhoneInputForCountry(
+                      event.target.value,
+                      data.residenceCountry,
+                      countryCode
+                    )
+                  )
                 }
+                type="tel"
                 inputMode="tel"
                 dir="ltr"
+                maxLength={dynamicMaxLength}
                 placeholder={dynamicPlaceholder}
                 className={`h-12 flex-1 rounded-xl px-3 text-left font-bold ${
                   errors?.phone
@@ -638,7 +667,6 @@ export function BuyerContactStep({
         </div>
       )}
 
-      {/* خانة الموافقة الإجبارية على الشروط والأحكام وسياسة الخصوصية ونسبة العمولة */}
       <div id="field-wrap-buyer-agreedTerms">
         <label
           dir={dir}

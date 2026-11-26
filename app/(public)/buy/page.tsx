@@ -33,6 +33,7 @@ import {
   type BuyerFormState,
 } from '@/components/features/buyer/buyer-contact-step'
 import { BuyerLocationModalPicker } from '@/components/features/buyer/buyer-location-modal'
+import { validatePhoneForCountry } from '@/lib/phone-validation'
 import { useTranslation } from '@/lib/i18n'
 
 const ACTIVE_PLATFORM_COUNTRY = 'GE'
@@ -86,6 +87,7 @@ function BuyersPageContent() {
   const bSuccess =
     ((b as Record<string, any>).successScreen as Record<string, string>) || {}
   const sellVal = (dict.sell?.validation as Record<string, string>) || {}
+  const phoneMessages = (dict.common as Record<string, any>)?.phoneValidation
   const currency = '$'
   const commPct = String(siteSettings?.buyerCommission || '1.25')
 
@@ -186,6 +188,7 @@ function BuyersPageContent() {
         setCountryCode(parsedPhone.code)
         setData((prev) => ({
           ...prev,
+          residenceCountry: parsedPhone.iso || prev.residenceCountry,
           name: prev.name || res.user?.name || '',
           email: prev.email || res.user?.email || '',
           phone: prev.phone || parsedPhone.local || '',
@@ -340,20 +343,28 @@ function BuyersPageContent() {
     setError('')
     const nextErrors: Record<string, string> = {}
     const missing: string[] = []
-    const cleanPhoneDigits = toEnglishDigits(data.phone || '').replace(
-      /[\s-]/g,
-      ''
-    )
+    let validatedE164Phone = ''
 
     if (authTab === 'register') {
       if (!data.name.trim()) {
         nextErrors.name = bVal.required
         missing.push(cleanLabel(b.stepThree.nameLabel))
       }
-      if (!cleanPhoneDigits || !/^[0-9]{7,15}$/.test(cleanPhoneDigits)) {
-        nextErrors.phone = bVal.invalidPhone
+
+      const phoneCheck = validatePhoneForCountry({
+        rawPhone: data.phone || '',
+        dialCode: countryCode,
+        countryIso: data.residenceCountry,
+        locale,
+        messages: phoneMessages,
+      })
+      if (!phoneCheck.valid) {
+        nextErrors.phone = phoneCheck.error || bVal.invalidPhone
         missing.push(cleanLabel(b.stepThree.phoneLabel))
+      } else {
+        validatedE164Phone = phoneCheck.e164
       }
+
       if (!data.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
         nextErrors.email = bVal.invalidEmail
         missing.push(cleanLabel(b.stepThree.emailLabel))
@@ -398,9 +409,15 @@ function BuyersPageContent() {
     setIsSubmitting(true)
 
     try {
-      const fullPhone = cleanPhoneDigits
-        ? `+${countryCode.replace('+', '')}${cleanPhoneDigits.replace(/^0+/, '')}`
-        : ''
+      const cleanPhoneDigits = toEnglishDigits(data.phone || '').replace(
+        /\D/g,
+        ''
+      )
+      const fullPhone =
+        validatedE164Phone ||
+        (cleanPhoneDigits
+          ? `+${countryCode.replace('+', '')}${cleanPhoneDigits.replace(/^0+/, '')}`
+          : '')
 
       const res = await processBuyerStep3Action({
         mode: authTab,
@@ -572,7 +589,6 @@ function BuyersPageContent() {
           <>
             <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:gap-4">
               {b.header.benefits.map((rawItem, index) => {
-                // ربط نسبة العمولة المذكورة في قائمة المزايا بنسبة الإعدادات الفعلية
                 const item = String(rawItem).replace(/1\.25%/g, `${commPct}%`)
                 return (
                   <div

@@ -4872,6 +4872,12 @@
       "installBtn": "ინსტალაცია",
       "manualInstallHint": "გახსენით ბრაუზერის მენიუ (⋮) და აირჩიეთ \"Install App\" ან \"Add to Home Screen\".",
       "iosInstallHint": "iPhone-ზე: დააჭირეთ გაზიარების ღილაკს (⬆️) და აირჩიეთ \"Add to Home Screen\"."
+    },
+    "phoneValidation": {
+      "empty": "გთხოვთ შეიყვანოთ მობილურის სწორი ნომერი.",
+      "fake": "გთხოვთ შეიყვანოთ რეალური მობილურის ნომერი.",
+      "invalidPrefix": "არასწორი ოპერატორის კოდი. ნომერი უნდა იწყებოდეს: {prefixes}.",
+      "invalidLength": "ნომრის სიგრძე არასწორია. საჭიროა {length} ციფრი (მაგ: {example})."
     }
   },
   "locationModal": {

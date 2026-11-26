@@ -16,7 +16,7 @@ export default function ResetPasswordPage() {
   const router = useRouter()
   const { t: dict, dir } = useTranslation()
   const t = dict.authPages.resetRequest
-  const c = dict.authPages.common
+  const c = dict.authPages.common as Record<string, any>
 
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
@@ -25,15 +25,26 @@ export default function ResetPasswordPage() {
     e.preventDefault()
     setError('')
     const formData = new FormData(e.currentTarget)
+
+    const turnstileToken = String(
+      formData.get('cf_turnstile_response') || ''
+    ).trim()
+
+    if (!turnstileToken) {
+      setError(c.turnstileWaitMessage || c.turnstileText || '')
+      return
+    }
+
     const rawEmail = (formData.get('email') as string) || ''
     const cleanEmail = rawEmail.trim().toLowerCase()
 
     startTransition(async () => {
       const result = await forgotPasswordAction(formData)
       if (result.success) {
-        router.push(
-          `/reset-password/verify?email=${encodeURIComponent(cleanEmail)}`
-        )
+        try {
+          sessionStorage.setItem('dd_reset_email', cleanEmail)
+        } catch {}
+        router.push('/reset-password/verify')
       } else {
         setError(result.error || t.genericError)
       }
@@ -72,6 +83,7 @@ export default function ResetPasswordPage() {
                 name="email"
                 type="email"
                 dir="ltr"
+                maxLength={160}
                 required
                 className="h-12 w-full rounded-xl border border-input bg-background px-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary,#007a5a)]"
                 placeholder="name@example.com"

@@ -13,6 +13,8 @@ const FLITT_API_URL =
   process.env.FLITT_API_URL || "https://pay.flitt.com/api/checkout/url"
 const DEFAULT_SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || "https://dualdealz.com"
+const UUID_REGEX =
+  /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
 
 function buildFlittSignature(
   params: Record<string, string | number>,
@@ -102,7 +104,7 @@ export async function POST(req: Request) {
     const merchantId = process.env.FLITT_MERCHANT_ID?.trim()
     const secretKey = process.env.FLITT_SECRET_KEY?.trim()
 
-    if (!merchantId || !secretKey) {
+    if (!merchantId || !secretKey || !FLITT_API_URL.startsWith("https://")) {
       return NextResponse.json(
         { error: "FLITT_NOT_CONFIGURED" },
         { status: 503 }
@@ -145,7 +147,11 @@ export async function POST(req: Request) {
     const unitId = String(body.unitId || "").trim()
     const requestedAmount = Number(body.amountGel)
 
-    if (!unitId || !Number.isFinite(requestedAmount) || requestedAmount <= 0) {
+    if (
+      !UUID_REGEX.test(unitId) ||
+      !Number.isFinite(requestedAmount) ||
+      requestedAmount <= 0
+    ) {
       return NextResponse.json({ error: "INVALID_PAYLOAD" }, { status: 400 })
     }
 
@@ -259,6 +265,13 @@ export async function POST(req: Request) {
     const checkoutUrl = flittData?.response?.checkout_url
 
     if (!checkoutUrl) {
+      try {
+        await supabase
+          .from("boost_requests")
+          .update({ status: "failed" })
+          .eq("id", boostRow.id)
+      } catch {}
+
       return NextResponse.json(
         {
           error: "FLITT_INIT_FAILED",

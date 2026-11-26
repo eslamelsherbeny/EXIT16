@@ -14,16 +14,24 @@ import {
   CountrySelector,
 } from '@/components/shared/country-selector'
 import { toEnglishDigits } from '@/components/features/seller/seller-shared'
+import {
+  getPhoneInputMaxLength,
+  getPhonePlaceholder,
+  sanitizePhoneInputForCountry,
+  validatePhoneForCountry,
+} from '@/lib/phone-validation'
 import { useTranslation } from '@/lib/i18n'
 
 export default function AccountDetailsPage() {
   const router = useRouter()
-  const { t: dict, dir } = useTranslation()
+  const { t: dict, locale, dir } = useTranslation()
   const t = dict.accountPages.details
   const tCommon = dict.accountPages.common
+  const phoneMessages = (dict.common as Record<string, any>)?.phoneValidation
 
   const [name, setName] = useState('')
   const [countryCode, setCountryCode] = useState('995')
+  const [countryIso, setCountryIso] = useState('GE')
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(true)
@@ -39,6 +47,13 @@ export default function AccountDetailsPage() {
 
   const [pendingPersonal, startPersonal] = useTransition()
   const [pendingEmail, startEmail] = useTransition()
+
+  const dynamicPlaceholder = getPhonePlaceholder(countryIso, countryCode)
+  const dynamicMaxLength = getPhoneInputMaxLength(
+    phone,
+    countryIso,
+    countryCode
+  )
 
   useEffect(() => {
     async function loadProfile() {
@@ -59,6 +74,7 @@ export default function AccountDetailsPage() {
 
         if (matchedCountry) {
           setCountryCode(matchedCountry.code)
+          setCountryIso(matchedCountry.iso)
           setPhone(withoutPlus.slice(matchedCountry.code.length))
         } else {
           setPhone(withoutPlus)
@@ -74,13 +90,28 @@ export default function AccountDetailsPage() {
   const handleSavePersonal = (e: React.FormEvent) => {
     e.preventDefault()
     setPersonalMsg(null)
+
+    const phoneCheck = validatePhoneForCountry({
+      rawPhone: phone,
+      dialCode: countryCode,
+      countryIso,
+      locale,
+      messages: phoneMessages,
+    })
+
+    if (!phoneCheck.valid) {
+      setPersonalMsg({
+        type: 'error',
+        text: phoneCheck.error || t.personalSaveError,
+      })
+      return
+    }
+
     startPersonal(async () => {
-      const cleanDigits = toEnglishDigits(phone)
-        .replace(/^0+/, '')
-        .replace(/\D/g, '')
-        .trim()
-      const fullPhone = `+${countryCode.replace('+', '')}${cleanDigits}`
-      const res = await updatePersonalInfoAction({ name, phone: fullPhone })
+      const res = await updatePersonalInfoAction({
+        name,
+        phone: phoneCheck.e164,
+      })
       if (res.success) {
         setPersonalMsg({
           type: 'success',
@@ -176,7 +207,15 @@ export default function AccountDetailsPage() {
                   <div dir="ltr" className="flex items-center gap-2">
                     <CountrySelector
                       value={countryCode}
-                      onChange={(code) => setCountryCode(code)}
+                      onChange={(code, iso) => {
+                        const nextIso = iso || ''
+                        setCountryCode(code)
+                        setCountryIso(nextIso)
+                        setPersonalMsg(null)
+                        setPhone((prev) =>
+                          sanitizePhoneInputForCountry(prev, nextIso, code)
+                        )
+                      }}
                       heightClass="h-11"
                     />
                     <input
@@ -184,12 +223,19 @@ export default function AccountDetailsPage() {
                       type="tel"
                       inputMode="tel"
                       dir="ltr"
-                      maxLength={20}
+                      maxLength={dynamicMaxLength}
                       value={phone}
-                      onChange={(e) =>
-                        setPhone(toEnglishDigits(e.target.value))
-                      }
-                      placeholder="5xx xx xx xx"
+                      onChange={(e) => {
+                        setPersonalMsg(null)
+                        setPhone(
+                          sanitizePhoneInputForCountry(
+                            e.target.value,
+                            countryIso,
+                            countryCode
+                          )
+                        )
+                      }}
+                      placeholder={dynamicPlaceholder}
                       required
                       className="h-11 w-full rounded-[10px] border border-gray-200 bg-white px-4 text-left text-[13px] font-semibold text-[var(--brand-navy-text,#0a1128)] transition focus:border-[var(--brand-primary,#007a5a)] focus:outline-none"
                     />

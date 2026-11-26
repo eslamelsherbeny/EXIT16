@@ -67,6 +67,20 @@ export type FeatureGroupDisplay = {
   }>
 }
 
+function getSafeExternalHttpUrl(rawUrl?: string | null): string | null {
+  const clean = String(rawUrl || '').trim()
+  if (!clean || clean.length > 2000) return null
+  try {
+    const parsed = new URL(clean)
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+      return null
+    }
+    return parsed.toString()
+  } catch {
+    return null
+  }
+}
+
 function getSpecIcon(index: number) {
   const icons = [
     Home,
@@ -446,8 +460,9 @@ export function UnitSpecsAndDescription({
     })
   }
 
-  const videoUrl = computedUnit.videoUrl || ''
-  const tour3dUrl = computedUnit.tour3dUrl || ''
+  // التحقق من أن روابط الفيديو والجولة ثلاثية الأبعاد تستخدم http/https فقط لمنع XSS
+  const videoUrl = getSafeExternalHttpUrl(computedUnit.videoUrl) || ''
+  const tour3dUrl = getSafeExternalHttpUrl(computedUnit.tour3dUrl) || ''
   const embedVideoUrl = getYoutubeEmbedUrl(videoUrl)
 
   return (
@@ -486,6 +501,7 @@ export function UnitSpecsAndDescription({
                 src={embedVideoUrl}
                 title={computedUnit.projectName}
                 className="h-full w-full"
+                referrerPolicy="strict-origin-when-cross-origin"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
               />
@@ -497,7 +513,7 @@ export function UnitSpecsAndDescription({
               <a
                 href={videoUrl}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 className="inline-flex h-10 items-center gap-2 rounded-xl bg-red-600 px-4 text-xs font-extrabold text-white shadow-2xs transition hover:bg-red-700"
               >
                 <Play className="size-3.5 fill-current" />
@@ -510,7 +526,7 @@ export function UnitSpecsAndDescription({
               <a
                 href={tour3dUrl}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 text-xs font-extrabold text-[#2563eb] transition hover:bg-blue-100"
               >
                 <Box className="size-4" />

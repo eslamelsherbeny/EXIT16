@@ -4872,6 +4872,12 @@
       "installBtn": "Install App",
       "manualInstallHint": "Tap your browser menu (⋮) at the top and select \"Install App\" or \"Add to Home Screen\".",
       "iosInstallHint": "On iPhone: Tap the Share button (⬆️) below and select \"Add to Home Screen\"."
+    },
+    "phoneValidation": {
+      "empty": "Please enter a valid mobile number.",
+      "fake": "Please enter a real mobile number.",
+      "invalidPrefix": "Invalid mobile prefix. Number must start with {prefixes}.",
+      "invalidLength": "Invalid mobile number length. Expected {length} digits (e.g. {example})."
     }
   },
   "locationModal": {

@@ -1,7 +1,9 @@
 'use server'
 
+import { headers } from 'next/headers'
 import { randomBytes } from 'node:crypto'
 import { getServerI18n } from '@/lib/get-server-dictionary'
+import { verifyTurnstileOnServer } from '@/lib/admin-auth-helpers'
 import {
   calculateSmartMatch,
   getUnitPricingGuardrails,
@@ -45,6 +47,32 @@ import {
 } from '@/lib/offer-lifecycle-helpers'
 
 export type { OfferRecord, OfferStatusType }
+
+const UUID_REGEX =
+  /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
+const ALLOWED_READINESS = new Set(['48h', '1_week', '2_weeks'])
+const ALLOWED_PAYMENT_METHODS = new Set(['bank_check', 'bank_transfer'])
+
+const offerSubmitRateMap = new Map<string, { count: number; resetAt: number }>()
+
+function checkOfferRateLimit(key: string, maxRequests = 12): boolean {
+  const now = Date.now()
+  const rec = offerSubmitRateMap.get(key)
+  if (!rec || now > rec.resetAt) {
+    offerSubmitRateMap.set(key, { count: 1, resetAt: now + 15 * 60 * 1000 })
+    return true
+  }
+  if (rec.count >= maxRequests) return false
+  rec.count += 1
+  return true
+}
+
+function cleanPlainInput(val: unknown, maxLen = 180): string {
+  return String(val || '')
+    .replace(/[<>]/g, '')
+    .trim()
+    .slice(0, maxLen)
+}
 
 function isAdvanceableToMatched(status?: string | null): boolean {
   const st = String(status || '').trim().toLowerCase()
@@ -322,6 +350,7 @@ export async function submitBuyerOfferAction(payload: {
   guestEmail?: string
   guestPassword?: string
   buyerNotes?: string
+  turnstileToken?: string
 }): Promise<{
   success: boolean
   error?: string
@@ -337,28 +366,89 @@ export async function submitBuyerOfferAction(payload: {
   const authDict = (dict.serverActions as Record<string, any>)?.auth || {}
 
   try {
+    const cleanPropertyId = String(payload.propertyId || '').trim()
+    if (!UUID_REGEX.test(cleanPropertyId)) {
+      return { success: false, error: oDict.errUnitNotFound }
+    }
+
+    const safeReadiness: '48h' | '1_week' | '2_weeks' = ALLOWED_READINESS.has(
+      payload.paymentReadiness
+    )
+      ? payload.paymentReadiness
+      : '48h'
+    const safePaymentMethod: 'bank_check' | 'bank_transfer' =
+      ALLOWED_PAYMENT_METHODS.has(payload.paymentMethod)
+        ? payload.paymentMethod
+        : 'bank_check'
+
     const supabase = await getOfferSupabase()
     const session = await getVerifiedClientSession()
     const authenticatedUser = session?.user || null
+
+    const isStaffCaller = Boolean(
+      authenticatedUser &&
+        ['owner', 'admin', 'moderator', 'sales'].includes(
+          String(authenticatedUser.role || '').toLowerCase()
+        )
+    )
+
+    // حماية من إغراق العروض والـ Bot Spam عبر Rate Limit و Cloudflare Turnstile
+    if (!isStaffCaller) {
+      const hdrs = await headers()
+      const clientIp =
+        hdrs.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+        hdrs.get('x-real-ip')?.trim() ||
+        'unknown'
+      const rateKey = authenticatedUser
+        ? `offer:user:${authenticatedUser.id}`
+        : `offer:ip:${clientIp}`
+
+      if (!checkOfferRateLimit(rateKey, authenticatedUser ? 15 : 8)) {
+        return {
+          success: false,
+          error: authDict.turnstile || oDict.errSubmitFailed,
+        }
+      }
+
+      // إلزام Turnstile دائماً للضيوف ولكل طلب يحتوي على توكن من فورم تفاصيل الوحدة
+      if (!authenticatedUser || payload.turnstileToken !== undefined) {
+        const isHuman = await verifyTurnstileOnServer(
+          payload.turnstileToken || null
+        )
+        if (!isHuman) {
+          return {
+            success: false,
+            error: authDict.turnstile || oDict.errSubmitFailed,
+          }
+        }
+      }
+    }
+
     let buyerUser = authenticatedUser
     let sessionId = authenticatedUser?.id || null
     let accountCreatedNow = false
     let setupPasswordToken = ''
 
-    const cleanGuestName = String(payload.guestName || '').trim().slice(0, 120)
+    const cleanGuestName = cleanPlainInput(payload.guestName, 120)
     const cleanGuestPhone = String(payload.guestPhone || '')
       .trim()
       .replace(/\s+/g, '')
+      .replace(/[^0-9+]/g, '')
       .slice(0, 25)
     const cleanGuestEmail = String(payload.guestEmail || '')
       .trim()
       .toLowerCase()
-    const cleanGuestPassword = String(payload.guestPassword || '').trim()
+      .slice(0, 160)
+    const cleanGuestPassword = String(payload.guestPassword || '')
+      .trim()
+      .slice(0, 128)
+    const cleanBuyerNotes = cleanPlainInput(payload.buyerNotes, 240)
 
     if (
       !sessionId &&
       (!cleanGuestName ||
-        cleanGuestPhone.length < 7 ||
+        cleanGuestName.length < 2 ||
+        cleanGuestPhone.replace(/\D/g, '').length < 7 ||
         !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanGuestEmail))
     ) {
       return { success: false, error: oDict.errLoginRequired }
@@ -404,7 +494,7 @@ export async function submitBuyerOfferAction(payload: {
       const autoPass =
         cleanGuestPassword.length >= 8
           ? cleanGuestPassword
-          : randomBytes(10).toString('hex')
+          : randomBytes(12).toString('hex')
       const passHash = hashOfferPassword(autoPass)
       setupPasswordToken = randomBytes(24).toString('hex')
 
@@ -424,7 +514,7 @@ export async function submitBuyerOfferAction(payload: {
             Date.now() + 7 * 24 * 60 * 60 * 1000
           ).toISOString(),
         })
-        .select('id, name, email, phone, role, status, password_hash')
+        .select('id, name, email, phone, role, status, is_verified, password_hash')
         .maybeSingle()
 
       if (createdUser) {
@@ -438,7 +528,7 @@ export async function submitBuyerOfferAction(payload: {
     const { data: unit } = await supabase
       .from('sell_requests')
       .select('*')
-      .eq('id', payload.propertyId)
+      .eq('id', cleanPropertyId)
       .maybeSingle()
 
     if (!unit) return { success: false, error: oDict.errUnitNotFound }
@@ -468,10 +558,12 @@ export async function submitBuyerOfferAction(payload: {
         'sold',
         'deleted_by_seller',
         'paused_by_seller',
+        'paused_by_admin',
         'paused_deletion',
         'pending',
         'under_review',
         'rejected',
+        'draft_unverified',
       ].includes(cleanUnitStatus)
     ) {
       return { success: false, error: oDict.errUnitAlreadyLocked }
@@ -514,6 +606,30 @@ export async function submitBuyerOfferAction(payload: {
         : null
     }
 
+    if (existingOfferRow?.status === 'rejected') {
+      return {
+        success: false,
+        error:
+          oDict.errOfferAlreadyClosedOnUnit ||
+          'تم إغلاق التفاوض على هذا العرض مسبقاً. إذا كنت ترغب في تقديم عرض جديد بالسعر الكامل، يرجى التواصل مع مستشار الصفقات عبر واتساب.',
+      }
+    }
+
+    // منع إعادة الكتابة على عرض أُرسل للمالك بالفعل أو به عرض مضاد لتجنب مسح رد المالك
+    if (
+      existingOfferRow &&
+      ['pending_seller', 'counter_offered', 'accepted'].includes(
+        existingOfferRow.status
+      )
+    ) {
+      return {
+        success: false,
+        error:
+          oDict.errCannotEditSentOffer ||
+          'لديك عرض نشط بالفعل على هذه الوحدة قيد المراجعة لدى المالك.',
+      }
+    }
+
     if (sessionId && !existingOfferRow && !isUnitCurrentlyInClosing) {
       const { data: myActiveOffers } = await supabase
         .from('property_offers')
@@ -531,18 +647,16 @@ export async function submitBuyerOfferAction(payload: {
       }
     }
 
-    if (existingOfferRow?.status === 'rejected') {
-      return {
-        success: false,
-        error:
-          oDict.errOfferAlreadyClosedOnUnit ||
-          'تم إغلاق التفاوض على هذا العرض مسبقاً. إذا كنت ترغب في تقديم عرض جديد بالسعر الكامل، يرجى التواصل مع مستشار الصفقات عبر واتساب.',
-      }
-    }
-
     const guardrails = getUnitPricingGuardrails(unit)
     const requiredPaidCash = Math.max(1, Number(guardrails.requiredCash) || 1)
     const cleanOfferedCash = Math.round(Number(payload.offeredCash) || 0)
+
+    if (!Number.isFinite(cleanOfferedCash) || cleanOfferedCash <= 0) {
+      return {
+        success: false,
+        error: oDict.errOfferSanityIncomplete || oDict.errSubmitFailed,
+      }
+    }
 
     if (!guardrails.allowNegotiation && cleanOfferedCash < requiredPaidCash) {
       return { success: false, error: oDict.errFixedPriceOnly }
@@ -623,16 +737,9 @@ export async function submitBuyerOfferAction(payload: {
       : { score: 92, matches: [], differences: [] }
 
     const reasonsList = [...matchInfo.matches]
-    if (payload.buyerNotes?.trim()) {
-      reasonsList.push(`💬 ${payload.buyerNotes.trim().slice(0, 180)}`)
+    if (cleanBuyerNotes) {
+      reasonsList.push(`💬 ${cleanBuyerNotes.slice(0, 180)}`)
     }
-
-    const isStaffCaller = Boolean(
-      authenticatedUser &&
-        ['owner', 'admin', 'moderator', 'sales'].includes(
-          String(authenticatedUser.role || '').toLowerCase()
-        )
-    )
 
     const initialOfferStatus: OfferStatusType = isUnitCurrentlyInClosing
       ? 'unit_locked'
@@ -663,8 +770,8 @@ export async function submitBuyerOfferAction(payload: {
       offered_cash: finalOfferedCash,
       counter_cash: null,
       required_cash: requiredPaidCash,
-      payment_readiness: payload.paymentReadiness,
-      payment_method: payload.paymentMethod,
+      payment_readiness: safeReadiness,
+      payment_method: safePaymentMethod,
       match_score: matchInfo.score,
       match_reasons: reasonsList,
       diff_reasons: cleanDiffReasons,
@@ -828,6 +935,10 @@ export async function manageBuyerOwnOfferAction(payload: {
   const oDict = (dict.accountPages as Record<string, any>)?.offers || {}
 
   try {
+    if (!UUID_REGEX.test(String(payload.offerId || '').trim())) {
+      return { success: false, error: oDict.errUnitNotFound }
+    }
+
     const session = await getVerifiedClientSession()
     if (!session) return { success: false, error: oDict.errLoginRequired }
     const { supabase, user } = session
@@ -903,9 +1014,21 @@ export async function manageBuyerOwnOfferAction(payload: {
     }
 
     if (!unit) return { success: false, error: oDict.errUnitNotFound }
+
+    const cleanUnitSt = String(unit.status || '').trim().toLowerCase()
+    if (
+      ['sold', 'deleted_by_seller', 'paused_by_seller', 'paused_by_admin'].includes(
+        cleanUnitSt
+      )
+    ) {
+      return { success: false, error: oDict.errUnitAlreadyLocked }
+    }
+
+    const guardrails = getUnitPricingGuardrails(unit)
     const requiredPaid = Math.max(
       1,
-      Number(unit.paid_amount || offer.required_cash) || 1
+      Number(guardrails.requiredCash || unit.paid_amount || offer.required_cash) ||
+        1
     )
 
     if (payload.action === 'update_pending_price') {
@@ -918,6 +1041,9 @@ export async function manageBuyerOwnOfferAction(payload: {
         }
       }
       const cleanNewCash = Math.round(Number(payload.newOfferedCash) || 0)
+      if (!guardrails.allowNegotiation && cleanNewCash < requiredPaid) {
+        return { success: false, error: oDict.errFixedPriceOnly }
+      }
       if (
         cleanNewCash > requiredPaid ||
         cleanNewCash < Math.round(requiredPaid * 0.5)
@@ -930,10 +1056,14 @@ export async function manageBuyerOwnOfferAction(payload: {
         }
       }
 
+      const finalNewCash = guardrails.allowNegotiation
+        ? cleanNewCash
+        : requiredPaid
+
       await supabase
         .from('property_offers')
         .update({
-          offered_cash: cleanNewCash,
+          offered_cash: finalNewCash,
           required_cash: requiredPaid,
           updated_at: new Date().toISOString(),
         })
@@ -944,6 +1074,13 @@ export async function manageBuyerOwnOfferAction(payload: {
     }
 
     if (payload.action === 'confirm_reopened_interest') {
+      if (offer.status !== 'unit_locked') {
+        return {
+          success: false,
+          error: oDict.errStaleOfferState || oDict.errSubmitFailed,
+        }
+      }
+
       const { data: activeAccepted } = await supabase
         .from('property_offers')
         .select('id')
@@ -952,8 +1089,8 @@ export async function manageBuyerOwnOfferAction(payload: {
         .limit(1)
 
       if (
-        unit.status === 'transferring' ||
-        unit.status === 'sold' ||
+        cleanUnitSt === 'transferring' ||
+        cleanUnitSt === 'sold' ||
         (activeAccepted && activeAccepted.length > 0)
       ) {
         const cleanedDiffs = currentDiffs.filter(
@@ -973,15 +1110,20 @@ export async function manageBuyerOwnOfferAction(payload: {
         }
       }
 
-      const nextCash = payload.newOfferedCash
-        ? Math.min(
-            requiredPaid,
-            Math.max(
-              Math.round(requiredPaid * 0.5),
-              Math.round(Number(payload.newOfferedCash))
+      const nextCash = !guardrails.allowNegotiation
+        ? requiredPaid
+        : payload.newOfferedCash
+          ? Math.min(
+              requiredPaid,
+              Math.max(
+                Math.round(requiredPaid * 0.5),
+                Math.round(Number(payload.newOfferedCash))
+              )
             )
-          )
-        : Number(offer.offered_cash)
+          : Math.min(
+              requiredPaid,
+              Math.max(Math.round(requiredPaid * 0.5), Number(offer.offered_cash))
+            )
 
       const updatedDiffs = Array.from(
         new Set([
@@ -1049,6 +1191,10 @@ export async function respondToOfferBySellerAction(payload: {
   const oDict = (dict.accountPages as Record<string, any>)?.offers || {}
 
   try {
+    if (!UUID_REGEX.test(String(payload.offerId || '').trim())) {
+      return { success: false, error: oDict.errUnitNotFound }
+    }
+
     const session = await getVerifiedClientSession()
     if (!session) return { success: false, error: oDict.errLoginRequired }
     const { supabase, user } = session
@@ -1062,9 +1208,14 @@ export async function respondToOfferBySellerAction(payload: {
     if (!offer) return { success: false, error: oDict.errUnitNotFound }
 
     const normalizedCurrent = normalizeOfferRecord(offer)
+
+    // منع البائع من التلاعب بعروض لم تُرسل له (pending_admin / recommended / unit_locked / rejected)
     if (
-      normalizedCurrent.status !== 'pending_seller' &&
-      payload.decision !== 'reject'
+      payload.decision === 'reject'
+        ? !['pending_seller', 'counter_offered', 'accepted'].includes(
+            normalizedCurrent.status
+          )
+        : normalizedCurrent.status !== 'pending_seller'
     ) {
       revalidateAllOfferPaths()
       return {
@@ -1085,6 +1236,11 @@ export async function respondToOfferBySellerAction(payload: {
       return { success: false, error: oDict.errLoginRequired }
     }
 
+    const unitSt = String(unit.status || '').trim().toLowerCase()
+    if (unitSt === 'sold' || unitSt === 'deleted_by_seller') {
+      return { success: false, error: oDict.errUnitAlreadyLocked }
+    }
+
     if (payload.decision === 'accept') {
       const { data: alreadyAccepted } = await supabase
         .from('property_offers')
@@ -1100,6 +1256,26 @@ export async function respondToOfferBySellerAction(payload: {
           error:
             oDict.errSellerAlreadyAcceptedAnother ||
             oDict.errUnitAlreadyLocked,
+        }
+      }
+
+      // منع سباق القبول المزدوج لنفس المشتري على وحدتين في نفس الوقت
+      if (offer.buyer_user_id) {
+        const { data: buyerExistingDeal } = await supabase
+          .from('property_offers')
+          .select('id')
+          .eq('buyer_user_id', offer.buyer_user_id)
+          .eq('status', 'accepted')
+          .neq('id', offer.id)
+          .limit(1)
+
+        if (buyerExistingDeal && buyerExistingDeal.length > 0) {
+          return {
+            success: false,
+            error:
+              oDict.errBuyerDoubleAcceptance ||
+              oDict.errUnitAlreadyLocked,
+          }
         }
       }
 
@@ -1272,6 +1448,10 @@ export async function respondToCounterOfferByBuyerAction(payload: {
   const oDict = (dict.accountPages as Record<string, any>)?.offers || {}
 
   try {
+    if (!UUID_REGEX.test(String(payload.offerId || '').trim())) {
+      return { success: false, error: oDict.errUnitNotFound }
+    }
+
     const session = await getVerifiedClientSession()
     if (!session) return { success: false, error: oDict.errLoginRequired }
     const { supabase, user } = session
@@ -1283,6 +1463,19 @@ export async function respondToCounterOfferByBuyerAction(payload: {
       .maybeSingle()
 
     if (!offer) return { success: false, error: oDict.errUnitNotFound }
+
+    const normalizedOffer = normalizeOfferRecord(offer)
+
+    // إغلاق الثغرة الحرجة: لا يُسمح للمشتري بالرد إلا على عرض مضاد فعلي (counter_offered) صادر من المالك
+    if (normalizedOffer.status !== 'counter_offered') {
+      revalidateAllOfferPaths()
+      return {
+        success: false,
+        error:
+          oDict.errStaleOfferState ||
+          'لا يوجد عرض مضاد نشط من المالك للرد عليه حالياً.',
+      }
+    }
 
     const role = String(user.role || 'user').trim().toLowerCase()
     const isStaff = ['owner', 'admin', 'moderator', 'sales'].includes(role)
@@ -1296,11 +1489,22 @@ export async function respondToCounterOfferByBuyerAction(payload: {
       .eq('id', offer.property_id)
       .maybeSingle()
 
-    if (!unit || unit.status === 'sold' || unit.status === 'transferring') {
+    const unitSt = String(unit?.status || '').trim().toLowerCase()
+    if (
+      !unit ||
+      ['sold', 'transferring', 'deleted_by_seller', 'paused_by_seller', 'paused_by_admin'].includes(
+        unitSt
+      )
+    ) {
       return { success: false, error: oDict.errUnitAlreadyLocked }
     }
 
     if (payload.decision === 'accept') {
+      const agreedAmount = Math.round(Number(offer.counter_cash) || 0)
+      if (!Number.isFinite(agreedAmount) || agreedAmount <= 0) {
+        return { success: false, error: oDict.errInvalidCounterAmount || oDict.errSubmitFailed }
+      }
+
       if (!isStaff && offer.buyer_user_id) {
         const { data: buyerExistingAccepted } = await supabase
           .from('property_offers')
@@ -1331,8 +1535,6 @@ export async function respondToCounterOfferByBuyerAction(payload: {
       if (alreadyAccepted && alreadyAccepted.length > 0) {
         return { success: false, error: oDict.errUnitAlreadyLocked }
       }
-
-      const agreedAmount = Number(offer.counter_cash || offer.offered_cash)
 
       await supabase
         .from('property_offers')
@@ -1530,6 +1732,10 @@ export async function adminManageOfferLifecycleAction(payload: {
   const oDict = (dict.accountPages as Record<string, any>)?.offers || {}
 
   try {
+    if (!UUID_REGEX.test(String(payload.offerId || '').trim())) {
+      return { success: false, error: oDict.errUnitNotFound }
+    }
+
     const auth = await verifyStaffSession()
     if (!auth) return { success: false, error: oDict.errLoginRequired }
     const { supabase } = auth
@@ -1563,7 +1769,9 @@ export async function adminManageOfferLifecycleAction(payload: {
 
     if (payload.action === 'approve_to_seller') {
       const nextCash =
-        payload.negotiatedCash && Number(payload.negotiatedCash) > 0
+        payload.negotiatedCash &&
+        Number.isFinite(Number(payload.negotiatedCash)) &&
+        Number(payload.negotiatedCash) > 0
           ? Math.round(Number(payload.negotiatedCash))
           : Number(offer.offered_cash)
 
@@ -1643,7 +1851,9 @@ export async function adminManageOfferLifecycleAction(payload: {
       }
     } else if (payload.action === 'admin_accept_deal') {
       const agreedCash =
-        payload.negotiatedCash && Number(payload.negotiatedCash) > 0
+        payload.negotiatedCash &&
+        Number.isFinite(Number(payload.negotiatedCash)) &&
+        Number(payload.negotiatedCash) > 0
           ? Math.round(Number(payload.negotiatedCash))
           : Number(offer.counter_cash || offer.offered_cash)
 
@@ -1679,7 +1889,6 @@ export async function adminManageOfferLifecycleAction(payload: {
           .neq('status', 'closed')
       }
 
-      // توثيق الاتفاق الهاتفي فوراً بإشعار وإيميل للطرفين (البائع والمشتري)
       const projectTitle = sanitizeGeorgiaProjectTitle(unit.project_name)
       const notifs: any[] = []
       if (offer.buyer_user_id) {
@@ -1736,7 +1945,7 @@ export async function adminManageOfferLifecycleAction(payload: {
           subject: `🎉 ${oDict.sellerCounterAcceptedNotifTitle} (${projectTitle})`,
           heading: oDict.sellerCounterAcceptedNotifTitle,
           bodyLines: [
-            `${projectTitle} — $${agreedCash.toLocaleString('en-US')}.`,
+            `${projectTitle} — $${agreedAmountText(agreedCash)}.`,
             oDict.dealLockedBannerForSeller || '',
           ],
           ctaText: oDict.sellerTitle || 'View Deal',
@@ -1960,6 +2169,10 @@ export async function adminManageOfferLifecycleAction(payload: {
   }
 }
 
+function agreedAmountText(amount: number): string {
+  return Number(amount || 0).toLocaleString('en-US')
+}
+
 export async function adminSendRecommendationAction(payload: {
   propertyId: string
   leadId: string
@@ -1968,6 +2181,13 @@ export async function adminSendRecommendationAction(payload: {
   const oDict = (dict.accountPages as Record<string, any>)?.offers || {}
 
   try {
+    if (
+      !UUID_REGEX.test(String(payload.propertyId || '').trim()) ||
+      !UUID_REGEX.test(String(payload.leadId || '').trim())
+    ) {
+      return { success: false, error: oDict.errUnitNotFound }
+    }
+
     const auth = await verifyStaffSession()
     if (!auth) return { success: false, error: oDict.errLoginRequired }
     const { supabase } = auth
@@ -2102,6 +2322,10 @@ export async function adminSendBulkRecommendationsAction(payload: {
   const oDict = (dict.accountPages as Record<string, any>)?.offers || {}
 
   try {
+    if (!UUID_REGEX.test(String(payload.propertyId || '').trim())) {
+      return { success: false, error: oDict.errUnitNotFound, sentCount: 0 }
+    }
+
     const auth = await verifyStaffSession()
     if (!auth) return { success: false, error: oDict.errLoginRequired }
     const { supabase } = auth
@@ -2172,11 +2396,23 @@ export async function adminCreateOfficialOfferAction(payload: {
   const oDict = (dict.accountPages as Record<string, any>)?.offers || {}
 
   try {
+    if (
+      !UUID_REGEX.test(String(payload.propertyId || '').trim()) ||
+      !UUID_REGEX.test(String(payload.leadId || '').trim())
+    ) {
+      return { success: false, error: oDict.errUnitNotFound }
+    }
+
     const auth = await verifyStaffSession()
     if (!auth) return { success: false, error: oDict.errLoginRequired }
     const { supabase } = auth
 
     const isDirectDeal = payload.mode === 'direct_accept_deal'
+    const safeReadiness: '48h' | '1_week' | '2_weeks' = ALLOWED_READINESS.has(
+      payload.paymentReadiness
+    )
+      ? payload.paymentReadiness
+      : '48h'
 
     const [{ data: unit }, { data: lead }] = await Promise.all([
       supabase
@@ -2308,7 +2544,7 @@ export async function adminCreateOfficialOfferAction(payload: {
           buyer_phone: lead.phone || '',
           offered_cash: cleanCash,
           required_cash: Number(unit.paid_amount) || 0,
-          payment_readiness: payload.paymentReadiness,
+          payment_readiness: safeReadiness,
           payment_method: 'bank_check',
           match_score: match.score,
           match_reasons: match.matches,
@@ -2325,7 +2561,6 @@ export async function adminCreateOfficialOfferAction(payload: {
     const projectTitle = sanitizeGeorgiaProjectTitle(unit.project_name)
 
     if (isDirectDeal) {
-      // قفل العروض المنافسة على الوحدة لقائمة الانتظار + تحويل الوحدة لقيد التعاقد (تظل بالماركت بشارة قيد التعاقد)
       await supabase
         .from('property_offers')
         .update({ status: 'unit_locked' })
@@ -2494,6 +2729,10 @@ export async function adminWithdrawPendingOfferAction(offerId: string) {
   const oDict = (dict.accountPages as Record<string, any>)?.offers || {}
 
   try {
+    if (!UUID_REGEX.test(String(offerId || '').trim())) {
+      return { success: true }
+    }
+
     const auth = await verifyStaffSession()
     if (!auth) {
       return { success: false, error: oDict.errLoginRequired || 'Unauthorized' }

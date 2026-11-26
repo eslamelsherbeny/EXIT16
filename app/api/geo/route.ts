@@ -34,12 +34,15 @@ const COUNTRY_NAMES: Record<
 }
 
 export async function GET(req: NextRequest) {
-  const rawCountry =
+  const rawCountry = (
     req.headers.get('x-vercel-ip-country') ||
     req.headers.get('cf-ipcountry') ||
     'EG'
+  )
+    .trim()
+    .toUpperCase()
 
-  const countryCode = rawCountry.toUpperCase()
+  const countryCode = /^[A-Z]{2}$/.test(rawCountry) ? rawCountry : 'EG'
   const acceptLang = (req.headers.get('accept-language') || '').toLowerCase()
 
   const matched = COUNTRY_NAMES[countryCode] || {

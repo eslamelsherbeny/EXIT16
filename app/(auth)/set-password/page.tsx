@@ -1,32 +1,61 @@
 'use client'
 
-import { Suspense, useState, useTransition } from 'react'
+import { Suspense, useEffect, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { AuthCard, AuthLayout } from '@/components/layouts/auth-layout'
 import { setNewPasswordFromTokenAction } from '@/actions/submit-forms'
 import { useTranslation } from '@/lib/i18n'
 
+function getSafeInternalNext(raw: string | null): string {
+  const clean = String(raw || '').trim()
+  if (
+    clean &&
+    clean.startsWith('/') &&
+    !clean.startsWith('//') &&
+    !clean.startsWith('/\\') &&
+    !clean.startsWith('/admin')
+  ) {
+    return clean
+  }
+  return '/account'
+}
+
 function SetPasswordContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const tokenHash = searchParams.get('token_hash') || ''
-  const nextUrl = searchParams.get('next') || '/account'
+  const initialToken = searchParams.get('token_hash') || ''
+  const safeNextUrl = getSafeInternalNext(searchParams.get('next'))
 
   const { t: dict, dir } = useTranslation()
   const t = dict.authPages.setPassword
   const c = dict.authPages.common
 
+  const [tokenHash, setTokenHash] = useState(initialToken)
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
 
+  // إزالة التوكن من شريط العنوان فور حفظه في الذاكرة لمنع تسريبه في سجل المتصفح
+  useEffect(() => {
+    if (initialToken) {
+      setTokenHash(initialToken)
+      if (typeof window !== 'undefined') {
+        window.history.replaceState({}, '', '/set-password')
+      }
+    }
+  }, [initialToken])
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
 
+    if (!tokenHash) {
+      setError(t.genericError)
+      return
+    }
     if (password.length < 8) {
       setError(t.shortPassError)
       return
@@ -48,10 +77,11 @@ function SetPasswordContent() {
       }
 
       if (res.unitId) {
-        router.push(`/sell?magic=${encodeURIComponent(tokenHash)}`)
+        router.replace(`/sell?editUnitId=${encodeURIComponent(res.unitId)}`)
       } else {
-        router.push(nextUrl)
+        router.replace(safeNextUrl)
       }
+      router.refresh()
     })
   }
 
@@ -79,6 +109,7 @@ function SetPasswordContent() {
                   dir="ltr"
                   required
                   minLength={8}
+                  maxLength={128}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="h-12 w-full rounded-xl border border-input bg-background pr-11 pl-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary,#007a5a)]"
@@ -107,6 +138,7 @@ function SetPasswordContent() {
                 dir="ltr"
                 required
                 minLength={8}
+                maxLength={128}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 className="h-12 w-full rounded-xl border border-input bg-background px-4 text-left text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary,#007a5a)]"

@@ -54,17 +54,24 @@ function parseSafeNumber(val: unknown, fallback = 0): number {
 function getOrCreateDeviceFingerprint(): string {
   try {
     let fp = localStorage.getItem(DEVICE_VIEWER_KEY_STORAGE)
-    if (!fp) {
-      fp = `dev_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`
+    if (!fp || !/^[a-zA-Z0-9_-]{6,64}$/.test(fp)) {
+      const rand =
+        typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+          ? crypto.randomUUID().replace(/-/g, '').slice(0, 12)
+          : Math.random().toString(36).slice(2, 10)
+      fp = `dev_${Date.now().toString(36)}_${rand}`
       localStorage.setItem(DEVICE_VIEWER_KEY_STORAGE, fp)
     }
-    document.cookie = `aqar_vfp=${fp}; path=/; max-age=31536000; SameSite=Lax`
+    const secureAttr =
+      typeof window !== 'undefined' && window.location.protocol === 'https:'
+        ? '; Secure'
+        : ''
+    document.cookie = `aqar_vfp=${encodeURIComponent(fp)}; path=/; max-age=31536000; SameSite=Lax${secureAttr}`
     return fp
   } catch {
     return 'anon_device'
   }
 }
-
 function UnitDetailsPageSkeleton({ dir }: { dir: 'rtl' | 'ltr' }) {
   return (
     <main

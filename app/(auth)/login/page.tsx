@@ -13,6 +13,19 @@ import { toEnglishDigits } from '@/components/features/seller/seller-shared'
 import { loginAction, verifyAccountAction } from '@/actions/auth-actions'
 import { useTranslation } from '@/lib/i18n'
 
+function getSafeInternalNext(raw: string | null): string {
+  const clean = String(raw || '').trim()
+  if (
+    clean &&
+    clean.startsWith('/') &&
+    !clean.startsWith('//') &&
+    !clean.startsWith('/\\')
+  ) {
+    return clean
+  }
+  return ''
+}
+
 function LoginContent() {
   const router = useRouter()
   const { t: dict, locale, dir } = useTranslation()
@@ -23,7 +36,7 @@ function LoginContent() {
   const isVerifiedParam = searchParams.get('verified') === '1'
   const defaultEmail = searchParams.get('email') || ''
   const verifyToken = searchParams.get('token') || ''
-  const nextUrl = searchParams.get('next') || ''
+  const nextUrl = getSafeInternalNext(searchParams.get('next'))
   const isAdminRedirect = nextUrl.startsWith('/admin')
 
   const [identifier, setIdentifier] = useState(defaultEmail)
@@ -42,11 +55,19 @@ function LoginContent() {
 
   useEffect(() => {
     if (isVerifiedParam && defaultEmail && verifyToken) {
+      // إزالة توكن التفعيل من شريط العنوان فوراً لمنع تسريبه في الـ History أو Referer
+      if (typeof window !== 'undefined') {
+        const cleanUrl = nextUrl
+          ? `/login?next=${encodeURIComponent(nextUrl)}`
+          : '/login'
+        window.history.replaceState({}, '', cleanUrl)
+      }
+
       verifyAccountAction(defaultEmail, verifyToken).then((res) => {
         if (res.success) setVerifiedSuccess(true)
       })
     }
-  }, [isVerifiedParam, defaultEmail, verifyToken])
+  }, [isVerifiedParam, defaultEmail, verifyToken, nextUrl])
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -74,8 +95,9 @@ function LoginContent() {
       const result = await loginAction(formData)
 
       if (result.success) {
-        const target = result.redirectTo || (nextUrl ? nextUrl : '/account')
-        router.replace(target)
+        const safeRedirect =
+          getSafeInternalNext(result.redirectTo || nextUrl) || '/account'
+        router.replace(safeRedirect)
         router.refresh()
         return
       } else {

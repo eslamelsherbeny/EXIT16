@@ -18,6 +18,31 @@ const RESERVED_SYSTEM_TITLES = new Set([
   "__GLOBAL_SITE_CONFIG__",
   "__USER_VERIFICATION_META__",
 ])
+const UUID_REGEX =
+  /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
+const ALLOWED_NOTIF_TYPES = new Set<NotificationType>([
+  "property",
+  "lead",
+  "investor",
+  "property_match",
+  "new_offer",
+  "status_update",
+  "admin_alert",
+  "system",
+  "offer",
+])
+
+function sanitizeInternalLink(rawLink: unknown): string {
+  const clean = String(rawLink || "/").trim()
+  if (
+    clean.startsWith("/") &&
+    !clean.startsWith("//") &&
+    !clean.startsWith("/\\")
+  ) {
+    return clean.slice(0, 400)
+  }
+  return "/"
+}
 
 async function getSupabase() {
   const cookieStore = await cookies()
@@ -54,10 +79,11 @@ async function getVerifiedNotifSession(supabase: any) {
     .replace(/[\r\n\s]+/g, "")
     .toLowerCase()
   const isAdmin =
-    role === "owner" ||
-    role === "admin" ||
-    role === "moderator" ||
-    role === "sales"
+    cleanStatus !== "deletion_pending" &&
+    (role === "owner" ||
+      role === "admin" ||
+      role === "moderator" ||
+      role === "sales")
 
   return { userId: String(user.id), role, isAdmin }
 }
@@ -82,8 +108,8 @@ export async function localizeNotificationItem(
   },
   targetDict: Record<string, any>
 ): Promise<{ title: string; message: string }> {
-  let title = String(item.title || "")
-  let message = String(item.message || "")
+  let title = String(item?.title || "").slice(0, 500)
+  let message = String(item?.message || "").slice(0, 1500)
 
   const tAdmin = targetDict?.serverActions?.admin || {}
   const tOffersPage = targetDict?.accountPages?.offers || {}
@@ -222,13 +248,18 @@ export async function getUserNotificationsAction(
       return { success: false, notifications: [], unreadCount: 0 }
     }
 
+    const safeLimit = Math.max(
+      25,
+      Math.min(150, Math.round(Number(limitCount) || 60))
+    )
+
     let query = supabase
       .from("notifications")
-      .select("*")
+      .select("id, user_id, title, message, type, link, is_read, created_at")
       .neq("title", "__GLOBAL_SITE_CONFIG__")
       .neq("title", "__USER_VERIFICATION_META__")
       .order("created_at", { ascending: false })
-      .limit(Math.max(25, Math.min(150, limitCount)))
+      .limit(safeLimit)
 
     if (context === "admin" && session.isAdmin) {
       query = query.is("user_id", null)
@@ -253,6 +284,7 @@ export async function getUserNotificationsAction(
           ...n,
           title: localized.title,
           message: localized.message,
+          link: sanitizeInternalLink(n.link),
         }
       })
     )
@@ -271,7 +303,9 @@ export async function getUserNotificationsAction(
 
 export async function markNotificationAsReadAction(notificationId: string) {
   try {
-    if (!notificationId) return { success: false }
+    const cleanId = String(notificationId || "").trim()
+    if (!UUID_REGEX.test(cleanId)) return { success: false }
+
     const supabase = await getSupabase()
     const session = await getVerifiedNotifSession(supabase)
     if (!session) return { success: false }
@@ -279,7 +313,7 @@ export async function markNotificationAsReadAction(notificationId: string) {
     const { data: target } = await supabase
       .from("notifications")
       .select("id, user_id, title")
-      .eq("id", notificationId)
+      .eq("id", cleanId)
       .maybeSingle()
 
     if (!target || RESERVED_SYSTEM_TITLES.has(String(target.title || ""))) {
@@ -296,7 +330,7 @@ export async function markNotificationAsReadAction(notificationId: string) {
     await supabase
       .from("notifications")
       .update({ is_read: true })
-      .eq("id", notificationId)
+      .eq("id", cleanId)
 
     revalidatePath("/", "layout")
     revalidatePath("/admin", "layout")
@@ -376,15 +410,22 @@ export async function createNotification(payload: {
       return { success: false }
     }
 
-    const rawLink = String(payload.link || "/").trim()
-    const safeLink =
-      rawLink.startsWith("/") && !rawLink.startsWith("//") ? rawLink : "/"
+    const targetUserId = payload.userId ? String(payload.userId).trim() : null
+    if (targetUserId && !UUID_REGEX.test(targetUserId)) {
+      return { success: false }
+    }
+
+    const safeType: NotificationType = ALLOWED_NOTIF_TYPES.has(payload.type)
+      ? payload.type
+      : "status_update"
+
+    const safeLink = sanitizeInternalLink(payload.link)
 
     const { error } = await supabase.from("notifications").insert({
-      user_id: payload.userId || null,
+      user_id: targetUserId,
       title: cleanTitle,
       message: cleanMessage,
-      type: payload.type,
+      type: safeType,
       link: safeLink,
       is_read: false,
     })

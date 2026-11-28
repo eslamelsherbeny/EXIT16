@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
+const UUID_REGEX =
+  /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
+
 function getProxySessionSecret(): string {
   const secret =
     process.env.SESSION_SECRET?.trim() ||
@@ -19,16 +22,18 @@ async function verifySessionCookieSignature(
     const clean = decodeURIComponent(rawCookie.trim())
     if (!clean || clean.includes('[object')) return false
     const parts = clean.split('.')
-    if (parts.length !== 3) return false
+    if (parts.length !== 4) return false
 
-    const [userId, pwdFp, sig] = parts.map((p) => p.trim())
+    const [userId, pwdFp, expStr, sig] = parts.map((p) => p.trim())
+    const exp = Number(expStr)
+
     if (
       !userId ||
-      !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(
-        userId
-      ) ||
+      !UUID_REGEX.test(userId) ||
       pwdFp.length !== 12 ||
-      sig.length !== 24
+      !Number.isFinite(exp) ||
+      Date.now() > exp ||
+      sig.length !== 32
     ) {
       return false
     }
@@ -48,13 +53,13 @@ async function verifySessionCookieSignature(
     const signatureBuf = await crypto.subtle.sign(
       'HMAC',
       key,
-      enc.encode(`${userId}.${pwdFp}`)
+      enc.encode(`${userId}.${pwdFp}.${exp}`)
     )
 
     const expectedHex = Array.from(new Uint8Array(signatureBuf))
       .map((b) => b.toString(16).padStart(2, '0'))
       .join('')
-      .slice(0, 24)
+      .slice(0, 32)
 
     if (sig.length !== expectedHex.length) return false
 
@@ -82,6 +87,7 @@ export async function proxy(request: NextRequest) {
     const res = NextResponse.next()
     res.cookies.delete('user_session')
     res.cookies.delete('session_hint')
+    res.headers.set('Cache-Control', 'private, no-store, max-age=0')
     return res
   }
 
@@ -92,8 +98,16 @@ export async function proxy(request: NextRequest) {
       const res = NextResponse.redirect(loginUrl)
       res.cookies.delete('user_session')
       res.cookies.delete('session_hint')
+      res.headers.set('Cache-Control', 'private, no-store, max-age=0')
+      res.headers.set('X-Robots-Tag', 'noindex, nofollow')
       return res
     }
+
+    const res = NextResponse.next()
+    // منع تخزين صفحات الحساب والأدمن الحساسة في الكاش أو أرشفتها في محركات البحث
+    res.headers.set('Cache-Control', 'private, no-store, max-age=0')
+    res.headers.set('X-Robots-Tag', 'noindex, nofollow')
+    return res
   }
 
   return NextResponse.next()

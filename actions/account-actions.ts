@@ -11,6 +11,7 @@ import {
   parseAndVerifySessionCookie,
 } from '@/lib/session-security'
 import { getServerI18n } from '@/lib/get-server-dictionary'
+import { validateInternationalE164Phone } from '@/lib/phone-validation'
 import { upsertUserVerificationMeta } from '@/lib/form-action-helpers'
 import {
   getUnifiedUnitCode,
@@ -34,11 +35,21 @@ const UUID_REGEX =
 const SAFE_PRIVATE_DOC_PATH_REGEX =
   /^documents\/[a-zA-Z0-9_-]{4,64}\/[a-zA-Z0-9._-]{4,120}$/
 
+function escapeEmailHtml(val: unknown): string {
+  return String(val || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 async function getAccDict() {
-  const { dict, dir, siteSettings } = await getServerI18n()
+  const { dict, locale, dir, siteSettings } = await getServerI18n()
   const t = (dict as Record<string, any>)?.serverActions?.account || {}
   const oDict = (dict as Record<string, any>)?.accountPages?.offers || {}
-  return { t, oDict, dir, siteSettings }
+  const phoneMessages = (dict as Record<string, any>)?.common?.phoneValidation
+  return { t, oDict, locale, phoneMessages, dir, siteSettings }
 }
 
 async function getSupabase() {
@@ -231,7 +242,9 @@ async function verifyUnitOwnership(
     is_verified?: boolean | null
   }
 ) {
-  if (!unitId || !user?.id) return null
+  if (!unitId || !UUID_REGEX.test(String(unitId).trim()) || !user?.id) {
+    return null
+  }
 
   const { data: unit } = await supabase
     .from('sell_requests')
@@ -620,7 +633,7 @@ export async function updatePersonalInfoAction(payload: {
   name: string
   phone: string
 }) {
-  const { t: msg } = await getAccDict()
+  const { t: msg, locale, phoneMessages } = await getAccDict()
   try {
     const session = await getVerifiedSessionUser()
     if (!session) return { success: false, error: msg.sessionExpired }
@@ -630,14 +643,30 @@ export async function updatePersonalInfoAction(payload: {
       .replace(/[<>]/g, '')
       .trim()
       .slice(0, 120)
-    const formattedPhone = formatPrimaryPhone(payload.phone)
+    const rawFormattedPhone = formatPrimaryPhone(payload.phone)
 
-    if (!cleanName || !formattedPhone || formattedPhone.length < 9) {
+    if (!cleanName) {
       return {
         success: false,
         error: msg.invalidNamePhone,
       }
     }
+
+    const phoneCheck = validateInternationalE164Phone(
+      rawFormattedPhone,
+      undefined,
+      locale,
+      phoneMessages
+    )
+
+    if (!phoneCheck.valid) {
+      return {
+        success: false,
+        error: phoneCheck.error || msg.invalidNamePhone,
+      }
+    }
+
+    const formattedPhone = phoneCheck.e164
 
     const { data: conflictPhone } = await supabase
       .from('users')
@@ -759,8 +788,8 @@ export async function updateEmailInfoAction(payload: { email: string }) {
       senderName: 'DualDealz',
       subject: msg.emailUpdatedSubject,
       html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.8; color: #0a1122;">
-               <p>${msg.greetingWord} <strong>${currentUser.name || msg.dearClient}</strong>${comma}</p>
-               <p>${msg.emailUpdatedBody} <strong>${cleanEmail}</strong>.</p>
+               <p>${msg.greetingWord} <strong>${escapeEmailHtml(currentUser.name || msg.dearClient)}</strong>${comma}</p>
+               <p>${msg.emailUpdatedBody} <strong>${escapeEmailHtml(cleanEmail)}</strong>.</p>
               </div>`,
     }).catch(() => {})
 
@@ -884,6 +913,10 @@ export async function cancelAccountDeletionAction() {
     if (!session) return { success: false }
     const { supabase, user } = session
 
+    if (String(user.status || '').trim().toLowerCase() !== 'deletion_pending') {
+      return { success: false }
+    }
+
     await supabase
       .from('users')
       .update({
@@ -893,6 +926,7 @@ export async function cancelAccountDeletionAction() {
         status: 'active',
       })
       .eq('id', user.id)
+      .eq('status', 'deletion_pending')
 
     revalidatePath('/account')
     revalidatePath('/opportunities')
@@ -1292,6 +1326,10 @@ export async function updateBuyerPreferencesAction(payload: {
     }
 
     if (payload.buyRequestId) {
+      if (!UUID_REGEX.test(String(payload.buyRequestId).trim())) {
+        return { success: false, error: msg.sessionExpired }
+      }
+
       const { data: targetLead } = await supabase
         .from('buy_requests')
         .select('id, user_id, email, phone')

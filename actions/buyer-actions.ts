@@ -2,6 +2,8 @@
 
 import { createHmac } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
+import { getServerI18n } from '@/lib/get-server-dictionary'
+import { validateInternationalE164Phone } from '@/lib/phone-validation'
 import {
   ACTIVE_COUNTRY_CODE,
   createMagicToken,
@@ -47,6 +49,15 @@ function isSuspendedStatus(status?: string | null): boolean {
   return String(status || 'active').trim().toLowerCase() === 'suspended'
 }
 
+function escapeEmailHtml(val: unknown): string {
+  return String(val || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 // مقبض مؤقت موقّع (15 دقيقة) لطلب استعادة كلمة المرور بدون كشف UUID أو بيانات صاحب الحساب
 function createSignedRecoveryHandle(userId: string): string {
   const expiresAt = Date.now() + 15 * 60 * 1000
@@ -78,7 +89,12 @@ export async function processBuyerStep3Action(payload: {
   loginIdentifier?: string
   contactMessengers?: string[]
 }): Promise<Step2AuthResponse> {
-  const { t: msg, dir } = await getFormsDict()
+  const [{ t: msg, dir }, { locale, dict }] = await Promise.all([
+    getFormsDict(),
+    getServerI18n(),
+  ])
+  const phoneMessages = (dict.common as Record<string, any>)?.phoneValidation
+
   try {
     const supabase = await getSupabase()
     const siteUrl = DEFAULT_SITE_URL
@@ -173,13 +189,15 @@ export async function processBuyerStep3Action(payload: {
         target_category: 'exit',
         available_cash: safeAvailableCash,
         max_installment: safeMaxInstallment,
-        payment_plan:
-          String(payload.payment_plan || msg.defaultMonthly).slice(0, 60),
+        payment_plan: String(
+          payload.payment_plan || msg.defaultMonthly
+        ).slice(0, 60),
         budget: safeBudget,
         unit_types: cleanUnitTypes,
         min_rooms: safeMinRooms,
-        delivery_status:
-          String(payload.delivery_status || msg.defaultReady).slice(0, 60),
+        delivery_status: String(
+          payload.delivery_status || msg.defaultReady
+        ).slice(0, 60),
         preferred_areas: cleanPreferredAreas,
         name: (contact.name || msg.buyerFallback).slice(0, 120),
         phone: (contact.phone || '').slice(0, 30),
@@ -248,7 +266,7 @@ export async function processBuyerStep3Action(payload: {
           senderName: msg.emailSenderName,
           subject: `${msg.buyOrderSubjectPrefix} ${orderRef}`,
           html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.8; color: #0a1122;">
-                  <p style="font-size: 16px;">${msg.greetingWord} <strong>${contact.name}</strong>${comma}</p>
+                  <p style="font-size: 16px;">${msg.greetingWord} <strong>${escapeEmailHtml(contact.name)}</strong>${comma}</p>
                   <p>${msg.orderRefLabel}: <strong>${orderRef}</strong>.</p>
                   <p>${msg.registeredCashLabel}: <strong>$${cashFormatted}</strong>.</p>
                   <p>${msg.orderMagicLinkPrompt}:</p>
@@ -268,9 +286,19 @@ export async function processBuyerStep3Action(payload: {
         return { status: 'error', error: msg.sessionExpired }
       }
 
-      const resolvedPhone = payload.phone
-        ? formatPrimaryPhone(payload.phone)
-        : currentUser.phone || ''
+      let resolvedPhone = currentUser.phone || ''
+      if (payload.phone && payload.phone.trim()) {
+        const phoneCheck = validateInternationalE164Phone(
+          formatPrimaryPhone(payload.phone),
+          buyerResidenceCountry,
+          locale,
+          phoneMessages
+        )
+        if (!phoneCheck.valid) {
+          return { status: 'error', error: phoneCheck.error || msg.fillAll }
+        }
+        resolvedPhone = phoneCheck.e164
+      }
 
       const reqId = await insertBuyRequestRecord(currentUser.id, {
         name: payload.name || currentUser.name || msg.buyerFallback,
@@ -368,17 +396,12 @@ export async function processBuyerStep3Action(payload: {
 
     const cleanName = (payload.name || '').trim().slice(0, 120)
     const cleanEmail = normalizeEmail(payload.email || '')
-    const formattedPhone = formatPrimaryPhone(payload.phone || '')
-    const phoneVariants = getPhoneVariants(payload.phone || '')
-    const phoneDigitsLen = formattedPhone.replace(/\D/g, '').length
     const password = String(payload.password || '').slice(0, 128)
 
     if (
       cleanName.length < 2 ||
       !cleanEmail ||
       !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail) ||
-      !formattedPhone ||
-      phoneDigitsLen < 7 ||
       password.length < 8
     ) {
       return {
@@ -386,6 +409,24 @@ export async function processBuyerStep3Action(payload: {
         error: msg.fillAll,
       }
     }
+
+    const rawFormattedPhone = formatPrimaryPhone(payload.phone || '')
+    const phoneCheck = validateInternationalE164Phone(
+      rawFormattedPhone,
+      buyerResidenceCountry,
+      locale,
+      phoneMessages
+    )
+
+    if (!phoneCheck.valid) {
+      return {
+        status: 'error',
+        error: phoneCheck.error || msg.fillAll,
+      }
+    }
+
+    const formattedPhone = phoneCheck.e164
+    const phoneVariants = getPhoneVariants(formattedPhone)
 
     const [{ data: emailMatches }, { data: phoneMatches }] = await Promise.all([
       supabase

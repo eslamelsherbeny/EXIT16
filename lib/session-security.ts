@@ -1,5 +1,9 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto'
 
+const SESSION_MAX_TTL_MS = 30 * 24 * 60 * 60 * 1000 // 30 يوماً كحد أقصى لصلاحية التوكن على السيرفر
+const UUID_REGEX =
+  /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
+
 function getSessionSecret(): string {
   const secret =
     process.env.SESSION_SECRET?.trim() ||
@@ -13,6 +17,13 @@ function getSessionSecret(): string {
   return 'dualdealz-local-dev-only-secret-change-in-prod'
 }
 
+function safeCompare(a: string, b: string): boolean {
+  const bufA = Buffer.from(a, 'utf8')
+  const bufB = Buffer.from(b, 'utf8')
+  if (bufA.length !== bufB.length) return false
+  return timingSafeEqual(bufA, bufB)
+}
+
 export function getPasswordFingerprint(
   passwordHash: string | null | undefined
 ): string {
@@ -24,16 +35,18 @@ export function getPasswordFingerprint(
 
 export function createSignedSessionToken(
   userId: string,
-  passwordHash?: string | null
+  passwordHash?: string | null,
+  ttlMs: number = SESSION_MAX_TTL_MS
 ): string {
   const cleanUserId = String(userId || '').trim()
   if (!cleanUserId) return ''
   const pwdFp = getPasswordFingerprint(passwordHash)
-  const payload = `${cleanUserId}.${pwdFp}`
+  const exp = Date.now() + Math.max(60 * 1000, ttlMs)
+  const payload = `${cleanUserId}.${pwdFp}.${exp}`
   const sig = createHmac('sha256', getSessionSecret())
     .update(payload)
     .digest('hex')
-    .slice(0, 24)
+    .slice(0, 32)
   return `${payload}.${sig}`
 }
 
@@ -45,14 +58,9 @@ export function extractUserIdFromCookie(
     const decoded = decodeURIComponent(String(rawCookieValue).trim())
     if (!decoded || decoded.includes('[object')) return null
     const parts = decoded.split('.')
-    if (parts.length !== 3) return null
+    if (parts.length !== 4) return null
     const candidate = parts[0]?.trim() || null
-    if (
-      !candidate ||
-      !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(
-        candidate
-      )
-    ) {
+    if (!candidate || !UUID_REGEX.test(candidate)) {
       return null
     }
     return candidate
@@ -73,37 +81,36 @@ export function parseAndVerifySessionCookie(
     }
 
     const parts = clean.split('.')
-    if (parts.length !== 3) {
+    if (parts.length !== 4) {
       return { valid: false, userId: null }
     }
 
-    const [userId, cookiePwdFp, sig] = parts.map((p) => p?.trim() || '')
+    const [userId, cookiePwdFp, expStr, sig] = parts.map((p) => p?.trim() || '')
+    const exp = Number(expStr)
 
     if (
       !userId ||
-      !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(
-        userId
-      ) ||
+      !UUID_REGEX.test(userId) ||
       cookiePwdFp.length !== 12 ||
-      sig.length !== 24
+      !Number.isFinite(exp) ||
+      Date.now() > exp ||
+      sig.length !== 32
     ) {
       return { valid: false, userId: null }
     }
 
     const expectedSig = createHmac('sha256', getSessionSecret())
-      .update(`${userId}.${cookiePwdFp}`)
+      .update(`${userId}.${cookiePwdFp}.${exp}`)
       .digest('hex')
-      .slice(0, 24)
+      .slice(0, 32)
 
-    const bufA = Buffer.from(sig)
-    const bufB = Buffer.from(expectedSig)
-    if (bufA.length !== bufB.length || !timingSafeEqual(bufA, bufB)) {
+    if (!safeCompare(sig, expectedSig)) {
       return { valid: false, userId: null }
     }
 
     if (currentDbPasswordHash !== undefined) {
       const dbPwdFp = getPasswordFingerprint(currentDbPasswordHash)
-      if (cookiePwdFp !== dbPwdFp) {
+      if (!safeCompare(cookiePwdFp, dbPwdFp)) {
         return { valid: false, userId: null }
       }
     }

@@ -1,4 +1,14 @@
-import { DICTIONARIES, type LocaleCode } from '@/lib/i18n-config'
+import arDict from '@/dictionaries/ar.json'
+import enDict from '@/dictionaries/en.json'
+import ruDict from '@/dictionaries/ru.json'
+import kaDict from '@/dictionaries/ka.json'
+
+const PHONE_DICTS = {
+  ar: arDict,
+  en: enDict,
+  ru: ruDict,
+  ka: kaDict,
+} as const
 
 export type PhoneValidationMessages = {
   empty: string
@@ -435,14 +445,11 @@ function resolveDictionaryMessages(
   locale?: string,
   override?: Partial<PhoneValidationMessages>
 ): Partial<PhoneValidationMessages> {
-  const safeLocale: LocaleCode =
+  const safeLocale =
     locale === 'ar' || locale === 'en' || locale === 'ru' || locale === 'ka'
       ? locale
       : 'ar'
-  const dict = (DICTIONARIES[safeLocale] || DICTIONARIES.ar) as Record<
-    string,
-    any
-  >
+  const dict = PHONE_DICTS[safeLocale] as Record<string, any>
   const fromDict = (dict?.common?.phoneValidation ||
     {}) as Partial<PhoneValidationMessages>
   return {

@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { createBrowserClient } from '@supabase/ssr'
 import { ArrowLeft, ArrowRight, Heart } from 'lucide-react'
+import { getPublicOpportunitiesListAction } from '@/actions/public-opportunities-actions'
 import {
   mapDbRowToProperty,
   OpportunityCard,
@@ -16,10 +16,14 @@ const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export default function AccountFavoritesPage() {
-  const { t: dict, locale, dir, isRtl } = useTranslation()
+  const { t: dict, locale, dir, isRtl, siteSettings } = useTranslation()
   const t = dict.accountPages.favorites
   const tCommon = dict.accountPages.common
   const oppDict = dict.opportunitiesPage
+
+  const rawCommPct = Number(siteSettings?.buyerCommission)
+  const commissionRate =
+    Number.isFinite(rawCommPct) && rawCommPct >= 0 ? rawCommPct / 100 : 0.0125
 
   const [favoriteIds, setFavoriteIds] = useState<string[]>([])
   const [rawUnits, setRawUnits] = useState<any[]>([])
@@ -52,23 +56,17 @@ export default function AccountFavoritesPage() {
           return
         }
 
-        const supabase = createBrowserClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        const favSet = new Set(validUuidIds)
+        const res = await getPublicOpportunitiesListAction()
+        const rows = Array.isArray(res?.rows) ? res.rows : []
+
+        const validDbUnits = rows.filter(
+          (u: any) =>
+            favSet.has(String(u.id)) && !isNonGeorgianLegacyArea(u.area)
         )
 
-        const { data } = await supabase
-          .from('sell_requests')
-          .select('*')
-          .in('id', validUuidIds)
-          .neq('status', 'deleted_by_seller')
-
-        const validDbUnits = (data || []).filter(
-          (u) => !isNonGeorgianLegacyArea(u.area)
-        )
-
-        // مزامنة الـ localStorage مع الوحدات الموجودة فعلياً في قاعدة البيانات
-        const existingIds = validDbUnits.map((u) => String(u.id))
+        // مزامنة الـ localStorage مع الوحدات المتاحة فعلياً
+        const existingIds = validDbUnits.map((u: any) => String(u.id))
         setFavoriteIds(existingIds)
         localStorage.setItem(
           FAVORITES_STORAGE_KEY,
@@ -87,8 +85,10 @@ export default function AccountFavoritesPage() {
   }, [])
 
   const mappedUnits = useMemo(() => {
-    return rawUnits.map((row) => mapDbRowToProperty(row, locale, oppDict))
-  }, [rawUnits, locale, oppDict])
+    return rawUnits.map((row) =>
+      mapDbRowToProperty(row, locale, oppDict, commissionRate)
+    )
+  }, [rawUnits, locale, oppDict, commissionRate])
 
   const removeFromFavorites = (unitId: string) => {
     const idStr = String(unitId)

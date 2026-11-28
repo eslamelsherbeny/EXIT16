@@ -7,6 +7,8 @@ import {
   extractUserIdFromCookie,
   parseAndVerifySessionCookie,
 } from "@/lib/session-security"
+import { getServerI18n } from "@/lib/get-server-dictionary"
+import { validateInternationalE164Phone } from "@/lib/phone-validation"
 import { upsertUserVerificationMeta } from "@/lib/form-action-helpers"
 import {
   DEFAULT_SITE_URL,
@@ -306,7 +308,10 @@ export async function loginAction(formData: FormData): Promise<AuthResult> {
 }
 
 export async function registerAction(formData: FormData): Promise<AuthResult> {
-  const { t: msg, dir } = await getAuthActionsDict()
+  const [{ t: msg, dir }, { locale, dict }] = await Promise.all([
+    getAuthActionsDict(),
+    getServerI18n(),
+  ])
   const turnstileToken = formData.get("cf_turnstile_response") as string | null
   const isHuman = await verifyTurnstileOnServer(turnstileToken)
   if (!isHuman) {
@@ -325,17 +330,11 @@ export async function registerAction(formData: FormData): Promise<AuthResult> {
   const password = String(formData.get("password") || "").slice(0, 128)
   const country = sanitizeText(formData.get("country") || "GE", 5).toUpperCase()
 
-  const formattedPhone = formatPrimaryPhone(rawPhone)
-  const phoneVariants = getPhoneVariants(rawPhone)
-  const phoneDigitsLen = formattedPhone.replace(/\D/g, "").length
-
   if (
     !name ||
     name.length < 2 ||
     !email ||
     !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
-    !formattedPhone ||
-    phoneDigitsLen < 7 ||
     !password ||
     password.length < 8
   ) {
@@ -344,6 +343,24 @@ export async function registerAction(formData: FormData): Promise<AuthResult> {
       error: msg.fillAllRegister,
     }
   }
+
+  const rawFormattedPhone = formatPrimaryPhone(rawPhone)
+  const phoneCheck = validateInternationalE164Phone(
+    rawFormattedPhone,
+    country,
+    locale,
+    (dict.common as Record<string, any>)?.phoneValidation
+  )
+
+  if (!phoneCheck.valid) {
+    return {
+      success: false,
+      error: phoneCheck.error || msg.fillAllRegister,
+    }
+  }
+
+  const formattedPhone = phoneCheck.e164
+  const phoneVariants = getPhoneVariants(formattedPhone)
 
   const supabase = await getSupabase()
 

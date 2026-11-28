@@ -8,6 +8,7 @@ import {
   getServerI18n,
   type GlobalSiteSettings,
 } from "@/lib/get-server-dictionary"
+import { validateInternationalE164Phone } from "@/lib/phone-validation"
 import { upsertUserVerificationMeta } from "@/lib/form-action-helpers"
 import {
   DEFAULT_SITE_URL,
@@ -36,6 +37,9 @@ import {
 } from "@/lib/unit-display-helpers"
 
 export type { StaffRoleCode }
+
+const UUID_REGEX =
+  /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
 
 const ALLOWED_USER_ROLES = new Set([
   "owner",
@@ -89,6 +93,25 @@ const SAFE_PRIVATE_DOC_PATH_REGEX =
 
 const REOPENED_PROMPT_TAG = "__REOPENED_PROMPT__"
 const PENDING_ADMIN_TAG = "__PENDING_ADMIN_VERIFICATION__"
+
+function isValidUuid(val: unknown): boolean {
+  return UUID_REGEX.test(String(val || "").trim())
+}
+
+function escapeEmailHtml(val: unknown): string {
+  return String(val || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+}
+
+function sanitizePercentString(raw: unknown, fallback: string): string {
+  const num = Number(String(raw ?? "").trim())
+  if (!Number.isFinite(num) || num < 0 || num > 100) return fallback
+  return String(Math.round(num * 100) / 100)
+}
 
 function sanitizeSafeHttpUrl(rawUrl: unknown): string | null {
   const clean = String(rawUrl || "").trim()
@@ -182,7 +205,7 @@ export async function verifyUserContactByAdminAction(payload: {
       "moderator",
       "sales",
     ])
-    if (!payload.userId) {
+    if (!isValidUuid(payload.userId)) {
       return { success: false, error: msg.unauthorizedAction }
     }
 
@@ -256,6 +279,10 @@ export async function updatePropertyStatusAction(
       "moderator",
       "sales",
     ])
+    if (!isValidUuid(propertyId)) {
+      return { success: false, error: msg.updatePropertyFailed }
+    }
+
     const cleanReason =
       reason !== undefined ? sanitizeText(reason, 600) : undefined
 
@@ -654,44 +681,47 @@ export async function updatePropertyStatusAction(
     }
 
     if (prop?.email) {
-      const accountUrl = `${DEFAULT_SITE_URL}/account?view=seller&unitId=${prop.id}`
+      const accountUrl = `${DEFAULT_SITE_URL}/account?view=seller&unitId=${encodeURIComponent(prop.id)}`
+      const safeProjectHtml = escapeEmailHtml(projectLabel)
+      const safeUnitCodeHtml = escapeEmailHtml(unitCode)
+      const safeNameHtml = escapeEmailHtml(prop.name || msg.dearClient)
       const reasonBlock = cleanReason
-        ? `<div style="margin: 14px 0; padding: 12px 16px; background: #fffbeb; border: 1px solid #fcd34d; border-radius: 10px; color: #78350f;"><strong>${msg.reasonWord}:</strong> ${cleanReason}</div>`
+        ? `<div style="margin: 14px 0; padding: 12px 16px; background: #fffbeb; border: 1px solid #fcd34d; border-radius: 10px; color: #78350f;"><strong>${msg.reasonWord}:</strong> ${escapeEmailHtml(cleanReason)}</div>`
         : ""
 
       const statusMessages: Record<string, { subject: string; body: string }> =
         {
           active: {
             subject: msg.emailActiveSubject,
-            body: `${msg.emailActiveBody} <strong>${projectLabel} (${unitCode})</strong>.`,
+            body: `${msg.emailActiveBody} <strong>${safeProjectHtml} (${safeUnitCodeHtml})</strong>.`,
           },
           under_review: {
             subject: `${msg.emailUnderReviewSubject} (${projectLabel})`,
-            body: `${msg.emailUnderReviewBody} <strong>${projectLabel} (${unitCode})</strong>.${reasonBlock}`,
+            body: `${msg.emailUnderReviewBody} <strong>${safeProjectHtml} (${safeUnitCodeHtml})</strong>.${reasonBlock}`,
           },
           pending: {
             subject: `${msg.emailPendingSubject} (${projectLabel})`,
-            body: `${msg.emailPendingBody} <strong>${projectLabel} (${unitCode})</strong>.${reasonBlock}`,
+            body: `${msg.emailPendingBody} <strong>${safeProjectHtml} (${safeUnitCodeHtml})</strong>.${reasonBlock}`,
           },
           paused_by_admin: {
             subject: `${msg.emailPausedAdminSubject} (${projectLabel})`,
-            body: `${msg.emailPausedAdminBody} <strong>${projectLabel} (${unitCode})</strong>.${reasonBlock}`,
+            body: `${msg.emailPausedAdminBody} <strong>${safeProjectHtml} (${safeUnitCodeHtml})</strong>.${reasonBlock}`,
           },
           offer_received: {
             subject: msg.emailOfferSubject,
-            body: `${msg.emailOfferBody} <strong>${projectLabel} (${unitCode})</strong>.`,
+            body: `${msg.emailOfferBody} <strong>${safeProjectHtml} (${safeUnitCodeHtml})</strong>.`,
           },
           transferring: {
             subject: msg.emailTransferSubject,
-            body: `${msg.emailTransferBody} <strong>${projectLabel} (${unitCode})</strong>.`,
+            body: `${msg.emailTransferBody} <strong>${safeProjectHtml} (${safeUnitCodeHtml})</strong>.`,
           },
           sold: {
             subject: msg.emailSoldSubject,
-            body: `${msg.emailSoldBody} <strong>${projectLabel} (${unitCode})</strong>.`,
+            body: `${msg.emailSoldBody} <strong>${safeProjectHtml} (${safeUnitCodeHtml})</strong>.`,
           },
           rejected: {
             subject: msg.emailRejectedSubject,
-            body: `${msg.emailRejectedBody} <strong>${projectLabel} (${unitCode})</strong>.${reasonBlock}`,
+            body: `${msg.emailRejectedBody} <strong>${safeProjectHtml} (${safeUnitCodeHtml})</strong>.${reasonBlock}`,
           },
         }
 
@@ -704,7 +734,7 @@ export async function updatePropertyStatusAction(
           html: `<div dir="${dir}" style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 14px; overflow: hidden; background: #ffffff; color: #0f1d40;">
                   <div style="background: #0f1d40; padding: 16px 22px; color: #ffffff; font-weight: bold; font-size: 16px;">DualDealz</div>
                   <div style="padding: 22px; line-height: 1.8; font-size: 14px;">
-                    <h2 style="margin-top: 0; color: #0f1d40; font-size: 17px;">${msg.greetingWord} ${prop.name || msg.dearClient}</h2>
+                    <h2 style="margin-top: 0; color: #0f1d40; font-size: 17px;">${msg.greetingWord} ${safeNameHtml}</h2>
                     <p>${emailObj.body}</p>
                     <div style="margin-top: 20px; text-align: center;">
                       <a href="${accountUrl}" style="display: inline-block; background: #007a5a; color: #ffffff; text-decoration: none; font-weight: bold; padding: 11px 24px; border-radius: 10px; font-size: 13px;">${msg.emailTrackUnitBtn}</a>
@@ -737,6 +767,9 @@ export async function verifyUnitDocsViaWhatsAppAction(payload: {
       "moderator",
       "sales",
     ])
+    if (!isValidUuid(payload.propertyId)) {
+      return { success: false, error: msg.updatePropertyFailed }
+    }
 
     const { data: prop } = await supabase
       .from("sell_requests")
@@ -841,7 +874,7 @@ export async function adminUploadUnitDocumentAction(formData: FormData) {
       : null
     const file = formData.get("file") as File | null
 
-    if (!propertyId) {
+    if (!isValidUuid(propertyId)) {
       return { success: false, error: msg.updatePropertyFailed }
     }
 
@@ -890,7 +923,8 @@ export async function adminUploadUnitDocumentAction(formData: FormData) {
         }
       }
 
-      const safeContentType = EXT_TO_SAFE_MIME[ext] || "application/octet-stream"
+      const safeContentType =
+        EXT_TO_SAFE_MIME[ext] || "application/octet-stream"
       const safeFolderId = String(prop.id).replace(/[^a-zA-Z0-9_-]/g, "")
       const storagePath = `documents/${safeFolderId}/${docKey}-${Date.now()}.${ext}`
       const arrayBuffer = await file.arrayBuffer()
@@ -1022,6 +1056,9 @@ export async function adminUpdatePropertyDataAction(payload: {
       "moderator",
       "sales",
     ])
+    if (!isValidUuid(payload.propertyId)) {
+      return { success: false, error: msg.updatePropertyFailed }
+    }
 
     const { data: prop } = await supabase
       .from("sell_requests")
@@ -1161,6 +1198,10 @@ export async function savePropertyAdminNoteAction(payload: {
       "moderator",
       "sales",
     ])
+    if (!isValidUuid(payload.propertyId)) {
+      return { success: false, error: msg.updatePropertyFailed }
+    }
+
     const cleanNote = sanitizeText(payload.adminNote || "", 600)
 
     const { data: prop } = await supabase
@@ -1194,7 +1235,7 @@ export async function savePropertyAdminNoteAction(payload: {
 
       if (prop.email) {
         const unitCode = getUnifiedUnitCode(prop.id, prop.code)
-        const accountUrl = `${DEFAULT_SITE_URL}/account?view=seller&unitId=${prop.id}`
+        const accountUrl = `${DEFAULT_SITE_URL}/account?view=seller&unitId=${encodeURIComponent(prop.id)}`
         await sendSystemEmail({
           to: prop.email,
           senderName: "DualDealz",
@@ -1202,9 +1243,9 @@ export async function savePropertyAdminNoteAction(payload: {
           html: `<div dir="${dir}" style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 14px; overflow: hidden; background: #ffffff; color: #0f1d40;">
                   <div style="background: #0f1d40; padding: 16px 22px; color: #ffffff; font-weight: bold; font-size: 16px;">DualDealz</div>
                   <div style="padding: 22px; line-height: 1.8; font-size: 14px;">
-                    <h2 style="margin-top: 0; color: #0f1d40; font-size: 17px;">${msg.greetingWord} ${prop.name || msg.dearClient}</h2>
-                    <p>${msg.emailAdminNoteIntro} <strong>${projectLabel} (${unitCode})</strong></p>
-                    <div style="margin: 14px 0; padding: 12px 16px; background: #fffbeb; border: 1px solid #fcd34d; border-radius: 10px; color: #78350f;">${cleanNote}</div>
+                    <h2 style="margin-top: 0; color: #0f1d40; font-size: 17px;">${msg.greetingWord} ${escapeEmailHtml(prop.name || msg.dearClient)}</h2>
+                    <p>${msg.emailAdminNoteIntro} <strong>${escapeEmailHtml(projectLabel)} (${escapeEmailHtml(unitCode)})</strong></p>
+                    <div style="margin: 14px 0; padding: 12px 16px; background: #fffbeb; border: 1px solid #fcd34d; border-radius: 10px; color: #78350f;">${escapeEmailHtml(cleanNote)}</div>
                     <div style="margin-top: 20px; text-align: center;">
                       <a href="${accountUrl}" style="display: inline-block; background: #007a5a; color: #ffffff; text-decoration: none; font-weight: bold; padding: 11px 24px; border-radius: 10px; font-size: 13px;">${msg.emailReviewEditBtn}</a>
                     </div>
@@ -1228,6 +1269,10 @@ export async function deletePropertyAction(propertyId: string) {
   const { t: msg } = await getAdminActionsDict()
   try {
     const { supabase } = await requireAdminAuth(["admin"])
+    if (!isValidUuid(propertyId)) {
+      return { success: false, error: msg.deletePropertyFailed }
+    }
+
     try {
       await supabase
         .from("property_offers")
@@ -1261,6 +1306,10 @@ export async function updateBuyerLeadStatusAction(
       "moderator",
       "sales",
     ])
+    if (!isValidUuid(leadId)) {
+      return { success: false, error: msg.updateLeadFailed }
+    }
+
     const cleanStatus = sanitizeText(status, 40).toLowerCase()
 
     if (!ALLOWED_MANUAL_LEAD_STATUSES.has(cleanStatus)) {
@@ -1378,6 +1427,10 @@ export async function deleteBuyerLeadAction(leadId: string) {
   const { t: msg } = await getAdminActionsDict()
   try {
     const { supabase } = await requireAdminAuth(["admin"])
+    if (!isValidUuid(leadId)) {
+      return { success: false, error: msg.deleteLeadFailed }
+    }
+
     try {
       await supabase.from("property_offers").delete().eq("lead_id", leadId)
     } catch {}
@@ -1405,6 +1458,9 @@ export async function updateUserRoleAndStatusAction(
   const { t: msg } = await getAdminActionsDict()
   try {
     const { supabase, adminUser } = await requireAdminAuth(["admin"])
+    if (!isValidUuid(userId)) {
+      return { success: false, error: msg.unauthorizedNotFound }
+    }
 
     const cleanRoleRaw = sanitizeText(role || "user", 20).toLowerCase()
     const cleanStatusRaw = sanitizeText(status || "active", 20).toLowerCase()
@@ -1491,7 +1547,10 @@ export async function updateUserRoleAndStatusAction(
 }
 
 export async function createAdminOrUserAction(formData: FormData) {
-  const { t: msg } = await getAdminActionsDict()
+  const [{ t: msg }, { locale, dict }] = await Promise.all([
+    getAdminActionsDict(),
+    getServerI18n(),
+  ])
   try {
     const { supabase, adminUser } = await requireAdminAuth(["admin"])
 
@@ -1518,6 +1577,20 @@ export async function createAdminOrUserAction(formData: FormData) {
       }
     }
 
+    const rawFormattedPhone = formatPrimaryPhone(rawPhone)
+    const phoneCheck = validateInternationalE164Phone(
+      rawFormattedPhone,
+      undefined,
+      locale,
+      (dict.common as Record<string, any>)?.phoneValidation
+    )
+    if (!phoneCheck.valid) {
+      return {
+        success: false,
+        error: phoneCheck.error || msg.fillAllUserFields,
+      }
+    }
+
     const ownerIds = await resolveOwnerUserIds(supabase)
     const isCallerOwner = ownerIds.has(String(adminUser.id))
     if (!isCallerOwner && (role === "admin" || role === "owner")) {
@@ -1527,7 +1600,7 @@ export async function createAdminOrUserAction(formData: FormData) {
       }
     }
 
-    const formattedPhone = formatPrimaryPhone(rawPhone)
+    const formattedPhone = phoneCheck.e164
     const hash = hashPassword(password)
 
     const { data: insertedUser, error } = await supabase
@@ -1574,6 +1647,9 @@ export async function deleteUserByAdminAction(userId: string) {
   const { t: msg } = await getAdminActionsDict()
   try {
     const { supabase, adminUser } = await requireAdminAuth(["admin"])
+    if (!isValidUuid(userId)) {
+      return { success: false, error: msg.unauthorizedNotFound }
+    }
 
     if (String(userId) === String(adminUser.id)) {
       return { success: false, error: msg.cannotDeleteSelf }
@@ -1633,7 +1709,10 @@ export async function deleteUserByAdminAction(userId: string) {
 }
 
 export async function updateAdminProfileDataAction(formData: FormData) {
-  const { t: msg, dir } = await getAdminActionsDict()
+  const [{ t: msg, dir }, { locale, dict }] = await Promise.all([
+    getAdminActionsDict(),
+    getServerI18n(),
+  ])
   try {
     const { supabase, adminUser } = await requireAdminAuth([
       "admin",
@@ -1666,7 +1745,21 @@ export async function updateAdminProfileDataAction(formData: FormData) {
       }
     }
 
-    const formattedPhone = formatPrimaryPhone(rawPhone)
+    const rawFormattedPhone = formatPrimaryPhone(rawPhone)
+    const phoneCheck = validateInternationalE164Phone(
+      rawFormattedPhone,
+      undefined,
+      locale,
+      (dict.common as Record<string, any>)?.phoneValidation
+    )
+    if (!phoneCheck.valid) {
+      return {
+        success: false,
+        error: phoneCheck.error || msg.completeProfileFields,
+      }
+    }
+
+    const formattedPhone = phoneCheck.e164
 
     const updateData: Record<string, any> = {
       name,
@@ -1693,7 +1786,7 @@ export async function updateAdminProfileDataAction(formData: FormData) {
         senderName: "DualDealz",
         subject: msg.confirmNewEmailSubject,
         html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.6;">
-                <h2 style="color: #101A2B;">${msg.greetingWord} ${name}${comma}</h2>
+                <h2 style="color: #101A2B;">${msg.greetingWord} ${escapeEmailHtml(name)}${comma}</h2>
                 <p>${msg.confirmNewEmailBody}</p>
                 <div style="margin: 20px 0;">
                   <a href="${verifyLink}" style="display: inline-block; background-color: #105C50; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 10px; font-weight: bold;">
@@ -1820,17 +1913,17 @@ export async function saveSiteSettingsAction(formData: FormData) {
         formData.get("supportEmail") || "info@dualdealz.com",
         120
       ),
-      buyerCommission: sanitizeText(
-        formData.get("buyerCommission") || "1.25",
-        10
+      buyerCommission: sanitizePercentString(
+        formData.get("buyerCommission"),
+        "1.25"
       ),
-      developerPenaltyMin: sanitizeText(
-        formData.get("developerPenaltyMin") || "10",
-        10
+      developerPenaltyMin: sanitizePercentString(
+        formData.get("developerPenaltyMin"),
+        "10"
       ),
-      developerPenaltyMax: sanitizeText(
-        formData.get("developerPenaltyMax") || "15",
-        10
+      developerPenaltyMax: sanitizePercentString(
+        formData.get("developerPenaltyMax"),
+        "15"
       ),
       boostPaymentUrl: safeBoostPaymentUrl,
       bankIbanGe: sanitizeText(
@@ -1931,6 +2024,9 @@ export async function managePropertyPromotionAction(
   const { t: msg } = await getAdminActionsDict()
   try {
     const { supabase } = await requireAdminAuth(["admin", "moderator"])
+    if (!isValidUuid(propertyId)) {
+      return { success: false, error: msg.unauthorizedNotFound }
+    }
 
     const { data: prop } = await supabase
       .from("sell_requests")
@@ -2068,7 +2164,7 @@ export async function managePropertyPromotionAction(
       }
 
       try {
-        if (options?.boostRequestId) {
+        if (options?.boostRequestId && isValidUuid(options.boostRequestId)) {
           await supabase
             .from("boost_requests")
             .update({
@@ -2162,6 +2258,9 @@ export async function approveBoostRequestByAdminAction(boostRequestId: string) {
   const { t: msg } = await getAdminActionsDict()
   try {
     const { supabase } = await requireAdminAuth(["admin", "moderator"])
+    if (!isValidUuid(boostRequestId)) {
+      return { success: false, error: msg.unauthorizedNotFound }
+    }
 
     const { data: reqRow } = await supabase
       .from("boost_requests")
@@ -2212,6 +2311,10 @@ export async function rejectBoostRequestByAdminAction(
   const { t: msg } = await getAdminActionsDict()
   try {
     const { supabase } = await requireAdminAuth(["admin", "moderator"])
+    if (!isValidUuid(boostRequestId)) {
+      return { success: false, error: msg.unauthorizedNotFound }
+    }
+
     const cleanReason = reason ? sanitizeText(reason, 600) : null
 
     const { data: reqRow } = await supabase

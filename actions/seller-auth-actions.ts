@@ -1,8 +1,10 @@
 'use server'
 
 import { cookies } from 'next/headers'
-import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
+import { createHmac, randomBytes, randomInt, timingSafeEqual } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
+import { getServerI18n } from '@/lib/get-server-dictionary'
+import { validateInternationalE164Phone } from '@/lib/phone-validation'
 import {
   ACTIVE_COUNTRY_CODE,
   createMagicToken,
@@ -53,6 +55,15 @@ function isStaffRole(role?: string | null): boolean {
 
 function isSuspendedStatus(status?: string | null): boolean {
   return String(status || 'active').trim().toLowerCase() === 'suspended'
+}
+
+function escapeEmailHtml(val: unknown): string {
+  return String(val || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 }
 
 // مقبض مؤقت موقّع (15 دقيقة) لطلب رابط الاستعادة بدون كشف UUID أو إيميل الضحية
@@ -263,7 +274,7 @@ export async function sendSellerReviewOtpAction(_payload?: {
       return { success: false, error: msg.emailNotFound }
     }
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString()
+    const otp = String(randomInt(100000, 1000000))
     const expiresAt = Date.now() + 15 * 60 * 1000
     const expiryIso = new Date(expiresAt).toISOString()
 
@@ -295,7 +306,7 @@ export async function sendSellerReviewOtpAction(_payload?: {
       senderName: msg.emailSenderName,
       subject: `${otp} — ${msg.otpSubjectPrefix} ${otp}`,
       html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.8; color: #0a1122;">
-               <p style="font-size: 15px;">${msg.greetingWord} <strong>${sessionUser.name || ''}</strong>${comma}</p>
+               <p style="font-size: 15px;">${msg.greetingWord} <strong>${escapeEmailHtml(sessionUser.name || '')}</strong>${comma}</p>
                <p>${msg.otpSubjectPrefix}</p>
                <div style="background: #eaf8f2; border: 1px solid #aae3cb; padding: 16px; border-radius: 12px; text-align: center; margin: 18px 0;">
                  <span style="font-family: monospace; font-size: 30px; font-weight: 900; letter-spacing: 6px; color: #007a5a;">${otp}</span>
@@ -566,7 +577,11 @@ export async function processSellerStep2Action(payload: {
   loginIdentifier?: string
   existingUnitId?: string
 }): Promise<Step2AuthResponse> {
-  const { t: msg, dir } = await getFormsDict()
+  const [{ t: msg, dir }, { locale, dict }] = await Promise.all([
+    getFormsDict(),
+    getServerI18n(),
+  ])
+  const phoneMessages = (dict.common as Record<string, any>)?.phoneValidation
 
   try {
     const supabase = await getSupabase()
@@ -764,7 +779,7 @@ export async function processSellerStep2Action(payload: {
         senderName: msg.emailSenderName,
         subject: `${msg.orderReceivedSubjectPrefix} ${orderRef}`,
         html: `<div dir="${dir}" style="font-family: Arial, sans-serif; line-height: 1.8; color: #0a1122;">
-                 <p style="font-size: 16px;">${msg.greetingWord} <strong>${userName}</strong>${comma}</p>
+                 <p style="font-size: 16px;">${msg.greetingWord} <strong>${escapeEmailHtml(userName)}</strong>${comma}</p>
                  <p>${msg.orderRefLabel}: <strong>${orderRef}</strong>.</p>
                  <p>${msg.orderPaidConfirmText}: <strong>$${paidFormatted}</strong>.</p>
                  <p>${msg.orderMagicLinkPrompt}:</p>
@@ -782,9 +797,19 @@ export async function processSellerStep2Action(payload: {
         return { status: 'error', error: msg.sessionExpired }
       }
 
-      const resolvedPhone = payload.phone
-        ? formatPrimaryPhone(payload.phone)
-        : currentUser.phone || ''
+      let resolvedPhone = currentUser.phone || ''
+      if (payload.phone && payload.phone.trim()) {
+        const phoneCheck = validateInternationalE164Phone(
+          formatPrimaryPhone(payload.phone),
+          userCountryCode,
+          locale,
+          phoneMessages
+        )
+        if (!phoneCheck.valid) {
+          return { status: 'error', error: phoneCheck.error || msg.fillAll }
+        }
+        resolvedPhone = phoneCheck.e164
+      }
 
       const unitId = await upsertDraftUnit(currentUser.id, {
         name: payload.name || currentUser.name || msg.unitOwnerFallback,
@@ -886,13 +911,31 @@ export async function processSellerStep2Action(payload: {
 
     const cleanName = (payload.name || '').trim().slice(0, 120)
     const cleanEmail = normalizeEmail(payload.email || '')
-    const formattedPhone = formatPrimaryPhone(payload.phone || '')
-    const phoneVariants = getPhoneVariants(payload.phone || '')
     const password = payload.password || ''
 
-    if (!cleanName || !cleanEmail || !formattedPhone || password.length < 8) {
+    if (
+      cleanName.length < 2 ||
+      !cleanEmail ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail) ||
+      password.length < 8
+    ) {
       return { status: 'error', error: msg.fillAll }
     }
+
+    const rawFormattedPhone = formatPrimaryPhone(payload.phone || '')
+    const phoneCheck = validateInternationalE164Phone(
+      rawFormattedPhone,
+      userCountryCode,
+      locale,
+      phoneMessages
+    )
+
+    if (!phoneCheck.valid) {
+      return { status: 'error', error: phoneCheck.error || msg.fillAll }
+    }
+
+    const formattedPhone = phoneCheck.e164
+    const phoneVariants = getPhoneVariants(formattedPhone)
 
     const [{ data: emailMatches }, { data: phoneMatches }] = await Promise.all([
       supabase

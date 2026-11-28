@@ -3,7 +3,6 @@
 import { Suspense, useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { createBrowserClient } from '@supabase/ssr'
 import {
   AlertTriangle,
   ArrowLeft,
@@ -32,6 +31,7 @@ import {
   submitBuyerOfferAction,
   type OfferRecord,
 } from '@/actions/offer-actions'
+import { getPublicUnitDetailsAction } from '@/actions/public-opportunities-actions'
 import { markUserPhoneVerifiedAction } from '@/actions/submit-forms'
 import {
   getUnitPricingGuardrails,
@@ -200,23 +200,20 @@ function OffersContent() {
           openBuyerOfferModal(targetRec.unit)
         } else {
           try {
-            const supabase = createBrowserClient(
-              process.env.NEXT_PUBLIC_SUPABASE_URL!,
-              process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-            )
-            const { data: directUnit } = await supabase
-              .from('sell_requests')
-              .select('*')
-              .eq('id', applyUnitId)
-              .in('status', [
+            const detailRes = await getPublicUnitDetailsAction(applyUnitId)
+            const directUnit = detailRes?.unitRow
+            const cleanSt = String(directUnit?.status || '').toLowerCase()
+            if (
+              directUnit &&
+              [
                 'active',
                 'approved',
                 'published',
                 'offer_received',
                 'transferring',
-              ])
-              .maybeSingle()
-            if (directUnit && !myOwnUnitIds.has(String(directUnit.id))) {
+              ].includes(cleanSt) &&
+              !myOwnUnitIds.has(String(directUnit.id))
+            ) {
               openBuyerOfferModal(directUnit as MatchableUnit)
             }
           } catch {}
@@ -690,7 +687,7 @@ function OffersContent() {
                       `${t.waFastTrackOfferMsgPrefix} (${getOfferRef(feedback.justSubmittedOffer.offerId)}) ${t.waFastTrackOfferMsgMiddle} (${feedback.justSubmittedOffer.projectName} · ${feedback.justSubmittedOffer.unitCode}) — ${feedback.justSubmittedOffer.offeredCash.toLocaleString('en-US')} ${cur} ${t.waFastTrackOfferMsgSuffix}\n${siteOrigin}/admin/offers?offerId=${feedback.justSubmittedOffer.offerId}`
                     )}`}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                     onClick={() => {
                       if (feedback.justSubmittedOffer) {
                         markOfferWaClickedAndHide(
@@ -1212,7 +1209,7 @@ function OffersContent() {
                             <a
                               href={`https://wa.me/${supportWhatsApp}?text=${encodeURIComponent(waConfirmText)}`}
                               target="_blank"
-                              rel="noreferrer"
+                              rel="noopener noreferrer"
                               onClick={() =>
                                 markOfferWaClickedAndHide(
                                   offer.id,
@@ -1235,7 +1232,7 @@ function OffersContent() {
                                 `${t.waFastTrackOfferMsgPrefix} (#${refCode}) ${t.waFastTrackOfferMsgMiddle} (${unitTitle}${unitCode ? ` · ${unitCode}` : ''})`
                               )}`}
                               target="_blank"
-                              rel="noreferrer"
+                              rel="noopener noreferrer"
                               className="inline-flex items-center gap-1.5 text-[11px] font-extrabold text-[#0a1122] underline hover:text-[#007a5a]"
                             >
                               <MessageCircle className="size-3.5 text-[#25D366]" />
@@ -1287,7 +1284,7 @@ function OffersContent() {
                                     `${t.waFastTrackOfferMsgPrefix} (#${refCode}) ${t.waFastTrackOfferMsgMiddle} (${unitTitle}${unitCode ? ` · ${unitCode}` : ''}) — ${Number(offer.counter_cash).toLocaleString('en-US')} ${cur}`
                                   )}`}
                                   target="_blank"
-                                  rel="noreferrer"
+                                  rel="noopener noreferrer"
                                   className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-[#25D366] bg-white px-4 py-2.5 text-center text-xs font-extrabold text-[#0a1122] transition hover:bg-emerald-50"
                                 >
                                   <MessageCircle className="size-4 shrink-0 text-[#25D366]" />

@@ -4,6 +4,7 @@ import { headers } from 'next/headers'
 import { randomBytes } from 'node:crypto'
 import { getServerI18n } from '@/lib/get-server-dictionary'
 import { verifyTurnstileOnServer } from '@/lib/admin-auth-helpers'
+import { validateInternationalE164Phone } from '@/lib/phone-validation'
 import {
   calculateSmartMatch,
   getUnitPricingGuardrails,
@@ -364,6 +365,7 @@ export async function submitBuyerOfferAction(payload: {
   const accCommon = (dict.accountPages as Record<string, any>)?.common || {}
   const formsDict = (dict.serverActions as Record<string, any>)?.forms || {}
   const authDict = (dict.serverActions as Record<string, any>)?.auth || {}
+  const phoneMessages = (dict.common as Record<string, any>)?.phoneValidation
 
   try {
     const cleanPropertyId = String(payload.propertyId || '').trim()
@@ -430,7 +432,7 @@ export async function submitBuyerOfferAction(payload: {
     let setupPasswordToken = ''
 
     const cleanGuestName = cleanPlainInput(payload.guestName, 120)
-    const cleanGuestPhone = String(payload.guestPhone || '')
+    let cleanGuestPhone = String(payload.guestPhone || '')
       .trim()
       .replace(/\s+/g, '')
       .replace(/[^0-9+]/g, '')
@@ -444,14 +446,28 @@ export async function submitBuyerOfferAction(payload: {
       .slice(0, 128)
     const cleanBuyerNotes = cleanPlainInput(payload.buyerNotes, 240)
 
-    if (
-      !sessionId &&
-      (!cleanGuestName ||
+    if (!sessionId) {
+      if (
+        !cleanGuestName ||
         cleanGuestName.length < 2 ||
-        cleanGuestPhone.replace(/\D/g, '').length < 7 ||
-        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanGuestEmail))
-    ) {
-      return { success: false, error: oDict.errLoginRequired }
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanGuestEmail)
+      ) {
+        return { success: false, error: oDict.errLoginRequired }
+      }
+
+      const phoneCheck = validateInternationalE164Phone(
+        cleanGuestPhone,
+        undefined,
+        locale,
+        phoneMessages
+      )
+      if (!phoneCheck.valid) {
+        return {
+          success: false,
+          error: phoneCheck.error || oDict.errLoginRequired,
+        }
+      }
+      cleanGuestPhone = phoneCheck.e164
     }
 
     if (!sessionId && cleanGuestPhone && cleanGuestEmail) {
@@ -514,7 +530,9 @@ export async function submitBuyerOfferAction(payload: {
             Date.now() + 7 * 24 * 60 * 60 * 1000
           ).toISOString(),
         })
-        .select('id, name, email, phone, role, status, is_verified, password_hash')
+        .select(
+          'id, name, email, phone, role, status, is_verified, password_hash'
+        )
         .maybeSingle()
 
       if (createdUser) {
@@ -1017,9 +1035,12 @@ export async function manageBuyerOwnOfferAction(payload: {
 
     const cleanUnitSt = String(unit.status || '').trim().toLowerCase()
     if (
-      ['sold', 'deleted_by_seller', 'paused_by_seller', 'paused_by_admin'].includes(
-        cleanUnitSt
-      )
+      [
+        'sold',
+        'deleted_by_seller',
+        'paused_by_seller',
+        'paused_by_admin',
+      ].includes(cleanUnitSt)
     ) {
       return { success: false, error: oDict.errUnitAlreadyLocked }
     }
@@ -1027,8 +1048,9 @@ export async function manageBuyerOwnOfferAction(payload: {
     const guardrails = getUnitPricingGuardrails(unit)
     const requiredPaid = Math.max(
       1,
-      Number(guardrails.requiredCash || unit.paid_amount || offer.required_cash) ||
-        1
+      Number(
+        guardrails.requiredCash || unit.paid_amount || offer.required_cash
+      ) || 1
     )
 
     if (payload.action === 'update_pending_price') {
@@ -1122,7 +1144,10 @@ export async function manageBuyerOwnOfferAction(payload: {
             )
           : Math.min(
               requiredPaid,
-              Math.max(Math.round(requiredPaid * 0.5), Number(offer.offered_cash))
+              Math.max(
+                Math.round(requiredPaid * 0.5),
+                Number(offer.offered_cash)
+              )
             )
 
       const updatedDiffs = Array.from(
@@ -1273,8 +1298,7 @@ export async function respondToOfferBySellerAction(payload: {
           return {
             success: false,
             error:
-              oDict.errBuyerDoubleAcceptance ||
-              oDict.errUnitAlreadyLocked,
+              oDict.errBuyerDoubleAcceptance || oDict.errUnitAlreadyLocked,
           }
         }
       }
@@ -1492,9 +1516,13 @@ export async function respondToCounterOfferByBuyerAction(payload: {
     const unitSt = String(unit?.status || '').trim().toLowerCase()
     if (
       !unit ||
-      ['sold', 'transferring', 'deleted_by_seller', 'paused_by_seller', 'paused_by_admin'].includes(
-        unitSt
-      )
+      [
+        'sold',
+        'transferring',
+        'deleted_by_seller',
+        'paused_by_seller',
+        'paused_by_admin',
+      ].includes(unitSt)
     ) {
       return { success: false, error: oDict.errUnitAlreadyLocked }
     }
@@ -1502,7 +1530,10 @@ export async function respondToCounterOfferByBuyerAction(payload: {
     if (payload.decision === 'accept') {
       const agreedAmount = Math.round(Number(offer.counter_cash) || 0)
       if (!Number.isFinite(agreedAmount) || agreedAmount <= 0) {
-        return { success: false, error: oDict.errInvalidCounterAmount || oDict.errSubmitFailed }
+        return {
+          success: false,
+          error: oDict.errInvalidCounterAmount || oDict.errSubmitFailed,
+        }
       }
 
       if (!isStaff && offer.buyer_user_id) {
